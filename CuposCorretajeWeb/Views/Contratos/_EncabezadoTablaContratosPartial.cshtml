@@ -1,0 +1,50 @@
+﻿@model IEnumerable<int>
+
+<thead>
+    <tr>
+        <th><div></div></th>
+        <th><div></div></th>
+        <th><div></div></th>
+        <th><div></div></th>
+        <th><div></div></th>
+        <th><div></div></th>
+        <th><div></div></th>
+        @for (int i = 0; i < Model.Count(); i++)
+        {
+            <th class="col-dia" id="totaldisponibledia@(i)" data-dia="@(i)">
+                @Model.ElementAt(i)
+            </th>
+        }
+        <th></th>
+    </tr>
+    <tr>
+        <th class="align-middle">
+            Vendedor
+        </th>
+        <th class="align-middle">
+            Zona Influencia
+        </th>
+        <th class="align-middle">
+            Pendiente<br /> de Entrega
+        </th>
+        <th class="align-middle">
+            Pendiente<br /> de Aplicar
+        </th>
+        <th class="align-middle">
+            Cupos<br /> a Distribuir
+        </th>
+        <th class="align-middle">
+            Cupos<br /> Otorgados
+        </th>
+        <th class="align-middle">
+            Cupos Totales<br /> a Distribuir
+        </th>
+        @for (int i = 0; i < Model.Count(); i++)
+        {
+            <th class="align-middle">
+                @DateTime.Now.AddDays(i).ToString("dd/MM")
+            </th>
+        }
+        <th><div></div></th>
+    </tr>
+</thead>

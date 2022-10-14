@@ -1,0 +1,74 @@
+﻿@model CuposCorretajeWeb.Models.RelacionGranoStopViewModel
+
+@{
+    ViewBag.Title = "Relaciones Grano y Stop";
+}
+
+<h4>Relaciones Grano y Stop</h4>
+
+<div style="width:80%; margin: auto" id="main">
+    <div class="text-right mb-2">
+        <button class="btn btn-primary" data-toggle="modal" data-target="#modal-nuevo" id="btnAgregar">Agregar</button>
+    </div>
+
+    <table id="tablaRelaciones" class="table text-center table-striped table--fixed table-wrap-bordered">
+        <thead>
+            <tr>
+                <th>Código Stop</th>
+                <th>Nombre</th>
+                <th>Código Grano</th>
+                <th>Nombre</th>
+                <th style="width: 230px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var Relacion in Model.ListaRelacionesGranosStop)
+            {
+                <tr id="relacion-@Relacion.Id" data-valor-defecto="@Relacion.ValorPorDefecto">
+                    <td>@Relacion.NroGranoSTOP</td>
+                    <td>@Relacion.nombreGranoSTOP</td>
+                    <td>@Relacion.NroGranoSIL</td>
+                    <td>@Relacion.nombreGranoSil</td>
+                    <td>
+                        <div style="display: inline-block">
+                            <button class="btn btn-warning px-3 btn-upd text-white" data-id="@Relacion.Id">Modificar</button>
+                            <button class="btn btn-danger btn-del" data-id="@Relacion.Id">Eliminar</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div id="modal-nuevo" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="">Nuevo</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @Html.Partial("_NuevaRelacionGranoStopPartial", Model.NuevaRelacion)
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script type="text/javascript">
+        var model = {
+            actionGetGrano: "@Url.Action("GetGranoStop", "Configuracion")",
+            actionNuevaRelacion: "@Url.Action("NuevaRelacionGranoStop", "Configuracion")",
+            actionModificarRelacion: "@Url.Action("ModificarRelacionGranoStop", "Configuracion")",
+            actionEliminarRelacion: "@Url.Action("EliminarRelacionGranoStop", "Configuracion")",
+        }
+    </script>
+
+    @Scripts.Render("~/bundles/jqueryval")
+    @Scripts.Render("~/bundles/Alert")
+    @Scripts.Render("~/bundles/RelacionGranoStop")
+}
+

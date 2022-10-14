@@ -1,0 +1,162 @@
+﻿
+@model CuposCorretajeWeb.Models.TurnoViewModel
+
+@{
+  ViewBag.Title = "Turno";
+  Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@section Styles{
+  @Styles.Render("~/Content/WordTag")
+  @Styles.Render("~/Content/spinner")
+}
+
+<h2>Estado de Turno</h2>
+
+<div class="form-group">
+  <label for="busca-alfa">Buscar</label>
+  <input type="text" class="form-control" id="busca-alfa" data-delimiter=" " />
+</div>
+
+<div class="form-group">
+  <button id="btnBuscar" type="button" class="btn btn-primary" onclick="handleBtnBuscar()">Buscar</button>
+</div>
+
+<div class="form-group">
+  <table id="tabla_alfanumericos" class="table table-sm" style="font-size:.9rem">
+    <thead>
+      <tr>
+        <th>Alfanumérico</th>
+        <th>Comprador</th>
+        <th>Vendedor</th>
+        <th>Puerto</th>
+        <th>Grano</th>
+        <th>Centro</th>
+        <th>Centro Distribución</th>
+        <th>Fecha</th>
+        <th>Estado</th>
+        <th>STOP</th>
+        @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetBooleanClaim("AccesoAuditoriaCuposCorretaje"))
+        {
+          <!--Auditoria-->
+          <th></th>
+          <!--//Auditoria-->
+        }
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="form-group text-right">
+  @Html.ActionLink("Volver", null, null, null, new { href = Request.UrlReferrer, @class = "btn btn-secondary" })
+</div>
+
+@if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetBooleanClaim("AccesoAuditoriaCuposCorretaje"))
+{
+  <!--Auditoria-->
+  <div class="modal fade" id="modalAuditoria" tabindex="-1" role="dialog" aria-labelledby="modalAuditoriaLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalAuditoriaLabel">Auditoría</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          @Html.Partial("~/Views/Auditoria/_AuditoriaCupoPartialView.cshtml")
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--//Auditoria-->
+}
+
+@section Scripts{
+  @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetBooleanClaim("AccesoAuditoriaCuposCorretaje"))
+  {
+    @Scripts.Render("~/bundles/ModalAuditoriaCambiosEstadoCupo")
+  }
+  @Scripts.Render("~/bundles/WordTag")
+  @Scripts.Render("~/bundles/spinner")
+  <script type="text/javascript">
+        var model = {
+            CodigosAlfanumericos: [],
+            actionGetCuposPorCodigoAlfanumerico: "@Url.Action("GetCuposPorCodigoAlfanumerico")",
+            @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetBooleanClaim("AccesoAuditoriaCuposCorretaje"))
+            {
+                //Auditoria
+                @:actionGetAuditoriaCupo: "@Url.Action("GetAuditoriaCupo", "Auditoria")",
+                @:tablaModalAuditoria: document.querySelectorAll("#tablaAuditoria tbody")[0]
+                //!Auditoria
+            }
+        };
+
+        var spinnerBtnBuscar = new Spinner(document.getElementById("btnBuscar"));
+
+        $('#busca-alfa').tokenfield();
+
+        function handleBtnBuscar() {
+            spinnerBtnBuscar.mostrarSpinner();
+            model.CodigosAlfanumericos = $('#busca-alfa').tokenfield('getTokens').map(function (el) { return el.value; });
+            if (model.CodigosAlfanumericos.length == 0) model.CodigosAlfanumericos.push(document.getElementById("busca-alfa-tokenfield").value);
+            buscarAlfanumericos(model.CodigosAlfanumericos);
+        }
+
+        function buscarAlfanumericos(CodigosAlfanumericos) {
+            $.ajax({
+                type: "POST",
+                url: model.actionGetCuposPorCodigoAlfanumerico,
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                data: JSON.stringify({
+                    CodigosAlfanumericos: CodigosAlfanumericos
+                }),
+                success: function (data) {
+                    agregarFilaTabla(data.Cupos);
+                    spinnerBtnBuscar.ocultarSpinner();
+                },
+                error: function (msg) {
+                    spinnerBtnBuscar.ocultarSpinner();
+                }
+            });
+        }
+
+        function agregarFilaTabla(datos) {
+            var fila = "";
+            datos.forEach(function (item) {
+                fila += '<tr class="' + colorEstado(item.Estado) + '">';
+                fila += '<td>' + item.Alfanumerico + "</td>";
+                fila += '<td>' + item.Comprador + "</td>";
+                fila += '<td>' + item.Vendedor + "</td>";
+                fila += '<td>' + item.Puerto + "</td>";
+                fila += '<td>' + item.Grano + "</td>";
+                fila += '<td class="text-center">' + item.Centro + "</td>";
+                fila += '<td class="text-center">' + item.CentroDistribucion + "</td>";
+                fila += '<td class="text-center">' + item.Fecha + "</td>";
+                fila += '<td class="text-center">' + item.NombreEstado + "</td>";
+                fila += '<td class="text-center">' + (item.DetalleCupoCNRT == null ? "" : item.DetalleCupoCNRT) + "</td>";
+                @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetBooleanClaim("AccesoAuditoriaCuposCorretaje"))
+                {
+                //Auditoria
+                @:fila += '<td><button type="button" class="btn btn-primary" onclick="handleBtnAuditoria(' + item.IdCupo + ')"><span class="oi oi-eye"></span></button></td>';
+                //!Auditoria
+                }
+                fila += '</tr>';
+            });
+            $("#tabla_alfanumericos tbody").html(fila);
+        }
+
+        function colorEstado(codigo) {
+            if (codigo === 0 || codigo == 4 || codigo == 100) return "pendiente_distribuir";
+            if (codigo === 1 || codigo === 101) return "distribuido";
+            if (codigo === 2) return "informado";
+            if (codigo === 6 || codigo === 103) return "anulado";
+            return "distribucion_anulada_no_informada";
+        }
+  </script>
+}
+

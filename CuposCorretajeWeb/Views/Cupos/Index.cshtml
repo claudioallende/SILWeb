@@ -1,0 +1,204 @@
+﻿@using CuposCorretajeWeb.Models
+@model IndexCupoViewModel
+
+@{
+    ViewBag.Title = "Principal";
+    var Usuario = this.User as System.Security.Claims.ClaimsPrincipal;
+    var CantidadCentros = Usuario.Claims.Where(x => x.Type == "Centro").Count();
+}
+@section Styles{
+    @Styles.Render("~/Content/skeleton")
+    @Styles.Render("~/Content/multiselect")
+    @Styles.Render("~/Content/datatables")
+    @Styles.Render("~/Content/autocompletecss")
+}
+
+<div class="d-flex justify-content-between mb-3">
+    <div>
+        <button class="btn btn-primary btn-sm btn-with-icon" type="button" data-toggle="collapse" data-target="#collapseFiltro" aria-expanded="false" aria-controls="collapseFiltro">
+            <span class="oi oi-magnifying-glass"></span>
+            Filtro
+        </button>
+
+        @*<div class="d-inline-block info-titulo">
+            <span>TR: @(Model.CuposAgrupados.Sum(x => x.SumCuposRecibidos()) + Model.CuposAgrupadosCyO.Sum(x => x.SumCuposRecibidos()))</span>
+            -
+            <span>TO: @(Model.CuposAgrupados.Sum(x => x.SumCuposOtorgados()) + Model.CuposAgrupadosCyO.Sum(x => x.SumCuposOtorgados()))</span>
+            -
+            <span>Activados 24hs: </span>
+            -
+            <span>No Activados 24hs:</span>
+        </div>*@
+    </div>
+
+    <div>
+        @Html.ActionLink("Turnos para Autorizar", "AutorizacionesPendientes", null, new { id = "TurnosPendientesAutorizar", @class = "btn btn-danger btn-sm mr-5", @style = "display:none" })
+        @Html.ActionLink("Nuevo Turno", "Nuevo", new { id = Model.ProductoSeleccionado }, new { @class = "btn btn-primary btn-sm" })
+    </div>
+</div>
+<div>
+    <div class="collapse card bg-light open-effect" id="collapseFiltro">
+        <div class="card-body">
+            @using (Html.BeginForm("Index", "Cupos", FormMethod.Post))
+            {
+                <div class="row">
+                    @Html.AntiForgeryToken()
+                    <div class="col-4">
+                        <div class="form-group pr-3">
+                            @Html.LabelFor(model => model.Productos, htmlAttributes: new { @class = "pr-2" })
+                            @Html.DropDownListFor(model => model.ProductoSeleccionado, Model.Productos, htmlAttributes: new { @class = "form-control form-control-sm" }, optionLabel: "--Seleccione--")
+                            @Html.ValidationMessageFor(model => model.Productos, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="form-group pr-1">
+                            @Html.LabelFor(model => model.Comprador, htmlAttributes: new { @class = "pr-2" })
+                            @Html.TextBoxFor(model => model.Comprador, htmlAttributes: new { @class = "form-control form-control-sm" })
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="form-group pr-1">
+                            @Html.LabelFor(model => model.Vendedor, htmlAttributes: new { @class = "pr-2" })
+                            @Html.TextBoxFor(model => model.Vendedor, htmlAttributes: new { @class = "form-control form-control-sm" })
+                        </div>
+                    </div>
+                    @if (CantidadCentros > 1)
+                    {
+                        <div class="col-4">
+                            <div class="form-group pr-3">
+                                @Html.LabelFor(model => model.Centros, htmlAttributes: new { @class = "pr-2" })
+                                @Html.ListBoxFor(model => model.CentroSeleccionado, Model.Centros, htmlAttributes: new { @class = "form-control form-control-sm", multiple = "multiple", multiselect = true, @style = "min-width:320px!important;" })
+                                @Html.ValidationMessageFor(model => model.Centros, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="float-right">
+                    <button type="submit" class="btn btn-primary btn-sm col-12">Buscar</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<h3>Turnos</h3>
+<div id="CuposNormales">
+    @Html.Partial("_IndexTablaPartial", Model.TablaCuposNormales, new ViewDataDictionary
+    {
+        {"Action", "Detalle"}
+    })
+</div>
+
+<h3>Turnos Cuenta y Orden</h3>
+<div id="CuposCuentaYOrden">
+    @Html.Partial("_IndexTablaPartial", Model.TablaCuposCyO, new ViewDataDictionary
+    {
+        {"Action", "Detalle"},
+        {"cyo", true}
+    })
+</div>
+@section Scripts{
+    @Scripts.Render("~/bundles/skeleton")
+    @Scripts.Render("~/bundles/datatables")
+    @Scripts.Render("~/bundles/multiselect")
+    @Scripts.Render("~/bundles/autocompletejs")
+    @Scripts.Render("~/bundles/SearchTable")
+    <script type="text/javascript">
+        var datatables;
+
+        $(document).ready(function () {
+            convertirDataTable();
+            showDataTable(); //skeleton.js
+            resizeDraw();
+            $('#CentroSeleccionado').multiselect({
+                buttonClass: "form-control form-control-sm dropdown-button-multiselect",
+                nonSelectedText: "--Seleccione--",
+                nSelectedText: "seleccionados",
+                allSelectedText: "Todos",
+                templates: {
+                    li: '<li class="form-control-sm"><a tabindex="0"><label></label></a></li>'
+                },
+                buttonWidth: "100%"
+            });
+
+            $("#Vendedor").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "@Url.Action("GetVendedorFromNroCuentaOrNombre", "Cuenta")",
+                        type: "POST",
+                        dataType: "json",
+                        data: { Texto: request.term },
+                        success: function (data) {
+                            response($.map(data, function (item) {
+                                return { label: item.Cuenta + " - " + item.Nombre, value: item.Cuenta };
+                            }))
+                        }
+                    })
+                }
+            });
+
+            $("#Comprador").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "@Url.Action("GetCompradorFromNroCuentaOrNombre", "Cuenta")",
+                        type: "POST",
+                        dataType: "json",
+                        data: { Texto: request.term },
+                        success: function (data) {
+                            response($.map(data, function (item) {
+                                return { label: item.Cuenta + " - " + item.Nombre, value: item.Cuenta };
+                            }))
+                        }
+                    })
+                }
+            });
+        });
+
+        //function disponible en _Layout para que demas paginas puedan saber que hubo una notificacion de pendietes de autorizar
+        function notificarPendientesAutorizar(mostrar) {
+            document.getElementById("TurnosPendientesAutorizar").style.display = mostrar ? "inline-block" : "none";
+        }
+
+        function resizeDraw() {
+            $(window).resize(function(){
+                datatables.draw();
+            });
+        }
+
+        function convertirDataTable() {
+            datatables = $('.table').removeAttr('width').DataTable({
+                scrollX: true,
+                scrollY: "360px",
+                scrollCollapse: true,
+                paging: false,
+                bFilter: false,
+                bInfo: false,
+                bSort: false,
+                fixedColumns: {
+                    leftColumns: @Model.TablaCuposNormales.Columnas.Count,
+                    rightColumns: 1
+                },
+                ignoreColspanTFoot: true
+            });
+
+            var footers = document.querySelectorAll(".dataTables_scrollFoot .dataTable tfoot");
+            for (var i = 0; i < footers.length; i++) {
+                footers[i].querySelector("td").colSpan = 1;
+            }
+
+            document.querySelectorAll("th.col-dia").forEach(function(col){
+                col.addEventListener("click", function(event) {
+                    var CuposOtorgados = datatables.tables().column(this.dataset["colFin"]).data().toArray();
+                    datatables.tables().column(this.dataset["colIni"]).data().toArray().forEach(function(CupoRecibido, index){
+                        var fila = datatables.tables().row(index).node();
+                        if (CupoRecibido - CuposOtorgados[index] > 0) {
+                            addOrRemove(arrayFilasMostrar, fila);
+                        }
+                        showIfIsInArray(fila);
+                    });
+                    datatables.draw();
+                });
+            })
+        }
+    </script>
+}

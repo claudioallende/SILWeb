@@ -1,0 +1,123 @@
+﻿@model CuposCorretajeWeb.Models.Auditoria.AuditoriaCuposCorreViewModel
+
+@{
+    ViewBag.Title = "Auditoria";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles{
+    @Styles.Render("~/Content/datepickercss")
+    @Styles.Render("~/Content/spinner")
+}
+
+<h2>Auditoría</h2>
+<div class="form-row">
+    <div class="form-group col-md-3">
+        @Html.LabelFor(model => model.Usuario)
+        @Html.EditorFor(model => model.Usuario, new { htmlAttributes = new { @class = "form-control" } })
+        @Html.ValidationMessageFor(model => model.Usuario, "", new { @class = "text-danger" })
+    </div>
+    <div class="form-group col-md-3">
+        @Html.LabelFor(model => model.FechaDesde)
+        @Html.EditorFor(model => model.FechaDesde, new { htmlAttributes = new { @class = "form-control" } })
+        @Html.ValidationMessageFor(model => model.FechaDesde, "", new { @class = "text-danger" })
+    </div>
+    <div class="form-group col-md-3">
+        @Html.LabelFor(model => model.FechaHasta)
+        @Html.EditorFor(model => model.FechaHasta, new { htmlAttributes = new { @class = "form-control" } })
+        @Html.ValidationMessageFor(model => model.FechaHasta, "", new { @class = "text-danger" })
+    </div>
+    <div class="form-group col-md-3">
+        @Html.LabelFor(model => model.Operaciones)
+        @Html.DropDownListFor(x => x.OperacionSeleccionada, Model.Operaciones, htmlAttributes: new { @class = "form-control" }, optionLabel: "--Seleccione--")
+        @Html.ValidationMessageFor(model => model.Usuario, "", new { @class = "text-danger" })
+    </div>
+</div>
+<div class="form-row">
+    <div class="form-group col-md-3">
+        <button type="button" id="btnBuscar" class="btn btn-primary">Buscar</button>
+    </div>
+</div>
+
+<table id="tablaAuditoria" class="table table-striped table-wrap-bordered">
+    <thead>
+        <tr>
+            <th>Usuario</th>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Operación</th>
+            <th>Alfanumérico</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+@section Scripts{
+    @Scripts.Render("~/bundles/datepickerjs")
+    @Scripts.Render("~/bundles/spinner")
+    <script type="text/javascript">
+        var model = {
+            TablaAuditoria: document.getElementById("tablaAuditoria")
+        }
+
+        var spinnerBtnBuscar = new Spinner(document.getElementById("btnBuscar"));
+
+        //Datepicker
+        $("#FechaDesde, #FechaHasta").datepicker({
+            dateFormat: "dd/mm/yy",
+            dayNames: ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"],
+            dayNamesMin: ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"],
+            monthNames: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        });
+
+        function buscar() {
+            spinnerBtnBuscar.mostrarSpinner();
+            $.ajax({
+                type: "POST",
+                url: "@Url.Action("ObtenerAuditoriaCuposCorre")",
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                data: JSON.stringify({
+                    Usuario: document.getElementById("Usuario").value,
+                    FechaDesde: document.getElementById("FechaDesde").value,
+                    FechaHasta: document.getElementById("FechaHasta").value,
+                    OperacionSeleccionada: document.getElementById("OperacionSeleccionada").value,
+                }),
+                success: mostrar,
+                error: function (msg) {
+                    spinnerBtnBuscar.ocultarSpinner();
+                }
+            });
+        }
+
+        function mostrar(data) {
+            model.TablaAuditoria.querySelectorAll("tbody")[0].innerHTML = crearFilas(data);
+            spinnerBtnBuscar.ocultarSpinner();
+        }
+
+        function crearFilas(data) {
+            var filas = "";
+            data.forEach(function (fila) {
+                filas += crearFila(fila);
+            });
+            return filas;
+        }
+
+        function crearFila(fila) {
+            var filaHTML = "";
+            filaHTML += '<tr>';
+            filaHTML += '<td class="text-center">' + fila.Usuario + '</td>';
+            filaHTML += '<td class="text-center">' + fila.Fecha + '</td>';
+            filaHTML += '<td class="text-center">' + fila.Hora + '</td>';
+            filaHTML += '<td class="text-center">' + fila.Operacion + '</td>';
+            filaHTML += '<td class="text-center">' + fila.Alfanumerico + '</td>';
+            filaHTML += '</tr>';
+            return filaHTML;
+        }
+
+        document.getElementById("btnBuscar").onclick = function () {
+            buscar();
+        }
+    </script>
+}

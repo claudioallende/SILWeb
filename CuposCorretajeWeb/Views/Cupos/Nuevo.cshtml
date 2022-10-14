@@ -1,0 +1,335 @@
+﻿@using CuposCorretajeWeb.Models
+
+@model NuevoCupoViewModel
+
+@{
+  ViewBag.Title = "Nuevo";
+}
+
+@section Styles{
+  @Styles.Render("~/Content/spinner")
+  @Styles.Render("~/Content/autocompletecss")
+  @Styles.Render("~/Content/highlightTextArea")
+}
+
+<h2>Nuevo</h2>
+
+
+@using (Html.BeginForm("Nuevo", "Cupos", FormMethod.Post, new { id = "FormNuevo" }))
+{
+  @Html.AntiForgeryToken()
+
+  <div class="form-horizontal">
+    <hr />
+    @if (Model.Error != null && Model.Error != string.Empty)
+    {
+      <div class="alert alert-danger" role="alert">
+        @Model.Error
+      </div>
+    }
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Productos)
+          @Html.DropDownListFor(model => model.ProductoSeleccionado, Model.Productos, new { @class = "form-control" })
+          @Html.ValidationMessageFor(model => model.Productos, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Compcta)
+          @Html.EditorFor(model => model.Compcta, new { htmlAttributes = new { @class = "form-control input-cuenta", data_cuenta = Url.Action("GetCompradorFromNroCuentaOrNombre", "Cuenta") } })
+          @Html.ValidationMessageFor(model => model.Compcta, "", new { @class = "text-danger" })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="NombreCompcta" class="nombre-cuenta text-primary"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Puerto)
+          @Html.EditorFor(model => model.Puerto, new { htmlAttributes = new { @class = "form-control input-cuenta", data_cuenta = Url.Action("GetPuertoFromNroCuentaOrNombre", "Cuenta") } })
+          @Html.ValidationMessageFor(model => model.Puerto, "", new { @class = "text-danger" })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="NombrePuertocta" class="nombre-cuenta text-primary"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Centro)
+          @Html.TextBoxFor(model => model.Centro, new { @class = "form-control", @readonly = "readonly" })
+          @Html.ValidationMessageFor(model => model.Centro, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Vendcta)
+          @Html.EditorFor(model => model.Vendcta, new { htmlAttributes = new { @class = "form-control input-cuenta", data_cuenta = Url.Action("GetVendedorFromNroCuentaOrNombre", "Cuenta") } })
+          @Html.ValidationMessageFor(model => model.Vendcta, "", new { @class = "text-danger" })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="NombreVendcta" class="nombre-cuenta text-primary"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="VendcyoGroup" class="col-md-4 align-self-center">
+        <div class="custom-control custom-checkbox">
+          @Html.CheckBoxFor(model => model.VendcyoBoolValue, new { @class = "custom-control-input" })
+          @Html.LabelFor(model => model.VendcyoBoolValue, "Cuenta y Orden", new { @class = "custom-control-label" })
+          @Html.ValidationMessageFor(model => model.VendcyoBoolValue, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+    </div>
+
+    <hr />
+
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitsolicitante)
+              @Html.EditorFor(model => model.Cuitsolicitante, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitsolicitante" } })
+              @Html.ValidationMessageFor(model => model.Cuitsolicitante, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomsolicitante)
+              @Html.EditorFor(model => model.Nomsolicitante, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitsolicitanteName" } })
+              @Html.ValidationMessageFor(model => model.Nomsolicitante, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CuitRteComercialProductor)
+              @Html.EditorFor(model => model.CuitRteComercialProductor, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialProductor" } })
+              @Html.ValidationMessageFor(model => model.CuitRteComercialProductor, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.NomRteComercialProductor)
+              @Html.EditorFor(model => model.NomRteComercialProductor, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialProductorName" } })
+              @Html.ValidationMessageFor(model => model.NomRteComercialProductor, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CuitRteComercialVentaPrimaria)
+              @Html.EditorFor(model => model.CuitRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialVentaPrimaria" } })
+              @Html.ValidationMessageFor(model => model.CuitRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.NomRteComercialVentaPrimaria)
+              @Html.EditorFor(model => model.NomRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialVentaPrimariaName" } })
+              @Html.ValidationMessageFor(model => model.NomRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitintermediario)
+              @Html.EditorFor(model => model.Cuitintermediario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitintermediario" } })
+              @Html.ValidationMessageFor(model => model.Cuitintermediario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomintermediario)
+              @Html.EditorFor(model => model.Nomintermediario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitintermediarioName" } })
+              @Html.ValidationMessageFor(model => model.Nomintermediario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitrtecomercial)
+              @Html.EditorFor(model => model.Cuitrtecomercial, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrtecomercial" } })
+              @Html.ValidationMessageFor(model => model.Cuitrtecomercial, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomrtecomercial)
+              @Html.EditorFor(model => model.Nomrtecomercial, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrtecomercialName" } })
+              @Html.ValidationMessageFor(model => model.Nomrtecomercial, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitmat)
+              @Html.EditorFor(model => model.Cuitmat, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitmat" } })
+              @Html.ValidationMessageFor(model => model.Cuitmat, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nommat)
+              @Html.EditorFor(model => model.Nommat, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitmatName" } })
+              @Html.ValidationMessageFor(model => model.Nommat, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitcorrvta)
+              @Html.EditorFor(model => model.Cuitcorrvta, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrvta" } })
+              @Html.ValidationMessageFor(model => model.Cuitcorrvta, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomcorrvta)
+              @Html.EditorFor(model => model.Nomcorrvta, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrvtaName" } })
+              @Html.ValidationMessageFor(model => model.Nomcorrvta, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitcorrcomp)
+              @Html.EditorFor(model => model.Cuitcorrcomp, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrcomp" } })
+              @Html.ValidationMessageFor(model => model.Cuitcorrcomp, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomcorrcomp)
+              @Html.EditorFor(model => model.Nomcorrcomp, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrcompName" } })
+              @Html.ValidationMessageFor(model => model.Nomcorrcomp, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitrteent)
+              @Html.EditorFor(model => model.Cuitrteent, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrteent" } })
+              @Html.ValidationMessageFor(model => model.Cuitrteent, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomrteent)
+              @Html.EditorFor(model => model.Nomrteent, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrteentName" } })
+              @Html.ValidationMessageFor(model => model.Nomrteent, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitdestinatario)
+              @Html.EditorFor(model => model.Cuitdestinatario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitdestinatario" } })
+              @Html.ValidationMessageFor(model => model.Cuitdestinatario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomdestinatario)
+              @Html.EditorFor(model => model.Nomdestinatario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitdestinatarioName" } })
+              @Html.ValidationMessageFor(model => model.Nomdestinatario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Observaciones)
+          @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+        </div>
+      </div>
+    </div>
+
+    <hr />
+    <div class="row justify-content-between flex-row flex-nowrap row-scrollx">
+      @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+      {
+        <div class="col-2">
+          <div class="form-group">
+            <label>@DateTime.Now.AddDays(Dia).ToString("dd/MM")</label>
+            @Html.HiddenFor(x => x.CodigosDias[Dia].Dia, new { Value = DateTime.Now.AddDays(Dia).ToString("dd/MM/yy") })
+            <div class="form-group">
+              <div class="highlight-container">
+                <div class="backdrop">
+                  <div class="highlights"></div>
+                </div>
+                @Html.TextAreaFor(model => model.CodigosDias[Dia].Alfanumerico, new { @class = "form-control codigos-alfanumericos", rows = "10", spellCheck = false, onKeyUp = "handleKeyUpAlfanumericos(this)", onPaste = "handlePasteAlfanumericos(this)" })
+              </div>
+            </div>
+            @Html.EditorFor(model => model.CodigosDias[Dia].CantidadCupos, new { htmlAttributes = new { @class = "form-control solo-numeros" } })
+            <span class="aviso-repetido"><span class="highlight-repeated">(*)</span>Alfanuméricos repetidos</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12 text-right">
+        <button type="submit" id="btnCrear" class="btn btn-primary">Crear cupo</button>
+        @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+      </div>
+    </div>
+  </div>
+}
+
+@section Scripts {
+  @Scripts.Render("~/bundles/spinner")
+  @Scripts.Render("~/bundles/jqueryval")
+  @Scripts.Render("~/bundles/ValidaCuit")
+  @Scripts.Render("~/bundles/autocompletejs")
+  @Scripts.Render("~/bundles/ControlaInputs")
+  @Scripts.Render("~/bundles/Nuevo")
+  <script type="text/javascript">
+        window.modelData = {
+            actionGetCuit: "@Url.Action("GetCuentaFromCuit", "Cuenta")",
+            actionGetNombreCuenta: "@Url.Action("GetCuitFromNombre", "Cuenta")",
+            actionGetNombreAndCuit: "@Url.Action("GetCuentaFromNumeroCuentaComprador", "Cuenta")",
+            actionGetCuentaYOrdenByNumeroCuenta: "@Url.Action("GetCuentaYOrdenByNumeroCuenta", "Configuracion")",
+            actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")"
+        }
+
+  </script>
+  @Scripts.Render("~/bundles/highlightTextArea")
+}

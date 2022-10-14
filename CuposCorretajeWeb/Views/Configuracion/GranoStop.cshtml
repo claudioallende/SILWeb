@@ -1,0 +1,69 @@
+﻿@model CuposCorretajeWeb.Models.GranoStopViewModel
+
+@{
+    ViewBag.Title = "Grano STOP";
+}
+
+<h2>Grano STOP</h2>
+
+<div style="width:60%; margin: auto" id="main">
+    <div class="text-right mb-2">
+        <button class="btn btn-primary" data-toggle="modal" data-target="#modal-nuevo" id="btnAgregar">Agregar</button>
+    </div>
+
+    <table id="tablaGranos" class="table text-center table-striped table--fixed table-id table-wrap-bordered">
+        <thead>
+            <tr>
+                <th>Código Stop</th>
+                <th>Nombre</th>
+                <th style="width: 230px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var Grano in Model.ListaGranosStop)
+            {
+                <tr id="grano-@Grano.NroGrano">
+                    <td>@Grano.NroGrano</td>
+                    <td style="text-align:left">@Grano.NombreGrano</td>
+                    <td>
+                        <div style="display: inline-block">
+                            <button class="btn btn-warning px-3 btn-upd text-white" data-id="@Grano.NroGrano">Modificar</button>
+                            <button class="btn btn-danger btn-del" data-id="@Grano.NroGrano">Eliminar</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div id="modal-nuevo" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="">Nuevo</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @Html.Partial("_NuevoGranoStopPartial", Model.NuevoGranoStop)
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script type="text/javascript">
+        var model = {
+            actionGetGrano: "@Url.Action("GetGranoStop", "Configuracion")",
+            actionNuevoGrano: "@Url.Action("NuevoGranoStop", "Configuracion")",
+            actionModificarGrano: "@Url.Action("ModificarGranoStop", "Configuracion")",
+            actionEliminarGrano: "@Url.Action("EliminarGranoStop", "Configuracion")",
+        }
+    </script>
+
+    @Scripts.Render("~/bundles/jqueryval")
+    @Scripts.Render("~/bundles/Alert")
+    @Scripts.Render("~/bundles/GranoStop")
+}

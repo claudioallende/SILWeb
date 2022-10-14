@@ -1,0 +1,47 @@
+﻿@model CuposCorretajeWeb.Models.NuevaRelacionPuertoStop
+
+@using (Html.BeginForm(null, null, FormMethod.Post, new { id = "formRelacion" }))
+{
+  @Html.AntiForgeryToken()
+  <div class="form-horizontal">
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+    <div class="form-group">
+      <div class="row">
+        <div class="col-md-6">
+          @Html.LabelFor(model => model.CodigoPuertoStop, htmlAttributes: new { @class = "control-label" })
+          @Html.EditorFor(model => model.CodigoPuertoStop, new { htmlAttributes = new { @class = "form-control", type = "text" } })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="NombrePuertoStopcta" class="nombre-cuenta text-primary"></span>
+          </div>
+          @Html.HiddenFor(model => model.Id)
+        </div>
+        <div class="col-md-6">
+          @Html.LabelFor(model => model.CodigoPuertoSil, htmlAttributes: new { @class = "control-label" })
+          @Html.EditorFor(model => model.CodigoPuertoSil, new { htmlAttributes = new { @class = "form-control", type = "text" } })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="NombrePuertocta" class="nombre-cuenta text-primary"></span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 pt-3">
+          @Html.CheckBoxFor(model => model.ValorPorDefecto, htmlAttributes: new { @class = "control-input" })
+          @Html.LabelFor(model => model.ValorPorDefecto, htmlAttributes: new { @class = "control-label" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="row">
+        <div class="col-md-12 text-right">
+          @{
+            var permiso_escritura = CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetClaimValue(User, "AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje");
+          }
+          <input type="submit" value="Aceptar" class="btn btn-primary" id="btnAgregarRelacion"
+                 @if (permiso_escritura != "True") { @: disabled
+                 } />
+        </div>
+      </div>
+    </div>
+  </div>
+}

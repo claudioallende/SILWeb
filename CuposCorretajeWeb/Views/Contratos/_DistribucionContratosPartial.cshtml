@@ -1,0 +1,7 @@
+﻿@model CuposCorretajeWeb.Models.DistribucionDisponible
+<table id="TablaDistribuciones" class="table table-sm table-striped text-nowrap table-wrap-bordered" style="font-size:0.83rem;width:100%;">
+    @Html.Partial("~/Views/Contratos/_EncabezadoTablaContratosPartial.cshtml", Model.TotalesDisponiblesDias)
+    @Html.Partial("~/Views/Contratos/_CuerpoTablaContratosPartial.cshtml", Model)
+    @Html.Partial("~/Views/Contratos/_PieTablaContratosPartial.cshtml", Model.TotalesDistribuidosDias)
+</table>
+

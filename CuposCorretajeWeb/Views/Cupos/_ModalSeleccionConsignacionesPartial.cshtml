@@ -1,0 +1,73 @@
+﻿@model IEnumerable<CuposCorretajeWeb.Models.Consignacion>
+<!-- Modal Consignaciones -->
+<div class="modal fade" id="idModalConsignaciones" tabindex="-1" role="dialog"
+     aria-labelledby="idModalConsignacionesTitulo" aria-hidden="true" data-open="@ViewData["OpenModal"]" data-backdrop="static">
+  <div class="modal-dialog  modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="idModalConsignacionesTitulo">Consignaciones</h5>
+      </div>
+      <div class="modal-body">
+        <table id="TablaConsignaciones" class="table table-sm table-striped tabla-filas-seleccionables table-wrap-bordered">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Titular CCPP</th>
+              <th>Rte. Com. Prod.</th>
+              <th>Rte. Com. Venta Pr.</th>
+              <th>Rte. Com. Venta Sec.</th>
+              <th>Rte. Com. Venta Sec. 2</th>
+              <th>MAT</th>
+              <th>Corr. Venta Pr.</th>
+              <th>Corr. Venta Sec.</th>
+              <th>Repr. Entr.</th>
+              <th>Destinatario</th>
+            </tr>
+          </thead>
+          <tbody>
+            @{
+              int contador = 0;
+            }
+            @foreach (var Consignacion in Model.ToList())
+            {
+              string radioId = "radio" + contador;
+              contador++;
+              string radioValue = Consignacion.Cuitsolicitante + '/' + Consignacion.Nomsolicitante;
+              radioValue += '/' + Consignacion.Cuitintermediario + '/' + Consignacion.Nomintermediario;
+              radioValue += '/' + Consignacion.Cuitrtecomercial + '/' + Consignacion.Nomrtecomercial;
+              radioValue += '/' + Consignacion.Cuitcorrcomp + '/' + Consignacion.Nomcorrcomp;
+              radioValue += '/' + Consignacion.Cuitmat + '/' + Consignacion.Nommat;
+              radioValue += '/' + Consignacion.Cuitcorrvta + '/' + Consignacion.Nomcorrvta;
+              radioValue += '/' + Consignacion.Cuitrteent + '/' + Consignacion.Nomrteent;
+              radioValue += '/' + Consignacion.Cuitdestinatario + '/' + Consignacion.Nomdestinatario;
+              radioValue += '/' + Consignacion.CuitRteComercialProductor + '/' + Consignacion.NomRteComercialProductor;
+              radioValue += '/' + Consignacion.CuitRteComercialVentaPrimaria + '/' + Consignacion.NomRteComercialVentaPrimaria;
+              <tr data-observacion="@Consignacion.GetObservacion()">
+                <td>
+                  <div class="custom-control custom-radio">
+                    <input type="radio" id="@radioId" name="Consignacion" class="custom-control-input"
+                           value="@radioValue">
+                    <label class="custom-control-label" for="@radioId"></label>
+                  </div>
+                </td>
+                <td>@Consignacion.Nomsolicitante</td>
+                <td>@Consignacion.NomRteComercialProductor</td>
+                <td>@Consignacion.NomRteComercialVentaPrimaria</td>
+                <td>@Consignacion.Nomintermediario</td>
+                <td>@Consignacion.Nomrtecomercial</td>
+                <td>@Consignacion.Nommat</td>
+                <td>@Consignacion.Nomcorrvta</td>
+                <td>@Consignacion.Nomcorrcomp</td>
+                <td>@Consignacion.Nomrteent</td>
+                <td>@Consignacion.Nomdestinatario</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnAceptarModalConsignaciones" class="btn btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+</div>

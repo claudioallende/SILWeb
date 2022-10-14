@@ -1,0 +1,92 @@
+.container_table_fixed table tbody {
+  display: block;
+  max-height: 300px;
+  overflow-y: scroll;
+  width: calc(100% + 17px) !important;
+}
+
+.container_table_fixed table thead,
+.container_table_fixed table tbody tr,
+.container_table_fixed table tfoot {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/*.container_table_fixed table .w-10 {
+    width: 10%;
+}*/
+
+.container_table_fixed table .w-3 {
+    width: 3%;
+}
+
+.container_table_fixed table .w-4 {
+    width: 4%;
+}
+
+.container_table_fixed table .w-5 {
+    width: 5%;
+}
+
+.container_table_fixed table .w-6 {
+    width: 6%;
+}
+
+.container_table_fixed table .w-7 {
+    width: 7%;
+}
+
+.container_table_fixed table .w-8 {
+    width: 8%;
+}
+
+.container_table_fixed table .w-9 {
+    width: 9%;
+}
+
+.container_table_fixed table .w-10 {
+    width: 10%;
+}
+
+.container_table_fixed table .w-12 {
+    width: 12%;
+}
+
+.container_table_fixed table .w-13 {
+    width: 13%;
+}
+
+.container_table_fixed table .w-14 {
+    width: 14%;
+}
+
+.container_table_fixed table {
+    font-size: 0.85rem;
+}
+
+.container_table_fixed .btn {
+    font-size: 0.6rem;
+}
+
+/*IE 9-10*/
+@media screen and (min-width:0\0) {
+    .container_table_fixed table {
+        font-size: 1rem;
+    }
+
+    .container_table_fixed .btn {
+        font-size: 0.73rem;
+    }
+}
+
+/*IE 10+*/
+@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+   .container_table_fixed table {
+        font-size: 1rem;
+    }
+
+   .container_table_fixed .btn {
+        font-size: 0.73rem;
+    }
+}

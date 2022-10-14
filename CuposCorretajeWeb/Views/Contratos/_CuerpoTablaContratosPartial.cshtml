@@ -1,0 +1,48 @@
+﻿@model CuposCorretajeWeb.Models.DistribucionDisponible
+@{
+    var CantidadDias = 20;
+}
+
+<tbody>
+    @foreach (var item in Model.Distribuciones)
+    {
+        var es_vendcyo = "";
+        if (item.Vendcyo == 1)
+        {
+            es_vendcyo = "marca_fila";
+        }
+        <tr data-destino="@item.Ctadestino" data-cosecha="@item.Cosecha" data-fecha="@item.Fechaent" data-vendedor="@item.Vendcta" class="@es_vendcyo grupo-contrato">
+            <td class="vendedor">@item.Vendedor</td>
+            <td>@item.Zonainfluencia</td>
+            <td class="text-center">@item.Pendentrega</td>
+            <td class="text-center">@item.Pendaplicar</td>
+            <td class="text-center">@item.Cuposadist</td>
+            <td class="text-center">@item.Cuposotorgados</td>
+            <td class="text-center cupos-disponibles">@item.Cupostotalesadist</td>
+            <td class="text-center border-left"><div contenteditable="true" class="dia dia0">@item.Hoy</div></td>
+            @for (int Dia = 1; Dia <= CantidadDias; Dia++)
+            {
+                <td class="text-center border-left"><div contenteditable="true" class="dia dia@(Dia)">@item.GetType().GetProperty("Dia" + Dia).GetValue(item).ToString()</div></td>
+            }
+            @*<td class="text-center border-left"><div contenteditable="true" class="dia dia1">@item.Dia1</div></td>
+            <td class="text-center border-left"><div contenteditable="true" class="dia dia2">@item.Dia2</div></td>
+            <td class="text-center border-left"><div contenteditable="true" class="dia dia3">@item.Dia3</div></td>
+            <td class="text-center border-left"><div contenteditable="true" class="dia dia4">@item.Dia4</div></td>
+            <td class="text-center border-left"><div contenteditable="true" class="dia dia5">@item.Dia5</div></td>*@
+            <td class="border-left" style='white-space: nowrap'>
+                <button class="btn btn-primary btn-contrato" data-toggle="modal" data-target="#idModalContratos" title="Detalle de contrato">
+                    <span class="oi oi-document" style="top:2px;"></span>
+                </button>
+                @{var btnDetallePendAplicar = "";
+                if (item.Pendaplicar < 1) { btnDetallePendAplicar = "disabled"; }
+                }
+                <button class="btn btn-primary btn-detalle_pend_aplicar @btnDetallePendAplicar" data-toggle="modal" title="Pendiente de aplicar">
+                    <span class="oi oi-clock" style="top:2px;"></span>
+                </button>
+            </td>
+        </tr>
+    }
+</tbody>
+
+
+

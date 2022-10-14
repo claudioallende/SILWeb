@@ -1,0 +1,19 @@
+﻿@model CuposCorretajeWeb.Models.CuposPorDiaDTO
+<div class="form-group">
+    <div style="text-align:center;">
+        @Model.Fecha.ToString("dd/MM")
+        <div class="float-right">
+            <button type="button" class="btn btn-primary btn-xxs btn-seleccionarAlfas" data-nrodia="@((Model.Fecha.Date - DateTime.Now.Date).TotalDays)" data-fecha="@(Model.Fecha.Date.ToString("dd/MM"))">Selección</button>
+            <input type="checkbox" id="check_dia@((Model.Fecha.Date - DateTime.Now.Date).TotalDays)" class="check-dia" onchange="handleCheckPorDia(this)" data-lista="lista-dia@((Model.Fecha.Date - DateTime.Now.Date).TotalDays)" />
+        </div>
+    </div>
+    <div class="btn-group-vertical btn-group-toggle codigos-alfanumericos" data-toggle="buttons">
+        @foreach (var alfa in Model.Turnos)
+        {
+            <label class="btn btn-no-icon py-1 list-group-item d-flex justify-content-between align-items-center">
+                <input type="checkbox" autocomplete="off">@alfa
+            </label>
+        }
+    </div>
+</div>
+ 

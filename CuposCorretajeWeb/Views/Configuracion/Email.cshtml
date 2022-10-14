@@ -1,0 +1,188 @@
+﻿@model CuposCorretajeWeb.Models.Email.EmailViewModel
+
+@section Styles{
+    @Styles.Render("~/Content/autocompletecss")
+}
+
+@{
+    ViewBag.Title = "Email";
+}
+
+@using (Html.BeginForm()) 
+{
+    @Html.AntiForgeryToken()
+    
+    <div class="form-horizontal">
+        <h4>Email</h4>
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-2">
+                    @Html.LabelFor(model => model.NumeroCuenta, htmlAttributes: new { @class = "control-label" })
+                    @Html.EditorFor(model => model.NumeroCuenta, new { htmlAttributes = new { @class = "form-control" } })
+                </div>
+                <div class="col-md-5">
+                    @Html.LabelFor(model => model.NombreCuenta, htmlAttributes: new { @class = "control-label" })
+                    @Html.EditorFor(model => model.NombreCuenta, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.NombreCuenta, "", new { @class = "text-danger" })
+                </div>
+                <div class="col-md-3">
+                    @Html.LabelFor(model => model.Cuit, htmlAttributes: new { @class = "control-label" })
+                    @Html.EditorFor(model => model.Cuit, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Cuit, "", new { @class = "text-danger" })
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-10">
+                    @Html.LabelFor(model => model.EMail, htmlAttributes: new { @class = "control-label" })
+                    @Html.EditorFor(model => model.EMail, new { htmlAttributes = new { @class = "form-control", aria_describedby = "ayudaEmail" } })
+                    @Html.ValidationMessageFor(model => model.EMail, "", new { @class = "text-danger" })
+                    <small id="ayudaEmail" class="form-text text-muted">
+                        En el caso de que ingrese más de un correo electrónico, separarlos por punto y coma (;)
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-10 text-right">
+                    @{
+                        var permiso_escritura = CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetClaimValue(User, "AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje");
+                    }
+                    <input type="submit" value="Aceptar" class="btn btn-primary"
+                           @if (permiso_escritura != "True") { 
+                               @: disabled
+                            } 
+                    />
+                    @Html.ActionLink("Volver", null, null, null, new { href = Request.UrlReferrer, @class = "btn btn-secondary" })
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts{
+    @Scripts.Render("~/bundles/jqueryval")
+    @Scripts.Render("~/bundles/autocompletejs")
+<script type="text/javascript">
+
+    var cuentas,
+        cuentaSeleccionada;
+
+    $("#NumeroCuenta").autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                url: "@Url.Action("GetCuentaFromNumeroCuentaVendedor", "Cuenta")",
+                type: "POST",
+                dataType: "json",
+                data: { Cuenta: $("#NumeroCuenta").val().trim() },
+                success: function (data) {
+                    cuentas = data;
+                    response($.map(data, function (item) {
+                        return { label: item.Cuenta + " - " + item.Nombre, value: item.Cuenta };
+                    }))
+                }
+            })
+        },
+        autoFocus: true,
+        messages: {
+            noResults: "",
+            results: function (resultsCount) { }
+        },
+        select: function (event, ui) {
+            cuentaSeleccionada = cuentas.filter(function (el) {
+                return el.Cuenta == ui.item.value;
+            });
+            selectAutocomplete();
+            getMails(cuentaSeleccionada[0].Nombre, cuentaSeleccionada[0].Cuit)
+        },
+        search: function (event, ui) {
+        }
+    });
+
+    $("#NombreCuenta").autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                url: "@Url.Action("GetCuentaFromNombreCuentaVendedor", "Cuenta")",
+                type: "POST",
+                dataType: "json",
+                data: { Nombre: $("#NombreCuenta").val().trim() },
+                success: function (data) {
+                    cuentas = data;
+                    response($.map(data, function (item) {
+                        return { label: item.Cuenta + " - " + item.Nombre, value: item.Nombre };
+                    }))
+                }
+            })
+        },
+        autoFocus: true,
+        messages: {
+            noResults: "",
+            results: function (resultsCount) { }
+        },
+        select: function (event, ui) {
+            cuentaSeleccionada = cuentas.filter(function (el) {
+                return el.Nombre == ui.item.value;
+            });
+            selectAutocomplete();
+            getMails(cuentaSeleccionada[0].Nombre, cuentaSeleccionada[0].Cuit)
+        },
+        search: function (event, ui) {
+        }
+    });
+
+    $("#Cuit").autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                url: "@Url.Action("GetCuentaFromCuitVendedor", "Cuenta")",
+                type: "POST",
+                dataType: "json",
+                data: { Cuit: $("#Cuit").val().trim() },
+                success: function (data) {
+                    cuentas = data;
+                    response($.map(data, function (item) {
+                        return { label: item.Cuit + " - " + item.Nombre, value: item.Cuit };
+                    }))
+                }
+            })
+        },
+        autoFocus: true,
+        messages: {
+            noResults: "",
+            results: function (resultsCount) { }
+        },
+        select: function (event, ui) {
+            cuentaSeleccionada = cuentas.filter(function (el) {
+                return el.Cuit == ui.item.value;
+            });
+            selectAutocomplete();
+            getMails(cuentaSeleccionada[0].Nombre, cuentaSeleccionada[0].Cuit)
+        },
+        search: function (event, ui) {
+        }
+    });
+
+    function getMails(nombre, cuit) {
+        $.ajax({
+            url: "@Url.Action("GetEmailByCuenta")",
+            type: "POST",
+            dataType: "json",
+            data: { Cuenta: $("#NumeroCuenta").val().trim() },
+            success: function (data) {
+                $("#EMail").val(data);
+            }
+        })
+    }
+
+    function selectAutocomplete() {
+        $("#NumeroCuenta").val(cuentaSeleccionada[0].Cuenta);
+        $("#NombreCuenta").val(cuentaSeleccionada[0].Nombre);
+        $("#Cuit").val(cuentaSeleccionada[0].Cuit);
+    }
+</script>
+}

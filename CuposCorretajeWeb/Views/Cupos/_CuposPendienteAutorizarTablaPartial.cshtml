@@ -1,0 +1,87 @@
+﻿@model CuposCorretajeWeb.Models.TablaIndexViewModel
+
+<table id="tablaPendientes" class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
+    <thead>
+        <tr>
+            @foreach (var Columna in Model.Columnas)
+            {
+                <th @*style="width:@Columna.Tamano%"*@></th>
+            }
+            @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+            {
+                <th colspan="1" class="border-left">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+            }
+            <th class="border-left"></th>
+        </tr>
+        <tr style="white-space:normal;">
+            @foreach (var Columna in Model.Columnas)
+            {
+                <th @*style="width:@Columna.Tamano%"*@>@Columna.Nombre</th>
+            }
+            @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+            {
+                <th class="border-left">TP</th>
+            }
+            <th class="border-left"></th>
+        </tr>
+
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Datos)
+        {
+            <tr>
+                @if (!Model.TieneFiltroGrano)
+                {
+                    <td class="producto">@Html.DisplayFor(modelItem => item.Nomgrano)</td>
+                }
+                <td class="comprador">
+                    @Html.DisplayFor(modelItem => item.Comprador)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Puerto)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Vendedor)
+                </td>
+                @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+                {
+                    <td class="border-left text-center">
+                        @Html.Raw(item.GetType().GetProperty("D" + Dia + "Cr").GetValue(item))
+                    </td>
+                }
+                <td class="border-left">
+                    <a href='@Url.Action(ViewData["Action"].ToString(), null, new { id = string.Format("{0}-{1}-{2}-{3}", item.Compcta, item.VendCta, item.PuertoCta, item.Grano), centro = item.CodCentro, cuitcorrcomp = item.CorredorC == "0" ? null : item.CorredorC, cuitcorrvend = item.CorredorV == "0" ? null : item.CorredorV })' class="btn btn-primary btn-sm">
+                        <span class="oi oi-list"></span>
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="@(Model.Columnas.Count)"><b>Total Diario</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D0Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D1Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D2Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D3Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D4Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D5Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D6Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D7Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D8Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D9Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D10Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D11Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D12Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D13Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D14Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D15Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D16Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D17Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D18Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D19Cr)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D20Cr)</b></td>
+            <td class="border-left text-center"></td>
+        </tr>
+    </tfoot>
+</table>

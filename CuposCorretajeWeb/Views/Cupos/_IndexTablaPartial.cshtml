@@ -1,0 +1,145 @@
+﻿@model CuposCorretajeWeb.Models.TablaIndexViewModel
+
+@{
+    string cssClassPendientes = "bg-red text-white";
+    string ColorPendientesDia0 = Model.Datos.Sum(x => x.D0Cr) - Model.Datos.Sum(x => x.D0Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia1 = Model.Datos.Sum(x => x.D1Cr) - Model.Datos.Sum(x => x.D1Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia2 = Model.Datos.Sum(x => x.D2Cr) - Model.Datos.Sum(x => x.D2Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia3 = Model.Datos.Sum(x => x.D3Cr) - Model.Datos.Sum(x => x.D3Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia4 = Model.Datos.Sum(x => x.D4Cr) - Model.Datos.Sum(x => x.D4Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia5 = Model.Datos.Sum(x => x.D5Cr) - Model.Datos.Sum(x => x.D5Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia6 = Model.Datos.Sum(x => x.D6Cr) - Model.Datos.Sum(x => x.D6Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia7 = Model.Datos.Sum(x => x.D7Cr) - Model.Datos.Sum(x => x.D7Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia8 = Model.Datos.Sum(x => x.D8Cr) - Model.Datos.Sum(x => x.D8Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia9 = Model.Datos.Sum(x => x.D9Cr) - Model.Datos.Sum(x => x.D9Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia10 = Model.Datos.Sum(x => x.D10Cr) - Model.Datos.Sum(x => x.D10Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia11 = Model.Datos.Sum(x => x.D11Cr) - Model.Datos.Sum(x => x.D11Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia12 = Model.Datos.Sum(x => x.D12Cr) - Model.Datos.Sum(x => x.D12Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia13 = Model.Datos.Sum(x => x.D13Cr) - Model.Datos.Sum(x => x.D13Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia14 = Model.Datos.Sum(x => x.D14Cr) - Model.Datos.Sum(x => x.D14Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia15 = Model.Datos.Sum(x => x.D15Cr) - Model.Datos.Sum(x => x.D15Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia16 = Model.Datos.Sum(x => x.D16Cr) - Model.Datos.Sum(x => x.D16Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia17 = Model.Datos.Sum(x => x.D17Cr) - Model.Datos.Sum(x => x.D17Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia18 = Model.Datos.Sum(x => x.D18Cr) - Model.Datos.Sum(x => x.D18Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia19 = Model.Datos.Sum(x => x.D19Cr) - Model.Datos.Sum(x => x.D19Co) > 0 ? cssClassPendientes : "";
+    string ColorPendientesDia20 = Model.Datos.Sum(x => x.D20Cr) - Model.Datos.Sum(x => x.D20Co) > 0 ? cssClassPendientes : "";
+}
+
+<table class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
+    <thead>
+        <tr>
+            @foreach (var Columna in Model.Columnas)
+            {
+                <th @*style="width:@Columna.Tamano%"*@></th>
+            }
+            @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+            {
+                <th colspan="2" class="border-left col-dia" data-col-ini="@(Dia * 2 + Model.Columnas.Count)" data-col-fin="@(Dia * 2 + Model.Columnas.Count + 1)">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+            }
+            <th class="border-left"></th>
+        </tr>
+        <tr style="white-space:normal;">
+            @foreach (var Columna in Model.Columnas)
+            {
+                <th>@Columna.Nombre</th>
+            }
+            @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+            {
+                <th class="border-left">TR</th>
+                <th>TO</th>
+            }
+            <th class="border-left"></th>
+        </tr>
+
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Datos)
+        {
+            <tr>
+                @if (!Model.TieneFiltroGrano)
+                {
+                    <td>@Html.DisplayFor(modelItem => item.Nomgrano)</td>
+                }
+                <td>
+                    @Html.DisplayFor(modelItem => item.Comprador)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Puerto)
+                </td>
+                @if (!Model.TieneUnCentro)
+                {
+                    <td class="text-center">
+                        @Html.DisplayFor(modelItem => item.CodCentro)
+                    </td>
+                    <td class="text-center">
+                        @Html.DisplayFor(modelItem => item.CodCentroDist)
+                    </td>
+                }
+                @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+                {
+                    int DCR = (int)item.GetType().GetProperty("D" + Dia + "Cr").GetValue(item);
+                    <td class="border-left text-center">
+                        @Html.Raw(item.GetType().GetProperty("D" + Dia + "Cr").GetValue(item))
+                    </td>
+                    int DCO = (int)item.GetType().GetProperty("D" + Dia + "Co").GetValue(item);
+                    <td class="text-center @(DCR > DCO ? cssClassPendientes : "")">
+                        @Html.Raw(DCO)
+                    </td>
+                }
+                <td class="border-left">
+                    <a href='@Url.Action(ViewData["Action"].ToString(), null, new { id = item.Compcta + "-" + item.PuertoCta + "-" + item.Grano, centroorigen = item.CodCentro, centrodistribucion = item.CodCentroDist,  cyo =  ViewData["cyo"]})' class="btn btn-primary btn-sm">
+                        <span class="oi oi-list"></span>
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="@(Model.Columnas.Count)"><b>Total Diario</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D0Cr)</b></td>
+            <td class="text-center @ColorPendientesDia0"><b>@Model.Datos.Sum(x => x.D0Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D1Cr)</b></td>
+            <td class="text-center @ColorPendientesDia1"><b>@Model.Datos.Sum(x => x.D1Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D2Cr)</b></td>
+            <td class="text-center @ColorPendientesDia2"><b>@Model.Datos.Sum(x => x.D2Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D3Cr)</b></td>
+            <td class="text-center @ColorPendientesDia3"><b>@Model.Datos.Sum(x => x.D3Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D4Cr)</b></td>
+            <td class="text-center @ColorPendientesDia4"><b>@Model.Datos.Sum(x => x.D4Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D5Cr)</b></td>
+            <td class="text-center @ColorPendientesDia5"><b>@Model.Datos.Sum(x => x.D5Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D6Cr)</b></td>
+            <td class="text-center @ColorPendientesDia6"><b>@Model.Datos.Sum(x => x.D6Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D7Cr)</b></td>
+            <td class="text-center @ColorPendientesDia7"><b>@Model.Datos.Sum(x => x.D7Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D8Cr)</b></td>
+            <td class="text-center @ColorPendientesDia8"><b>@Model.Datos.Sum(x => x.D8Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D9Cr)</b></td>
+            <td class="text-center @ColorPendientesDia9"><b>@Model.Datos.Sum(x => x.D9Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D10Cr)</b></td>
+            <td class="text-center @ColorPendientesDia10"><b>@Model.Datos.Sum(x => x.D10Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D11Cr)</b></td>
+            <td class="text-center @ColorPendientesDia11"><b>@Model.Datos.Sum(x => x.D11Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D12Cr)</b></td>
+            <td class="text-center @ColorPendientesDia12"><b>@Model.Datos.Sum(x => x.D12Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D13Cr)</b></td>
+            <td class="text-center @ColorPendientesDia13"><b>@Model.Datos.Sum(x => x.D13Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D14Cr)</b></td>
+            <td class="text-center @ColorPendientesDia14"><b>@Model.Datos.Sum(x => x.D14Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D15Cr)</b></td>
+            <td class="text-center @ColorPendientesDia15"><b>@Model.Datos.Sum(x => x.D15Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D16Cr)</b></td>
+            <td class="text-center @ColorPendientesDia16"><b>@Model.Datos.Sum(x => x.D16Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D17Cr)</b></td>
+            <td class="text-center @ColorPendientesDia17"><b>@Model.Datos.Sum(x => x.D17Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D18Cr)</b></td>
+            <td class="text-center @ColorPendientesDia18"><b>@Model.Datos.Sum(x => x.D18Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D19Cr)</b></td>
+            <td class="text-center @ColorPendientesDia19"><b>@Model.Datos.Sum(x => x.D19Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Datos.Sum(x => x.D20Cr)</b></td>
+            <td class="text-center @ColorPendientesDia20"><b>@Model.Datos.Sum(x => x.D20Co)</b></td>
+            <td class="border-left text-center"></td>
+        </tr>
+    </tfoot>
+</table>

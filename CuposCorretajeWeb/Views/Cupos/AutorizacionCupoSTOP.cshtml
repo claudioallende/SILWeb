@@ -1,0 +1,382 @@
+﻿@model CuposCorretajeWeb.Models.NuevoCupoStopViewModel
+@using CuposCorretajeWeb.Models.Vista
+
+@{
+  ViewBag.Title = "Autorización de Cupos";
+}
+
+@section Styles{
+  @Styles.Render("~/Content/spinner")
+  @Styles.Render("~/Content/autocompletecss")
+  @Styles.Render("~/Content/WordTag")
+  @Styles.Render("~/Content/highlightTextArea")
+}
+
+<h2>Autorización de Turnos</h2>
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { id = "FormNuevo" }))
+{
+  @Html.AntiForgeryToken()
+
+  <div class="form-horizontal">
+    <hr />
+    @if (Model.Error != null && Model.Error != string.Empty)
+    {
+      <div class="alert alert-danger" role="alert">
+        @Model.Error
+      </div>
+    }
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Producto)
+          @Html.DropDownListFor(model => model.Producto, new SelectList(Model.Productos, "NroGranoSIL", "nombreGranoSil", Model.Producto), new { @class = "form-control input-cuenta" })
+          @Html.HiddenFor(model => model.Producto)
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Compcta)
+          @Html.TextBoxEditableAtributoDisabledFor(model => model.Compcta, new { @class = "form-control input-cuenta", data_tipo = "Comprador", data_cuenta = Url.Action("GetCompradorFromNroCuentaOrNombre", "Cuenta"), @disabled = string.IsNullOrEmpty(Model.CompctaDisabled) ? null : Model.CompctaDisabled })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="CompradorNombre" class="nombre-cuenta text-primary">@Model.CompradorNombre</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Puerto)
+          @Html.DropDownListFor(model => model.Puerto, new SelectList(Model.Puertos, "NroPuertoSIL", "nombrePuertoSil", Model.Puerto), new { @class = "form-control input-cuenta" })
+          @Html.HiddenFor(model => model.Puerto)
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Centro)
+          @Html.DropDownListFor(model => model.Centro, Model.Centros, new { @class = "form-control" })
+          @Html.ValidationMessageFor(model => model.Centro, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Vendcta)
+          @Html.TextBoxEditableAtributoDisabledFor(model => model.Vendcta, new { @class = "form-control input-cuenta", data_tipo = "Vendedor", data_cuenta = Url.Action("GetVendedorFromNroCuentaOrNombre", "Cuenta"), @disabled = string.IsNullOrEmpty(Model.VendctaDisabled) ? null : Model.VendctaDisabled })
+          @Html.ValidationMessageFor(model => model.Vendcta, "", new { @class = "text-danger" })
+          <div class="contenedor-nombre-cuenta text-right">
+            <span id="VendedorNombre" class="nombre-cuenta text-primary">@Model.VendedorNombre</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="VendcyoGroup" class="col-md-4 align-self-center">
+        <div class="custom-control custom-checkbox">
+          @Html.CheckBoxFor(model => model.VendcyoBoolValue, new { @class = "custom-control-input" })
+          @Html.LabelFor(model => model.VendcyoBoolValue, "Cuenta y Orden", new { @class = "custom-control-label" })
+          @Html.ValidationMessageFor(model => model.VendcyoBoolValue, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+    </div>
+
+    <hr />
+
+    <!--Consignacion-->
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitsolicitante)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitsolicitante, new { @class = "form-control cuit-cuenta", id = "Cuitsolicitante", data_nombreTarget = "CuitsolicitanteName", @disabled = string.IsNullOrEmpty(Model.CuitsolicitanteDisabled) ? null : Model.CuitsolicitanteDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitsolicitante, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomsolicitante)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nomsolicitante, new { @class = "form-control nombre-cuenta", id = "CuitsolicitanteName", data_cuitTarget = "Cuitsolicitante", @disabled = string.IsNullOrEmpty(Model.NomsolicitanteDisabled) ? null : Model.NomsolicitanteDisabled })
+              @Html.ValidationMessageFor(model => model.Nomsolicitante, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CuitRteComercialProductor)
+              @Html.EditorFor(model => model.CuitRteComercialProductor, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialProductor", data_nombreTarget = "CuitRteComercialProductorName" } })
+              @Html.ValidationMessageFor(model => model.CuitRteComercialProductor, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.NomRteComercialProductor)
+              @Html.EditorFor(model => model.NomRteComercialProductor, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialProductorName", data_cuitTarget = "CuitRteComercialProductor" } })
+              @Html.ValidationMessageFor(model => model.NomRteComercialProductor, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CuitRteComercialVentaPrimaria)
+              @Html.EditorFor(model => model.CuitRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialVentaPrimaria", data_nombreTarget = "CuitRteComercialVentaPrimariaName" } })
+              @Html.ValidationMessageFor(model => model.CuitRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.NomRteComercialVentaPrimaria)
+              @Html.EditorFor(model => model.NomRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialVentaPrimariaName", data_cuitTarget = "CuitRteComercialVentaPrimaria" } })
+              @Html.ValidationMessageFor(model => model.NomRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitintermediario)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitintermediario, new { @class = "form-control cuit-cuenta", id = "Cuitintermediario", data_nombreTarget = "CuitintermediarioName", @disabled = string.IsNullOrEmpty(Model.CuitintermediarioDisabled) ? null : Model.CuitintermediarioDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitintermediario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomintermediario)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nomintermediario, new { @class = "form-control nombre-cuenta", id = "CuitintermediarioName", data_cuitTarget = "Cuitintermediario", @disabled = string.IsNullOrEmpty(Model.NomintermediarioDisabled) ? null : Model.NomintermediarioDisabled })
+              @Html.ValidationMessageFor(model => model.Nomintermediario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitrtecomercial)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitrtecomercial, new { @class = "form-control cuit-cuenta", id = "Cuitrtecomercial", data_nombreTarget = "CuitrtecomercialName", @disabled = string.IsNullOrEmpty(Model.CuitrtecomercialDisabled) ? null : Model.CuitrtecomercialDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitrtecomercial, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomrtecomercial)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nomrtecomercial, new { @class = "form-control nombre-cuenta", id = "CuitrtecomercialName", data_cuitTarget = "Cuitrtecomercial", @disabled = string.IsNullOrEmpty(Model.NomrtecomercialDisabled) ? null : Model.NomrtecomercialDisabled })
+              @Html.ValidationMessageFor(model => model.Nomrtecomercial, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitmat)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitmat, new { @class = "form-control cuit-cuenta", id = "Cuitmat", data_nombreTarget = "CuitmatName", @disabled = string.IsNullOrEmpty(Model.CuitmatDisabled) ? null : Model.CuitmatDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitmat, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nommat)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nommat, new { @class = "form-control nombre-cuenta", id = "CuitmatName", data_cuitTarget = "Cuitmat", @disabled = string.IsNullOrEmpty(Model.NommatDisabled) ? null : Model.NommatDisabled })
+              @Html.ValidationMessageFor(model => model.Nommat, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitcorrvta)
+              @Html.TextBoxFor(model => model.Cuitcorrvta, new { @class = "form-control cuit-cuenta", id = "Cuitcorrvta", data_nombreTarget = "CuitcorrvtaName" })
+              @Html.ValidationMessageFor(model => model.Cuitcorrvta, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomcorrvta)
+              @Html.TextBoxFor(model => model.Nomcorrvta, new { @class = "form-control nombre-cuenta", id = "CuitcorrvtaName", data_cuitTarget = "Cuitcorrvta" })
+              @Html.ValidationMessageFor(model => model.Nomcorrvta, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitcorrcomp)
+              @Html.TextBoxFor(model => model.Cuitcorrcomp, new { @class = "form-control cuit-cuenta", data_nombreTarget = "CuitcorrcompName" })
+              @Html.ValidationMessageFor(model => model.Cuitcorrcomp, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomcorrcomp)
+              @Html.TextBoxFor(model => model.Nomcorrcomp, new { @class = "form-control nombre-cuenta", id = "CuitcorrcompName", data_cuitTarget = "Cuitcorrcomp" })
+              @Html.ValidationMessageFor(model => model.Nomcorrcomp, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitrteent)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitrteent, new { @class = "form-control cuit-cuenta", id = "Cuitrteent", data_nombreTarget = "CuitrteentName", @disabled = string.IsNullOrEmpty(Model.CuitrteentDisabled) ? null : Model.CuitrteentDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitrteent, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomrteent)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nomrteent, new { @class = "form-control nombre-cuenta", id = "CuitrteentName", data_cuitTarget = "Cuitrteent", @disabled = string.IsNullOrEmpty(Model.NomrteentDisabled) ? null : Model.NomrteentDisabled })
+              @Html.ValidationMessageFor(model => model.Nomrteent, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col-md-4">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Cuitdestinatario)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Cuitdestinatario, new { @class = "form-control cuit-cuenta", id = "Cuitdestinatario", data_nombreTarget = "CuitdestinatarioName", @disabled = string.IsNullOrEmpty(Model.CuitdestinatarioDisabled) ? null : Model.CuitdestinatarioDisabled })
+              @Html.ValidationMessageFor(model => model.Cuitdestinatario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+
+          <div class="col-md-8">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Nomdestinatario)
+              @Html.TextBoxEditableAtributoDisabledFor(model => model.Nomdestinatario, new { @class = "form-control nombre-cuenta", id = "CuitdestinatarioName", data_cuitTarget = "Cuitdestinatario", @disabled = string.IsNullOrEmpty(Model.NomdestinatarioDisabled) ? null : Model.NomdestinatarioDisabled })
+              @Html.ValidationMessageFor(model => model.Nomdestinatario, "", new { @class = "text-danger" })
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Observaciones)
+          @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+        </div>
+      </div>
+    </div>
+
+    <hr />
+    <!--Alfanumericos por día-->
+    <div class="row justify-content-between flex-row flex-nowrap row-scroll">
+      @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+      {
+        <div id="codigos-dia-@Dia" class="col-2">
+          <div class="form-group">
+            @Html.HiddenFor(x => x.CodigosDias[Dia].Fecha, new { Value = DateTime.Now.AddDays(Dia).ToString("dd/MM/yy") })
+            <div class="form-group">
+              <div class="highlight-container">
+                <div class="backdrop">
+                  <div class="highlights"></div>
+                </div>
+
+                @Html.Partial("_ListaAlfanumericosSeleccionablesPartialView", Model.CodigosDias[Dia])
+
+              </div>
+            </div>
+            <span class="aviso-repetido"><span class="highlight-repeated">(*)</span>Alfanuméricos repetidos</span>
+          </div>
+        </div>
+      }
+    </div>
+    @*<div class="row justify-content-between flex-row flex-nowrap row-scroll">
+          @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
+          {
+              <div id="inputAlfas-" class="col-2">
+                  <textarea class="form-control " rows="8"></textarea>
+              </div>
+          }
+      </div>*@
+
+    <div class="row">
+      <div class="col-sm-12 text-right">
+        <button type="button" id="btnCrear" class="btn btn-primary" onclick="autorizar(getNuevo());">Aceptar</button>
+        @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+      </div>
+    </div>
+  </div>
+}
+
+<!--Modal seleccion alfas-->
+<div class="modal" id="modalAlfas" tabindex="-1" role="dialog" data-nrodia="">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="formModalAlfas">
+        <div class="modal-header">
+          <h5 id="modalAlfasTitle" class="modal-title">Selección Alfanuméricos Día <span id="fechaModalAlfas"></span></h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <span>Alfanuméricos</span>
+          <textarea class="seleccionAlfanumericos form-control" rows="8"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary">Aceptar</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" id="btnCerrarModal">Cerrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  @Scripts.Render("~/bundles/spinner")
+  @Scripts.Render("~/bundles/jqueryval")
+  @Scripts.Render("~/bundles/ValidaCuit")
+  @Scripts.Render("~/bundles/autocompletejs")
+  @Scripts.Render("~/bundles/ControlaInputs")
+  @Scripts.Render("~/bundles/Alert")
+  @Scripts.Render("~/bundles/WordTag")
+  @Scripts.Render("~/bundles/Observable")
+  <script type="text/javascript">
+        window.modelData = {
+            actionGetCuit: "@Url.Action("GetCuentaFromCuit", "Cuenta")",
+            actionGetNombreCuenta: "@Url.Action("GetCuitFromNombre", "Cuenta")",
+            actionGetNombreAndCuit: "@Url.Action("GetCuentaFromNumeroCuentaComprador", "Cuenta")",
+            actionGetCuentaYOrdenByNumeroCuenta: "@Url.Action("GetCuentaYOrdenByNumeroCuenta", "Configuracion")",
+            actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
+            actionAutorizar: "@Url.Action("AutorizarStop", "Cupos")",
+            actionCambiarCentro: "@Url.Action("CambiarCentroCupoPendienteStop", "Cupos")",
+            actionPendientesAutorizar: "@Url.Action("AutorizacionesPendientes", "Cupos")",
+            actionEsCYO: "@Url.Action("GetCuentaYOrdenByNumeroCuenta", "Configuracion")",
+            nuevoCupo: {}
+        }
+
+        var tokenfieldAlfas = $('.seleccionAlfanumericos').tokenfield({
+            delimiter: ["\n", ","],
+            inputType: "textarea",
+            minWidth: "100%",
+            minHeight: "100px"
+        });
+
+        document.getElementById("Centro").addEventListener("change", function (e) {
+            onChangeCentro(e);
+        });
+  </script>
+  @Scripts.Render("~/bundles/AutorizacionCuposStop")
+  @Scripts.Render("~/bundles/highlightTextArea")
+}

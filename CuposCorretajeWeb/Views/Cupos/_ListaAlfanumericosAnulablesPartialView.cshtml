@@ -1,0 +1,46 @@
+﻿@model CuposCorretajeWeb.Models.NuevoAlfanumerico
+@{
+    string claseCupoAnulado = "list-group-item-danger";
+    string esCupoAnulado = "";
+    string cupoDistribuido = "";
+}
+<div class="form-group">
+    <div style="text-align:center;">
+        @Model.GetDiaFormateado()
+        <input type="checkbox" id="check_dia@(Model.NumeroDia)" class="check-dia float-right" onchange="handleCheckPorDia(this)" data-lista="lista-dia@(Model.NumeroDia)" />
+    </div>
+    <ul id="lista-dia@(Model.NumeroDia)" class="list-group codigos-alfanumericos">
+        @foreach (var cuerpo in Model.CuerposDia)
+        {
+            esCupoAnulado = "";
+            if (cuerpo.Status == 4 || cuerpo.Status == 5)
+            {
+                cupoDistribuido = "distribuido-borde";
+            }
+            else
+            {
+                cupoDistribuido = "";
+            }
+            if (cuerpo.Status == 3)
+            {
+                esCupoAnulado = claseCupoAnulado;
+            }
+            <li id="@cuerpo.Id" class="py-1 list-group-item d-flex justify-content-between align-items-center @esCupoAnulado @cupoDistribuido">
+                @cuerpo.Nrocupo
+                @if (cuerpo.Status != 3)
+                {
+                    <button type="button" class="close" aria-label="Close" onclick="handleBtnClose(@cuerpo.Id)">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="icon-li" data-toggle="tooltip" data-placement="right" title="">
+                        <span class="oi oi-info"></span>
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+</div>
+ 

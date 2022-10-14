@@ -1,0 +1,34 @@
+﻿@model IEnumerable<CuposCorretajeWeb.Models.Contratos.Vista_CuposMpeCorreV3>
+<table class="table table-sm table-striped table-wrap-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Carporte</th>
+            <th>Comprador</th>
+            <th>Vendedor</th>
+            <th>Destino</th>
+            <th>Grano</th>
+            <th>Cosecha</th>
+            <th>Zona de Influencia</th>
+            <th>Centro</th>
+            <th>Pend. Aplicar</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (CuposCorretajeWeb.Models.Contratos.Vista_CuposMpeCorreV3 detalle in Model.ToList())
+        {
+            <tr>
+                <td>@detalle.Fecha.ToString("dd/MM/yyyy")</td>
+                <td>@detalle.Carporte</td>
+                <td>@detalle.Comprador</td>
+                <td>@detalle.Vendedor</td>
+                <td>@detalle.Destino</td>
+                <td>@detalle.Nomgrano</td>
+                <td>@detalle.Cosecha</td>
+                <td>@detalle.Zonainfluencia</td>
+                <td>@detalle.Centro</td>
+                <td class="text-right">@detalle.Pendaplicar</td>
+            </tr>
+        }
+    </tbody>
+</table>

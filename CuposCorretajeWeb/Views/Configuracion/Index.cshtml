@@ -1,0 +1,85 @@
+﻿@model CuposCorretajeWeb.Models.Configuracion.PanelViewModel
+
+@{
+    ViewBag.Title = "Configuración";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles{
+    @Styles.Render("~/Content/datepickercss")
+}
+
+<h2>Configuración</h2>
+
+@using (Html.BeginForm("Index", "Configuracion", FormMethod.Post)) { 
+    @Html.Partial("~/Views/Cupos/_ConsignacionPartialView.cshtml", Model.Consignacion)
+    
+    <hr/>
+
+    <div class="form-row">
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.HoraLimiteDistribucion)
+            @Html.EditorFor(model => model.HoraLimiteDistribucion, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.HoraLimiteDistribucion, "", new { @class = "text-danger" })
+        </div>
+    </div>
+
+    <hr />
+    
+    <div class="form-row">
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.FechaDesdeDistribucion)
+            @Html.EditorFor(model => model.FechaDesdeDistribucion, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.FechaDesdeDistribucion, "", new { @class = "text-danger" })
+            @*<small id="fechaDesdeAyuda" class="form-text text-muted">Valor por defecto de la última distribución.</small>*@
+        </div>
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.FechaHastaDistribucion)
+            @Html.EditorFor(model => model.FechaHastaDistribucion, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.FechaHastaDistribucion, "", new { @class = "text-danger" })
+            @*<small id="fechaHastaAyuda" class="form-text text-muted">Valor por defecto de la última distribución.</small>*@
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.CosechaDesdeDistribucion)
+            @Html.EditorFor(model => model.CosechaDesdeDistribucion, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.CosechaDesdeDistribucion, "", new { @class = "text-danger" })
+            @*<small id="cosechaDesdeAyuda" class="form-text text-muted">Valor por defecto de la última distribución.</small>*@
+        </div>
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.CosechaHastaDistribucion)
+            @Html.EditorFor(model => model.CosechaHastaDistribucion, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.CosechaHastaDistribucion, "", new { @class = "text-danger" })
+            @*<small id="cosechaHastaAyuda" class="form-text text-muted">Valor por defecto de la última distribución.</small>*@
+        </div>
+    </div>
+
+    <hr />
+
+    <div class="form-row">
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.HoraEnvioMailSTOP)
+            @Html.EditorFor(model => model.HoraEnvioMailSTOP, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.HoraEnvioMailSTOP, "", new { @class = "text-danger" })
+        </div>
+        <div class="col-6 mb-3">
+            @Html.LabelFor(model => model.HoraEnvioMailNoCumplimiento)
+            @Html.EditorFor(model => model.HoraEnvioMailNoCumplimiento, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.HoraEnvioMailNoCumplimiento, "", new { @class = "text-danger" })
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Aceptar</button>
+}
+@section Scripts{
+    @Scripts.Render("~/bundles/datepickerjs")
+    <script type="text/javascript">
+        $("#FechaDesdeDistribucion, #FechaHastaDistribucion").datepicker({
+            dateFormat: "dd/mm/yy",
+            dayNames: ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"],
+            dayNamesMin: ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"],
+            monthNames: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        });
+    </script>
+}

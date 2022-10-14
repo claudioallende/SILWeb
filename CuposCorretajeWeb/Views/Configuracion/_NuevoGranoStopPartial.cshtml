@@ -1,0 +1,33 @@
+﻿@model CuposCorretajeWeb.Models.GranoStop
+@using (Html.BeginForm(null, null, FormMethod.Post, new { id = "formGrano" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="form-horizontal">
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-6">
+                    @Html.LabelFor(model => model.NroGrano, htmlAttributes: new { @class = "control-label" })
+                    @Html.TextBoxFor(model => model.NroGrano, new { @class = "form-control" })
+                </div>
+                <div class="col-md-6">
+                    @Html.LabelFor(model => model.NombreGrano, htmlAttributes: new { @class = "control-label" })
+                    @Html.TextBoxFor(model => model.NombreGrano, new { @class = "form-control" })
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-12 text-right">
+                    @{
+                        var permiso_escritura = CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetClaimValue(User, "AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje");
+                    }
+                    <input type="submit" value="Aceptar" class="btn btn-primary" id="btnAgregarGrano"
+                           @if (permiso_escritura != "True") {   @: disabled
+                    } />
+                </div>
+            </div>
+        </div>
+    </div>
+}

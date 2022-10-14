@@ -1,0 +1,101 @@
+﻿@model IEnumerable<CuposCorretajeWeb.Models.CuposAgrupadosPdf>
+@{
+    var color_fila_informado = "indigo_claro";
+    var color_fila_distribuido = "amarillo_claro";
+    var clase_color = "";
+    var CantidadDias = 20;
+}
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th></th>
+            @for (int Dia = 0; Dia <= CantidadDias; Dia++)
+            {
+                <th colspan="2" class="border-left">@DateTime.Now.AddDays(Dia).ToString("dd/MM")</th>
+            }
+        </tr>
+        <tr>
+            <th>Vendedor</th>
+            @for (int Dia = 0; Dia <= CantidadDias; Dia++)
+            {
+                <th class="border-left">TR</th>
+                <th>TO</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            clase_color = "";
+            if (item.PendPdf == 1)
+            {
+                clase_color = color_fila_distribuido;
+            }
+            else if (item.PendPdf == 0 && (item.D0Co + item.D1Co + item.D2Co + item.D3Co + item.D4Co + item.D5Co) > 0)
+            {
+                clase_color = color_fila_informado;
+            }
+            <tr class="@clase_color">
+                <td>
+                    @Html.DisplayFor(modelItem => item.Vendedor)
+                </td>
+                @for (int Dia = 0; Dia <= CantidadDias; Dia++)
+                {
+                    <td class="border-left text-center">
+                        @Html.Raw(item.GetType().GetProperty("D" + Dia + "Cr").GetValue(item))
+                    </td>
+                    <td class="text-center">
+                        @Html.Raw(item.GetType().GetProperty("D" + Dia + "Co").GetValue(item))
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td><b>Total Diario</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D0Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D0Co)</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D1Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D1Co)</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D2Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D2Co)</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D3Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D3Co)</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D4Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D4Co)</b></td>
+            <td class="text-center border-left"><b>@Model.Sum(x => x.D5Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D5Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D6Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D6Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D7Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D7Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D8Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D8Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D9Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D9Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D10Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D10Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D11Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D11Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D12Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D12Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D13Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D13Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D14Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D14Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D15Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D15Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D16Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D16Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D17Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D17Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D18Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D18Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D19Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D19Co)</b></td>
+            <td class="border-left text-center"><b>@Model.Sum(x => x.D20Cr)</b></td>
+            <td class="text-center"><b>@Model.Sum(x => x.D20Co)</b></td>
+        </tr>
+    </tfoot>
+</table>

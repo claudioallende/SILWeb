@@ -1,0 +1,126 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    @Styles.Render("~/Content/landing")
+    <link rel="icon" type="image/x-icon" href="~/Content/images/favicon.png" />
+    <title>ACA | Sistema Integral de Logística</title>
+</head>
+<body>
+    <div id="wrapper">
+        <header>
+            <h1>Asociación de Cooperativas Argentinas</h1>
+            <nav id="menu">
+                <div id="nav-icon4" class="close">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <ul id="barra">
+                    <li data-id='1'>VISIÓN</li>
+                    <li data-id='2'>DEPTO. DE LOGÍSTICA</li>
+                    <li data-id='3'>QUIENES SOMOS</li>
+                </ul>
+            </nav>
+        </header>
+        <h2>Sistema Integral de Logística</h2>
+        <div id="wrap_iconos">
+            <ul>
+                <li class="boton_proximamente">
+                    <img src="~/img/iconos/turnos.png" alt="Icono Solicitud de Turnos">
+                    <p>Solicitud de <br> turnos</p>
+                </li>
+                <li>
+                    <a href="@System.Configuration.ConfigurationManager.AppSettings["SILReportes"]" target="_blank">
+                        <img src="~/img/iconos/reporte.png" alt="Icono Reporte de Gestión">
+                        <p>Reporte de <br> gestión</p>
+                    </a>
+                </li>
+                <li>
+                    <a href="@Url.Action("Index", "Cupos")" target="_blank">
+                        <img src="~/img/iconos/operativa.png" alt="Icono Gestión Operativa">
+                        <p>Gestión <br> operativa</p>
+                    </a>
+                </li>
+                <li class="boton_proximamente">
+                    <img src="~/img/iconos/estadistica.png" alt="Icono Estadísticas">
+                    <p>Estadísticas</p>
+                </li>
+                <li class="boton_proximamente">
+                    <img src="~/img/iconos/comunicacion.png" alt="Icono Comunicación">
+                    <p>Comunicación</p>
+                </li>
+                <li class="manuales">
+                    <img src="~/img/iconos/manuales.png" alt="Icono Manuales">
+                    <p>Manuales</p>
+                </li>
+            </ul>
+        </div>
+        <div id="myModal" class="modal">
+            <div class="modal-content modal-content2">
+                <span class="cerrar">X</span>
+                <p class="proxi">PROXIMAMENTE</p>
+            </div>
+        </div>
+        <div id="myModal1" class="modal">
+            <div class="modal-content">
+                <span class="cerrar">X</span>
+                <p class="tituloModal">VISIÓN</p>
+                <p class="textModal">Continuar siendo el originador N° 1, ofreciendo las mejores opciones de negocios, con un crecimiento constante de la participación y la diversificación, a través de un Ecosistema Cooperativo sólido y adecuado.</p>
+            </div>
+        </div>
+        <div id="myModal2" class="modal">
+            <div class="modal-content">
+                <span class="cerrar">X</span>
+                <p class="tituloModal">DEPARTAMENTO DE LOGÍSTICA</p>
+                <p class="subTituloModal">ÁREA DE SERVICIOS</p>
+                <p class="textModal">La logística es el puente entre la producción y el mercado, con fuerte vínculo en todas las modalidades de transporte. La coordinación entre los diferentes actores sumado a la comunicación efectiva, a la innovación tecnológica, a la capacitación de los RRHH y a la eficiencia de los procesos, garantizan la misión de la organización y dirección.</p>
+                <p class="subTituloModal">ASPIRACIÓN 2023</p>
+                <p class="textModal">Lograr una eficiente gestión de la logística basada en la metodología de trabajo y la coordinación entre los sectores involucrados, utilizando tecnología moderna.</p>
+                <p class="subTituloModal">EFICIENCIA DEL PROCESO LOGÍSTICO</p>
+                <ul class="logistica">
+                    <li>Cumplimiento del plazo contractual</li>
+                    <li>Previsibilidad</li>
+                    <li>Comunicación</li>
+                    <li>Efectividad	</li>
+                    <li>Capacitación</li>
+                </ul>
+            </div>
+        </div>
+        <div id="myModal3" class="modal">
+            <div class="modal-content">
+                <span class="cerrar">X</span>
+                <ul class="manualesLista">
+                    <li>
+                        <a href="@Url.Action("GetPdf", "Doc", new { filename = "CTG_codigo_de_trazabilidad_de_granos.pdf" })" target="_blank">
+                            <img src="~/img/iconos/pdf.png" alt="pdf icono">
+                            <p class="manualesListaSubTituloModal">CTG</p>
+                            <p class="manualesListaTextModal">Código de <br>trazabilidad <br>de granos</p>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("GetPdf", "Doc", new { filename = "SIL_Sistema_Integral_de_Logistica.pdf" })" target="_blank">
+                            <img src="~/img/iconos/pdf.png" alt="pdf icono">
+                            <p class="manualesListaSubTituloModal">SIL</p>
+                            <p class="manualesListaTextModal">Sistema <br>Integral de <br>Logística</p>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("GetPdf", "Doc", new { filename = "STOP_ministerio_de_transporte.pdf" })" target="_blank">
+                            <img src="~/img/iconos/pdf.png" alt="pdf icono">
+                            <p class="manualesListaSubTituloModal">STOP</p>
+                            <p class="manualesListaTextModal">Ministerio de <br>transporte</p>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    @Scripts.Render("~/bundles/landing")
+</body>
+</html>

@@ -1,0 +1,100 @@
+﻿@using CuposCorretajeWeb.Models
+@model IndexCupoAutorizarViewModel
+
+@{
+    ViewBag.Title = "Autorizaciones Pendientes";
+}
+@section Styles{
+    @Styles.Render("~/Content/skeleton")
+    @Styles.Render("~/Content/multiselect")
+    @Styles.Render("~/Content/datatables")
+    @Styles.Render("~/Content/autocompletecss")
+}
+
+<div class="position-relative">
+    <form class="form-inline mb-2">
+        <div class="form-group pr-3">
+            @Html.LabelFor(model => model.Productos, htmlAttributes: new { @class = "pr-2" })
+            @Html.DropDownListFor(model => model.ProductoSeleccionado, Model.Productos, htmlAttributes: new { @class = "form-control form-control-sm" }, optionLabel: "--Seleccione--")
+        </div>
+        <div class="form-group pr-3">
+            <label for="comprador" class="pr-2">Comprador</label>
+            <input type="text" name="comprador" id="Comprador" class="form-control form-control-sm" style="width:300px;"/>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+    </form>
+</div>
+
+<div>
+    @Html.Partial("_CuposPendienteAutorizarTablaPartial", Model.TablaCupos, new ViewDataDictionary
+    {
+        {"Action", "AutorizacionCuposStop"}
+    })
+</div>
+@section Scripts{
+    @Scripts.Render("~/bundles/skeleton")
+    @Scripts.Render("~/bundles/datatables")
+    @Scripts.Render("~/bundles/multiselect")
+    @Scripts.Render("~/bundles/autocompletejs")
+    @Scripts.Render("~/bundles/SearchTable")
+    <script type="text/javascript">
+        var datatables;
+
+        $(document).ready(function () {
+            convertirDataTable();
+            showDataTable(); //skeleton.js
+            resizeDraw();
+            $('#CentroSeleccionado').multiselect({
+                buttonClass: "form-control form-control-sm dropdown-button-multiselect",
+                nonSelectedText: "--Seleccione--",
+                nSelectedText: "seleccionados",
+                allSelectedText: "Todos",
+                templates: {
+                    li: '<li class="form-control-sm"><a tabindex="0"><label></label></a></li>'
+                },
+                buttonWidth: "320px"
+            });
+
+            var columnaGrano = datatables.columns(0);
+            $("#ProductoSeleccionado").change(function () {
+                columnaGrano
+                    .search(this.options[this.options.selectedIndex].innerText)
+                    .draw();
+            });
+
+            var columnaComprador = datatables.columns(1);
+            $("#Comprador").keyup(function () {
+                columnaComprador
+                    .search(this.value)
+                    .draw();
+            });
+        });
+
+        function resizeDraw() {
+            $(window).resize(function(){
+                datatables.draw();
+            });
+        }
+
+        function convertirDataTable() {
+            datatables = $('.table').removeAttr('width').DataTable({
+                scrollX: true,
+                scrollY: "65vh",
+                scrollCollapse: true,
+                paging: false,
+                //bFilter: false,
+                bInfo: false,
+                bSort: false,
+                fixedColumns: {
+                    leftColumns: @Model.TablaCupos.Columnas.Count,
+                    rightColumns: 1
+                },
+                "language": {
+                    "search": "Buscar:",
+                    "zeroRecords": "No se encontraron resultados para la búsqueda"
+                },
+                dom: '<"d-none"f>t'
+            });
+        }
+    </script>
+}

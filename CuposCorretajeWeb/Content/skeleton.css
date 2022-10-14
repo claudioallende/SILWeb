@@ -1,0 +1,27 @@
+﻿.multiselect-skeleton-sm {
+    height: calc(1.5em + .5rem + 2px)!important;
+    overflow: hidden;
+}
+
+.multiselect-skeleton-sm option {
+    display:none;
+}
+
+.datatable-skeleton {
+    max-width: 100vw;
+    overflow:hidden;
+    background-color:#E3E3E3;
+}
+
+.datatable-skeleton table thead {
+    background-color: white;
+}
+
+.datatable-skeleton table tbody,
+.datatable-skeleton table tfoot {
+    visibility:hidden;
+}
+
+.skeleton-alto-m {
+    max-height: 460px;
+}

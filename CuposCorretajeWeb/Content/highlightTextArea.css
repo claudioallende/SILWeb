@@ -1,0 +1,55 @@
+﻿.highlight-container, .backdrop, textarea {
+    width: 100%;
+}
+
+.highlight-container .highlights, .highlight-container textarea {
+    letter-spacing: 1px;
+    display: block;
+}
+
+.highlight-container {
+    transform: translateZ(0);
+    -webkit-text-size-adjust: none;
+}
+
+.backdrop {
+    position: absolute;
+    z-index: 1;
+    overflow: auto;
+    pointer-events: none;
+    transition: transform 1s;
+    height: 100%;
+    padding: .375rem .75rem;
+}
+
+.highlights {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: transparent;
+    font-size: .75rem;
+}
+
+.highlight-container textarea {
+    display: block;
+    z-index: 2;
+    border-radius: 0;
+    background-color: transparent;
+    overflow: auto;
+    resize: none;
+}
+
+.highlight-container mark {
+    border-radius: 3px;
+    color: transparent;
+    /*background-color: #b1d5e5;*/
+    background-color: red;
+    opacity: 0.3;
+}
+
+.highlight-container textarea:focus{
+    outline: none;
+}
+
+.highlight-repeated {
+    background-color: #ff6666;
+}

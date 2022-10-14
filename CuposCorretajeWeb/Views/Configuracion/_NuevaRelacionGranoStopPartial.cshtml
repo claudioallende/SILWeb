@@ -1,0 +1,41 @@
+﻿@model CuposCorretajeWeb.Models.NuevaRelacionGranoStop
+
+@using (Html.BeginForm(null, null, FormMethod.Post, new { id = "formRelacion" }))
+{
+    @Html.AntiForgeryToken()
+    <div class="form-horizontal">
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-6">
+                    @Html.LabelFor(model => model.CodigoGranoStop, htmlAttributes: new { @class = "control-label" })
+                    @Html.DropDownListFor(model => model.CodigoGranoStop, Model.GranosStop, new { @class = "form-control" })
+                    @Html.HiddenFor(model => model.Id)
+                </div>
+                <div class="col-md-6">
+                    @Html.LabelFor(model => model.CodigoGranoSil, htmlAttributes: new { @class = "control-label" })
+                    @Html.DropDownListFor(model => model.CodigoGranoSil, Model.GranosSil, new { @class = "form-control" })
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 pt-3">
+                    @Html.CheckBoxFor(model => model.ValorPorDefecto, htmlAttributes: new { @class = "control-input" })
+                    @Html.LabelFor(model => model.ValorPorDefecto, htmlAttributes: new { @class = "control-label" })
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-12 text-right">
+                    @{
+                        var permiso_escritura = CuposCorretajeWeb.Models.Identity.ClaimsUtil.GetClaimValue(User, "AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje");
+                    }
+                    <input type="submit" value="Aceptar" class="btn btn-primary" id="btnAgregarRelacion"
+                           @if (permiso_escritura != "True") {   @: disabled
+                    } />
+                </div>
+            </div>
+        </div>
+    </div>
+}

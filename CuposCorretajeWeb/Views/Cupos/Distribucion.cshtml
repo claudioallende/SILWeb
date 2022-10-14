@@ -1,0 +1,566 @@
+﻿@model CuposCorretajeWeb.Models.DistribuirCupoViewModel
+
+@{
+  ViewBag.Title = "Distribucion";
+  //Html.EnableClientValidation();
+}
+
+@section Styles{
+  @Styles.Render("~/Content/skeleton")
+  @Styles.Render("~/Content/datepickercss")
+  @Styles.Render("~/Content/autocompletecss")
+  @Styles.Render("~/Content/datatables")
+  @Styles.Render("~/Content/spinner")
+}
+
+<h2>Distribucion</h2>
+@using (Html.BeginForm("Distribucion", "Cupos", new { centroorigen = Request.Params["centroorigen"], centrodistribucion = Request.Params["centrodistribucion"], cyo = Request.Params["cyo"] }, FormMethod.Post, new { id = "FormFiltro" }))
+{
+  @Html.AntiForgeryToken()
+  <div class="row">
+    <div class="col-md-2">
+      <div class="form-group">
+        @Html.LabelFor(model => model.Producto, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.Producto, new { @class = "form-control", @readonly = "readonly" })
+        @Html.ValidationMessageFor(model => model.Producto, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-5">
+      <div class="form-group">
+        @Html.LabelFor(model => model.Comprador, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.Comprador, new { @class = "form-control", @readonly = "readonly" })
+        @Html.ValidationMessageFor(model => model.Comprador, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-5">
+      <div class="form-group">
+        @Html.LabelFor(model => model.Puerto, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.Puerto, new { @class = "form-control", @readonly = "readonly" })
+        @Html.ValidationMessageFor(model => model.Puerto, "", new { @class = "text-danger" })
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-2">
+      <div class="form-group">
+        @Html.LabelFor(model => model.EntregaDesde, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.EntregaDesde, "{0:dd/MM/yyyy}", new { @class = "form-control", autocomplete = "off" })
+        @Html.ValidationMessageFor(model => model.EntregaDesde, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="form-group">
+        @Html.LabelFor(model => model.EntregaHasta, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.EntregaHasta, "{0:dd/MM/yyyy}", new { @class = "form-control", autocomplete = "off" })
+        @Html.ValidationMessageFor(model => model.EntregaHasta, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="form-group">
+        @Html.LabelFor(model => model.CosechaDesde, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.CosechaDesde, new { @class = "form-control" })
+        @Html.ValidationMessageFor(model => model.CosechaDesde, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="form-group">
+        @Html.LabelFor(model => model.CosechaHasta, htmlAttributes: new { @class = "control-label" })
+        @Html.TextBoxFor(model => model.CosechaHasta, new { @class = "form-control" })
+        @Html.ValidationMessageFor(model => model.CosechaHasta, "", new { @class = "text-danger" })
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="form-group">
+        @Html.LabelFor(model => model.CentroSeleccionado, "Centro", htmlAttributes: new { @class = "control-label" })
+        @Html.DropDownListFor(model => model.CentroSeleccionado, Model.Centro, htmlAttributes: new { @class = "form-control" }@*, optionLabel: "--Seleccione--"*@)
+        @Html.ValidationMessageFor(model => model.CentroSeleccionado, "", new { @class = "text-danger" })
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="form-group">
+        <button type="submit" id="btnBuscar" class="btn btn-primary">Buscar</button>
+      </div>
+    </div>
+  </div>
+}
+@if (Model.Consignaciones != null && Model.Consignaciones.Count > 0)
+{
+  @Html.Partial("_ModalSeleccionConsignacionesPartial", Model.Consignaciones, new ViewDataDictionary
+      {
+          { "OpenModal", ViewBag.OpenModal }
+      })
+}
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <div id="accordion">
+        <div class="card">
+          <div class="card-header" id="headingOne">
+            <h5 class="mb-0">
+              <button class="btn btn-link" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                Modificar datos de consignación
+              </button>
+            </h5>
+          </div>
+
+          <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
+            <div class="card-body">
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitsolicitante)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitsolicitante, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitsolicitante" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitsolicitante, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomsolicitante)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomsolicitante, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitsolicitanteName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomsolicitante, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.CuitRteComercialProductor)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.CuitRteComercialProductor, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialProductor" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.CuitRteComercialProductor, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.NomRteComercialProductor)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.NomRteComercialProductor, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialProductorName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.NomRteComercialProductor, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.CuitRteComercialVentaPrimaria)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.CuitRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "CuitRteComercialVentaPrimaria" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.CuitRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.NomRteComercialVentaPrimaria)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.NomRteComercialVentaPrimaria, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitRteComercialVentaPrimariaName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.NomRteComercialVentaPrimaria, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitintermediario)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitintermediario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitintermediario" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitintermediario, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomintermediario)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomintermediario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitintermediarioName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomintermediario, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitrtecomercial)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitrtecomercial, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrtecomercial" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitrtecomercial, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomrtecomercial)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomrtecomercial, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrtecomercialName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomrtecomercial, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitmat)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitmat, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitmat" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitmat, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nommat)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nommat, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitmatName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nommat, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitcorrvta)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitcorrvta, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrvta" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitcorrvta, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomcorrvta)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomcorrvta, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrvtaName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomcorrvta, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitcorrcomp)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitcorrcomp, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrcomp" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitcorrcomp, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomcorrcomp)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomcorrcomp, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrcompName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomcorrcomp, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitrteent)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitrteent, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrteent" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitrteent, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomrteent)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomrteent, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrteentName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomrteent, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Cuitdestinatario)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Cuitdestinatario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitdestinatario" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Cuitdestinatario, "", new { @class = "text-danger" })
+                    <span class="field-validation-valid text-danger" data-valida-campo="CuitDestinatario"></span>
+                  </div>
+                </div>
+
+                <div class="col-md-8">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Nomdestinatario)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Nomdestinatario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitdestinatarioName" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.Nomdestinatario, "", new { @class = "text-danger" })
+                    <span class="field-validation-valid text-danger" data-valida-campo="NombreDestinatario"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="Observaciones" class="control-label">Observaciones</label>
+                    <textarea id="Observaciones" class="form-control" rows="2"></textarea>
+                  </div>
+                </div><!--col-->
+              </div><!--row-->
+            </div>
+          </div>
+        </div><!--card-->
+      </div><!--accordion-->
+    </div><!--form-group-->
+  </div><!--col-->
+</div><!--row-->
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="form-group">
+      <label for="Vendedor">Vendedor</label>
+      <div class="input-group mb-3">
+        <div class="input-group-prepend">
+          <span class="input-group-text" id=""><span class="oi oi-magnifying-glass"></span></span>
+        </div>
+        <input id="Vendedor" type="text" class="form-control" name="Vendedor" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group">
+      <div id="accordionTwo">
+        <div class="card">
+          <div class="card-header" id="headingTwo">
+            <h5 class="mb-0">
+              <button class="btn btn-link" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                Ver cupos informados y cupos distribuidos no informados
+              </button>
+            </h5>
+          </div>
+
+          <div id="collapseTwo" class="collapse" aria-labelledby="headingOne" data-parent="#accordionTwo">
+            <div class="card-body">
+              <div class="form-group overflow-auto">
+                @if (Model.CuposAgrupados != null)
+                {
+                  @Html.Partial("_DetalleCuposAgrupadosPorInformados", Model.CuposAgrupados)
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="btn-group-toggle" data-toggle="buttons" title="Filtra cupos asignados que superan el máximo disponible para los contratos">
+      <label class="btn btn-outline-primary btn-with-icon">
+        <input type="checkbox" autocomplete="off" onchange="handleChangeFiltroCantidadCupoSuperaDisponible(this)">
+        Ver asignaciones excedidas
+      </label>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="form-group container_table_distribucion">
+      @Html.Partial("~/Views/Contratos/_DistribucionContratosPartial.cshtml", Model.DistribucionesDisponibles)
+    </div>
+  </div>
+</div>
+
+<!-- Modal Contratos -->
+<div class="modal fade" id="idModalContratos" tabindex="-1" role="dialog" aria-labelledby="idModalContratosTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="idModalContratosTitulo">Contratos</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <table id="TablaContratos" class="table table-sm table-striped table-wrap-bordered">
+          <thead>
+            <tr>
+              <th>Contrato</th>
+              <th>Neg.</th>
+              <th>Oper.</th>
+              <th>Prod.</th>
+              <th>Cos.</th>
+              <th>Entrega</th>
+              <th>Vto.Ent.</th>
+              <th>Pactadas</th>
+              <th>Apli.</th>
+              <th>Pend.Ent.</th>
+              <th>Liq.</th>
+              <th>Precio</th>
+              <th>Destino</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--Modal motivos-->
+@Html.Partial("_ModalMotivosPartial", Model.MotivosDecrementoCupos)
+
+<!--Modal detalle pendientes de aplicar-->
+<div class="modal fade" id="modalDetallePendienteAplicar" tabindex="-1" role="dialog" aria-labelledby="modalDetallePendienteAplicarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDetallePendienteAplicarLabel">Detalle Pendiente Aplicar</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 text-right">
+    <div class="form-group">
+      <button id="btnAceptar" class="btn btn-primary">
+        Aceptar
+      </button>
+      @Html.ActionLink("Cancelar", "Detalle",
+          new
+          {
+              id = Model.CuentaComprador + "-" + Model.CuentaPuerto + "-" + Model.CodigoProducto,
+              centroorigen = Request.Params["centroorigen"],
+              centrodistribucion = Request.Params["centrodistribucion"],
+              cyo = Request.Params["cyo"]
+          },
+          new { @class = "btn btn-danger" })
+    </div>
+  </div>
+</div>
+
+@Html.Partial("_InformaCuposPartial")
+
+@section Scripts{
+  @Scripts.Render("~/bundles/datepickerjs")
+  @Scripts.Render("~/bundles/ValidaCuit")
+  @Scripts.Render("~/bundles/autocompletejs")
+  @Scripts.Render("~/bundles/skeleton")
+  @Scripts.Render("~/bundles/datatables")
+  @Scripts.Render("~/bundles/spinner")
+  <script>
+        var spinnerBtnAceptar = new Spinner(document.getElementById("btnAceptar"));
+        var spinnerBtnAceptarMotivo = new Spinner(document.getElementById("btnAceptarMotivo"));
+        var btnInformaCupos = new Spinner(document.getElementById("btnInformaCupos"));
+        var btnAceptarModalConsignaciones = document.getElementById("btnAceptarModalConsignaciones");
+        var spinnerBtnAceptarConsignacion;
+        if (btnAceptarModalConsignaciones != undefined) spinnerBtnAceptarConsignacion = new Spinner(document.getElementById("btnAceptarModalConsignaciones"));
+        var spinnerBtnBuscar = new Spinner(document.getElementById("btnBuscar"));
+        window.modelData = {
+            modelId: "@Model.Id",
+            actionDetalle: "@Url.Action("Detalle")",
+            actionActualizarDistribucion: "@Url.Action("ActualizarDistribucion")",
+            actionContratos: "@Url.Action("Contratos")",
+            actionGetCuit: "@Url.Action("GetCuit")",
+            actionCantidadCuposConsignacionSeleccionada: "@Url.Action("GetCantidadCuposConsignacionSeleccionada")",
+            actionGetTablaContratos: "@Url.Action("GetTablaContratos")",
+            //actionGetCuentaFromNombre: "@Url.Action("GetCuentaFromNombre", "Cuenta")",
+            actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
+            actionGetDetallePendienteAplicar: "@Url.Action("GetDetallePendienteAplicar", "Contrato")",
+            cuentaComprador: "@Model.CuentaComprador",
+            cuentaVendedor: "@Model.CuentaVendedor",
+            cuentaPuerto: "@Model.CuentaPuerto",
+            codigoProducto: "@Model.CodigoProducto",
+            centrocontratos: "@Model.CentroSeleccionado",
+            centroorigen: "@Request.Params["centroorigen"]",
+            centrodistribucion: "@Request.Params["centrodistribucion"]",
+            cantidaddias: 20,
+            filtro: "@Html.Raw(Request.Url.Query)",
+            //Definido en Distribucion.js
+            cupo: {},
+            observaciones: [],
+            @{string cyo = Request.QueryString["cyo"] != null ? "&cyo=true" : "";}
+            cyo: "@cyo",
+            cuentas: []
+        }
+  </script>
+  @Scripts.Render("~/bundles/Consignaciones")
+  @Scripts.Render("~/bundles/Distribucion")
+  @Scripts.Render("~/bundles/motivoanulacion")
+  <script type="text/javascript">
+    var controlEstados;
+    var datatable;
+    var tabulacion;
+    $(document).ready(function () {
+      datatable = ConvertirDataTable();
+      tabulacion = new DataTablesTabulacion(document.getElementsByClassName("DTFC_LeftWrapper")[0], document.getElementsByClassName("DTFC_RightWrapper")[0], document.getElementsByClassName("dataTables_scrollBody")[0]);
+      showDataTable(); //skeleton.js
+
+      controlEstados = new EstadoGrilla(datatable);
+
+      //Ver en MotivoAnulacion.js
+      handleClickBtnShowModal(document.getElementById("btnAceptar"), function () {
+        var hayDecremento = false;
+        //Obtiene la matriz de modificaciones realizadas, si existe algun decremento se muestra el modal Motivos
+        hayDecremento = controlEstados.modificacionesDelEstadoInicial.matrizDiferencias.some(function (array) {
+          return array.some(function (el) {
+            return el < 0;
+          });
+        });
+        if (!hayDecremento) distribuir(spinnerBtnAceptar);
+        return hayDecremento;
+      });
+
+      //Evento del boton Aceptar del modal Motivo
+      handleClickBtnAceptarMotivo(function (textMotivo) {
+        if (control_destinatario()) distribuir(spinnerBtnAceptarMotivo, textMotivo);
+      });
+    });
+
+    function control_destinatario() {
+      valida = true;
+      CuitDestinatario = document.getElementById("Cuitdestinatario");
+      NombreDestinatario = document.getElementById("CuitdestinatarioName");
+      if (CuitDestinatario.value.trim() == "") {
+        valida = false;
+        document.querySelector('span[data-valida-campo="CuitDestinatario"]').innerHTML = CuitDestinatario.dataset["valida"];
+      } else {
+        document.querySelector('span[data-valida-campo="CuitDestinatario"]').innerHTML = "";
+      }
+
+      if (NombreDestinatario.value.trim() == "") {
+        valida = false;
+        document.querySelector('span[data-valida-campo="NombreDestinatario"]').innerHTML = NombreDestinatario.dataset["valida"];
+      } else {
+        document.querySelector('span[data-valida-campo="NombreDestinatario"]').innerHTML = "";
+      }
+      return valida;
+    }
+
+    function ConvertirDataTable() {
+      var table = $('#TablaDistribuciones').removeAttr('width').DataTable({
+        scrollY: "400px",
+        scrollX: true,
+        scrollCollapse: true,
+        paging: false,
+        bFilter: false,
+        bInfo: false,
+        bSort: false,
+        fixedColumns: {
+          leftColumns: 7,
+          rightColumns: 1
+        }
+      });
+      return table;
+    }
+  </script>
+}

@@ -1,0 +1,268 @@
+﻿@model CuposCorretajeWeb.Models.DetalleCupoViewModel
+
+@section Styles{
+    @Styles.Render("~/Content/skeleton")
+    @Styles.Render("~/Content/spinner")    
+    @Styles.Render("~/Content/datatables")
+}
+
+@{
+    ViewBag.Title = "Detalle";
+    string alguno_informa = Model.CuposAgrupados.Sum(x => x.PendPdf) > 0 ? "" : "disabled";
+
+    var Usuario = this.User as System.Security.Claims.ClaimsPrincipal;
+    var CantidadCentros = Usuario.Claims.Where(x => x.Type == "Centro").Count();
+    var CentroPorDefecto = Usuario.Claims.Where(x => x.Type == "CentroPorDefecto").Select(x => x.Value).FirstOrDefault();
+}
+
+<h2>Detalle</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <dl class="row">
+            <dt class="col-sm-4">Comprador</dt>
+            <dd class="col-sm-8">@Model.NombreComprador</dd>
+
+            <dt class="col-sm-4">Puerto</dt>
+            <dd class="col-sm-8">@Model.NombrePuerto</dd>
+        </dl>
+    </div>
+    @if (CantidadCentros > 1)
+    {
+        <div class="col-md-6">
+            <dl class="row">
+                <dt class="col-sm-4">Centro</dt>
+                <dd class="col-sm-8">@Model.NombreCentro</dd>
+
+                <dt class="col-sm-4">Centro Distribución</dt>
+                <dd class="col-sm-8">@Model.NombreCentroDistribucion</dd>
+            </dl>
+        </div>
+    }
+</div>
+
+<div>
+    <table id="tabla_detalle" class="table table-sm table-striped text-nowrap table-wrap-bordered" style="width:100%;">
+        <thead>
+            <tr>
+                <th></th>
+                @for (int dia = 0; dia <= Model.CantidadDias; dia++)
+                {
+                    <th colspan="2" class="border-left">@DateTime.Now.AddDays(dia).Date.ToString("dd/MM")</th>
+                }
+                <th class="border-left"></th>
+                <th></th>
+            </tr>
+            <tr>
+                <th>Vendedor</th>
+                @for (int dia = 0; dia <= Model.CantidadDias; dia++)
+                {
+                    <th class="border-left">TR</th>
+                    <th>TO</th>
+                }
+                <th class="border-left"></th>
+                <th class="text-left">
+                    <div class="align-self-center">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" name="seleccionaTodo" id="seleccionaTodo" class="custom-control-input" @alguno_informa onchange="handleEventCheckSeleccionarTodo()" />
+                            <label class="custom-control-label" for="seleccionaTodo"></label>
+                        </div>
+                    </div>
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in Model.CuposAgrupados)
+            {
+                string deshabilitarBotones = "";
+                string informar = "";
+                if (!item.TieneCuposAsignados() || (CantidadCentros == 1 && item.CodCentroDist != CentroPorDefecto))
+                {
+                    deshabilitarBotones = "disabled";
+                }
+                if (item.PendPdf != 1)
+                {
+                    informar = "disabled";
+                }
+                <tr data-vendedor="@item.VendCta">
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Vendedor)
+                    </td>
+                    @for (int dia = 0; dia <= Model.CantidadDias; dia++)
+                    {
+                        <td data-dia="CR@(dia)" class="text-center border-left cupos_recibidos">
+                            @Html.Raw(item.GetType().GetProperty("D" + dia + "Cr").GetValue(item))
+                        </td>
+                        <td data-dia="CO@(dia)" class="text-center cupos_otorgados">
+                            @Html.Raw(item.GetType().GetProperty("D" + dia + "Co").GetValue(item))
+                        </td>
+                    }
+                    <td class="text-center border-left">
+                        <a href='@Url.Action("Editar", null, new {
+                            id = item.Compcta + "-" + item.VendCta + "-" + item.PuertoCta + "-" + item.Grano,
+                            centroorigen = item.CodCentro,
+                            centrodistribucion = item.CodCentroDist,
+                            cyo = Request.Params["cyo"]
+                        })'
+                           class="btn btn-primary btn-sm" title="Editar">
+                            <span class="oi oi-list"></span>
+                        </a>
+                        <a href='@Url.Action("Distribucion", null, new {
+                            id = item.Compcta + "-" + item.VendCta + "-" + item.PuertoCta + "-" + item.Grano,
+                            centroorigen = item.CodCentro,
+                            centrodistribucion = item.CodCentroDist,
+                            cyo = Request.Params["cyo"]
+                        })'
+                           class="btn btn-warning btn-sm @deshabilitarBotones" title="Distribución">
+                            <span class="oi oi-transfer" style="color:white"></span>
+                        </a>
+                        <button id="btnInforma_@item.VendCta" data-vendedor="@item.VendCta" onclick="handleEventBtnInformar(this)"
+                                class="btn btn-indigo btn-sm btn--informar v_@item.VendCta @informar btn_@item.VendCta" @informar title="Informar" data-check="check_@item.VendCta">
+                            <span class="oi oi-envelope-closed"></span>
+                        </button>
+                    </td>
+                    <td>
+                        <div class="align-self-center">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" name="check-informa" id="check_@item.VendCta" class="custom-control-input check--informa v_@item.VendCta check_@item.VendCta" value="@item.VendCta" @(item.PendPdf == 1 ? "" : "disabled") onchange="handleEventCheckInformar(this);" />
+                                <label class="custom-control-label" for="check_@item.VendCta"></label>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td><b>Total Diario</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D0Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D0Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D1Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D1Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D2Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D2Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D3Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D3Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D4Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D4Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D5Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D5Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D6Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D6Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D7Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D7Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D8Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D8Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D9Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D9Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D10Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D10Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D11Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D11Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D12Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D12Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D13Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D13Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D14Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D14Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D15Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D15Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D16Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D16Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D17Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D17Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D18Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D18Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D19Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D19Co)</b></td>
+                <td class="text-center border-left"><b>@Model.CuposAgrupados.Sum(x => x.D20Cr)</b></td>
+                <td class="text-center"><b>@Model.CuposAgrupados.Sum(x => x.D20Co)</b></td>
+                <td class="border-left" colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<div class="row">
+    <div class="col-sm-12 text-right">
+        <button id="btnEnviar" class="btn btn-indigo" @alguno_informa onclick="handleEventBtnEnviar()" disabled>Enviar</button>
+        @Html.ActionLink("Volver", "Index", null, new { @class = "btn btn-secondary" })
+    </div>
+</div>
+
+@section Scripts{
+    <script type="text/javascript">
+        var model = {
+            Comprador: @Model.CuentaComprador,
+            Puerto: @Model.CuentaPuerto,
+            Grano: @Model.CodigoGrano,
+            Cyo: @((string.IsNullOrEmpty(Request.Params["cyo"]) || Request.Params["cyo"].ToLower() == "false") ? "false" : "true"),
+            CentroOrigen: "@Model.CodigoCentro",
+            CentroDistribucion: "@Model.CodigoCentroDistribucion",
+            actionInformaPorLote: "@Url.Action("InformarCuposPorLote")",
+            actionDistribucion: "@Url.Action("Distribucion")",
+            actionEditar: "@Url.Action("Editar")",
+            estado: [
+                @foreach (var item in Model.CuposAgrupados)
+            {
+                @Html.Raw("{" + string.Format("'CuentaVendedor': {0}, 'Informa': {1}, 'ParaInformar': false, ", item.VendCta, item.PendPdf));
+                for (int dia = 0; dia <= Model.CantidadDias; dia++)
+                {
+                    @Html.Raw(string.Format("'CR" + dia + "': {0}, 'CO" + dia + "': {1}, ", item.GetType().GetProperty("D" + dia + "Cr").GetValue(item), item.GetType().GetProperty("D" + dia + "Co").GetValue(item)));
+                }
+                @Html.Raw("},\n");
+            }]
+        };
+    </script>
+    @Scripts.Render("~/bundles/skeleton")
+    @Scripts.Render("~/bundles/Detalle")
+    @Scripts.Render("~/bundles/spinner")
+    @Scripts.Render("~/bundles/datatables")
+    <script type="text/javascript">
+        var spinnerBtnEnviar = new Spinner(document.getElementById("btnEnviar"));
+        var datatables;
+        //Alert
+        function addAlert(message, tipoAlerta, beforeElement) {
+            var htmlAlert = '<div class="alert ' + tipoAlerta + ' alert-dismissible fade show" role="alert">';
+            htmlAlert += message;
+            htmlAlert += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+            htmlAlert += '<span aria-hidden="true">&times;</span>';
+            htmlAlert += '</button>';
+            htmlAlert += '</div>';
+            if (beforeElement == undefined) {
+                $beforeElement = $("#FormFiltro");
+            } else {
+                $beforeElement = $(beforeElement);
+            }
+            $beforeElement.prev('.alert').remove();
+            $beforeElement.before(htmlAlert);
+        }
+
+        function ConvertirDataTable() {
+            var table = $('#tabla_detalle').DataTable({
+                scrollX: true,
+                scrollY: "300px",
+                scrollCollapse: true,
+                paging: false,
+                bFilter: false,
+                bInfo: false,
+                bSort: false,
+                fixedColumns: {
+                    leftColumns: 1,
+                    rightColumns: 2
+                },
+                //columnDefs: [ { width: '250px', targets: 0 }, { width: "15px", targets: -1 }, { width: "45px", targets: -2 } ]
+            });
+            return table;
+        }
+
+        $(document).ready(function () {
+            datatables = ConvertirDataTable();
+            showDataTable(); //skeleton.js
+            //cambiarIdChecks();
+            //handleEvents();
+        });
+    </script>
+}
+
