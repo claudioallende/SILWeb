@@ -398,3 +398,15 @@ tr.marca_fila td:first-of-type {
 .open-effect {
     transition: all 0.5s ease-in-out;
 }
+
+table.dataTable_height_row.dataTable td {
+    height: 23px;
+}
+
+table.dataTable.dataTable_height_header_row th {
+    height: 37px;
+}
+
+table.dataTable.dataTable_height_row_sm td {
+    height: 23px;
+}

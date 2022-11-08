@@ -1,0 +1,9 @@
+﻿tbody td{
+    height: 3vh !important;
+}
+
+@media  screen and (max-width: 1366px) {
+  tbody td{
+    height: 4vh !important;
+  }
+}

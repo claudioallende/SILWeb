@@ -9,6 +9,11 @@
             <li class="nav-item">
                 <span class="nav-link">Usuario: @User.Identity.GetUserName()</span>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="@Url.Action("", "")" title="Principal">
+                    <span class="oi oi-home" style="font-size:1.25em;"></span>
+                </a>
+            </li>
             <li class="nav-item position-relative">
                 <a class="nav-link" href="@Url.Action("AutorizacionesPendientes", "Cupos")" id="navAutorizacionesPendientes" role="button" aria-haspopup="true" aria-expanded="false" title="Autorizaciones Pendientes STOP">
                     <span class="oi oi-data-transfer-download" style="font-size:1.25em;"></span>
@@ -29,15 +34,6 @@
                     </div>
                 </a>
             </li>
-            @*<li class="nav-item dropdown">
-                <a class="nav-link" href="#" id="navbarDropdownBox" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <span class="oi oi-box" style="font-size:1.25em;"></span>
-                </a>
-                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
-                    <a class="dropdown-item" href="@Url.Action("GetPdf", "Doc", new { filename = "STOP ministerio de transporte.pdf" })">Manual STOP</a>
-                    <a class="dropdown-item" href="@Url.Action("GetPdf", "Doc", new { filename = "CTG codigo de trazabilidad de granos.pdf"})">Manual CTG</a>
-                </div>
-            </li>*@
             @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.HasSomeClaim(new System.Collections.Generic.List<string> { "AccesoAuditoriaCuposCorretaje", "AccesoConfiguracionCorretaje" }))
             {
                 <li class="nav-item dropdown">
@@ -72,9 +68,6 @@
                     <a class="dropdown-item" href="@Url.Action("CentroPuertoStop","Configuracion")">Centro por Puerto STOP</a>
                     <a class="dropdown-item" href="@Url.Action("GranoStop","Configuracion")">Granos STOP</a>
                     <a class="dropdown-item" href="@Url.Action("RelacionGranoStop","Configuracion")">Relaciones Granos STOP</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="@Url.Action("PuertoStop","Configuracion")">Puertos STOP</a>
-                    <a class="dropdown-item" href="@Url.Action("RelacionPuertoStop","Configuracion")">Relaciones Puertos STOP</a>
                     @if (CuposCorretajeWeb.Models.Identity.ClaimsUtil.HasClaim("AccesoConfiguracionCuposCorretaje"))
                     {
                         <a class="dropdown-item" href="@Url.Action("Index", "Configuracion")" title="Configuración">Configuración</a>
