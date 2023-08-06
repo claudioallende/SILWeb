@@ -355,3 +355,32 @@ function handleChangeFiltroCantidadCupoSuperaDisponible(check) {
     borrarFiltroTablaContratos();
   }
 }
+
+$('#ConsignacionSeleccionada_ContactoComercial').tokenfield({
+  delimiter: [";"],
+  autocomplete: {
+    source: function (request, response) {
+      if (request.term !== undefined && request.term !== "") {
+        $.ajax({
+          url: modelData.actionGetContactoComercial,// + "?q=" + request.term,
+          type: "POST",
+          dataType: "json",
+          data: { Texto: request.term },
+          success: function (data) {
+            response($.map(data, function (item) {
+              return {
+                label: item.Cuenta + " - " + item.Nombre,
+                value: item.Cuenta
+              };
+            }))
+          },
+          select: function (event, ui) {
+            ui.item.classList.add("success");
+          }
+        })
+      }
+    },
+    delay: 300
+  },
+  showAutocompleteOnFocus: false
+});
