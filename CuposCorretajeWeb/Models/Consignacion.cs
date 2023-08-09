@@ -53,6 +53,13 @@ namespace CuposCorretajeWeb.Models
 
     [Display(Name = "Nombre")]
     public string NomRteComercialVentaPrimaria { get; set; }
+
+    [Display(Name = "Contacto Comercial")]
+    public string ContactoComercial { get; set; }
+
+    [Display(Name = "Carátula")]
+    public string Caratula { get; set; }
+
     public string Observacion { get; set; }
 
     public void SetObservacion(string Observacion)

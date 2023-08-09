@@ -10,6 +10,7 @@
   @Styles.Render("~/Content/spinner")
   @Styles.Render("~/Content/autocompletecss")
   @Styles.Render("~/Content/highlightTextArea")
+  @Styles.Render("~/Content/WordTag")
 }
 
 <h2>Nuevo</h2>
@@ -275,9 +276,25 @@
         </div>
       </div>
       <div class="col-lg-4">
-        <div class="form-group">
-          @Html.LabelFor(model => model.Observaciones)
-          @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+        <div class="form-row">
+          <div class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Observaciones)
+              @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.ContactoComercial)
+              @Html.EditorFor(model => model.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
+            </div>
+          </div>
+          <div id="col-caratula" class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Caratula)
+              @Html.EditorFor(model => model.Caratula, new { htmlAttributes = new { @class = "form-control" } })
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -320,6 +337,7 @@
   @Scripts.Render("~/bundles/ValidaCuit")
   @Scripts.Render("~/bundles/autocompletejs")
   @Scripts.Render("~/bundles/ControlaInputs")
+  @Scripts.Render("~/bundles/WordTag")
   @Scripts.Render("~/bundles/Nuevo")
   <script type="text/javascript">
         window.modelData = {
@@ -327,7 +345,8 @@
             actionGetNombreCuenta: "@Url.Action("GetCuitFromNombre", "Cuenta")",
             actionGetNombreAndCuit: "@Url.Action("GetCuentaFromNumeroCuentaComprador", "Cuenta")",
             actionGetCuentaYOrdenByNumeroCuenta: "@Url.Action("GetCuentaYOrdenByNumeroCuenta", "Configuracion")",
-            actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")"
+            actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
+            actionGetContactoComercial: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
         }
 
   </script>

@@ -1,149 +1,172 @@
 ﻿@model CuposCorretajeWeb.Models.Consignacion
 
 <div class="row">
-    <div class="col-lg-8">
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitsolicitante, "Solicitante")
-                    @Html.EditorFor(model => model.Cuitsolicitante, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitsolicitante" } })
-                    @Html.ValidationMessageFor(model => model.Cuitsolicitante, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomsolicitante)
-                    @Html.EditorFor(model => model.Nomsolicitante, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitsolicitanteName" } })
-                    @Html.ValidationMessageFor(model => model.Nomsolicitante, "", new { @class = "text-danger" })
-                </div>
-            </div>
+  <div class="col-lg-8">
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitsolicitante, "Solicitante")
+          @Html.EditorFor(model => model.Cuitsolicitante, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitsolicitante" } })
+          @Html.ValidationMessageFor(model => model.Cuitsolicitante, "", new { @class = "text-danger" })
         </div>
+      </div>
 
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitintermediario, "Intermediario")
-                    @Html.EditorFor(model => model.Cuitintermediario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitintermediario" } })
-                    @Html.ValidationMessageFor(model => model.Cuitintermediario, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomintermediario)
-                    @Html.EditorFor(model => model.Nomintermediario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitintermediarioName" } })
-                    @Html.ValidationMessageFor(model => model.Nomintermediario, "", new { @class = "text-danger" })
-                </div>
-            </div>
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomsolicitante)
+          @Html.EditorFor(model => model.Nomsolicitante, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitsolicitanteName" } })
+          @Html.ValidationMessageFor(model => model.Nomsolicitante, "", new { @class = "text-danger" })
         </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitrtecomercial, "Remitente Comercial")
-                    @Html.EditorFor(model => model.Cuitrtecomercial, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrtecomercial" } })
-                    @Html.ValidationMessageFor(model => model.Cuitrtecomercial, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomrtecomercial)
-                    @Html.EditorFor(model => model.Nomrtecomercial, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrtecomercialName" } })
-                    @Html.ValidationMessageFor(model => model.Nomrtecomercial, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitcorrcomp, "Corredor Comprador")
-                    @Html.EditorFor(model => model.Cuitcorrcomp, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrcomp" } })
-                    @Html.ValidationMessageFor(model => model.Cuitcorrcomp, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomcorrcomp)
-                    @Html.EditorFor(model => model.Nomcorrcomp, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrcompName" } })
-                    @Html.ValidationMessageFor(model => model.Nomcorrcomp, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitmat, "Mercado a Término")
-                    @Html.EditorFor(model => model.Cuitmat, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitmat" } })
-                    @Html.ValidationMessageFor(model => model.Cuitmat, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nommat)
-                    @Html.EditorFor(model => model.Nommat, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitmatName" } })
-                    @Html.ValidationMessageFor(model => model.Nommat, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitcorrvta, "Corredor Vendedor")
-                    @Html.EditorFor(model => model.Cuitcorrvta, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrvta" } })
-                    @Html.ValidationMessageFor(model => model.Cuitcorrvta, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomcorrvta)
-                    @Html.EditorFor(model => model.Nomcorrvta, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrvtaName" } })
-                    @Html.ValidationMessageFor(model => model.Nomcorrvta, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitrteent, "Representante/Entregador")
-                    @Html.EditorFor(model => model.Cuitrteent, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrteent" } })
-                    @Html.ValidationMessageFor(model => model.Cuitrteent, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomrteent)
-                    @Html.EditorFor(model => model.Nomrteent, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrteentName" } })
-                    @Html.ValidationMessageFor(model => model.Nomrteent, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Cuitdestinatario, "Destinatario")
-                    @Html.EditorFor(model => model.Cuitdestinatario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitdestinatario" } })
-                    @Html.ValidationMessageFor(model => model.Cuitdestinatario, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Nomdestinatario)
-                    @Html.EditorFor(model => model.Nomdestinatario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitdestinatarioName" } })
-                    @Html.ValidationMessageFor(model => model.Nomdestinatario, "", new { @class = "text-danger" })
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitintermediario, "Intermediario")
+          @Html.EditorFor(model => model.Cuitintermediario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitintermediario" } })
+          @Html.ValidationMessageFor(model => model.Cuitintermediario, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomintermediario)
+          @Html.EditorFor(model => model.Nomintermediario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitintermediarioName" } })
+          @Html.ValidationMessageFor(model => model.Nomintermediario, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitrtecomercial, "Remitente Comercial")
+          @Html.EditorFor(model => model.Cuitrtecomercial, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrtecomercial" } })
+          @Html.ValidationMessageFor(model => model.Cuitrtecomercial, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomrtecomercial)
+          @Html.EditorFor(model => model.Nomrtecomercial, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrtecomercialName" } })
+          @Html.ValidationMessageFor(model => model.Nomrtecomercial, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitcorrcomp, "Corredor Comprador")
+          @Html.EditorFor(model => model.Cuitcorrcomp, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrcomp" } })
+          @Html.ValidationMessageFor(model => model.Cuitcorrcomp, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomcorrcomp)
+          @Html.EditorFor(model => model.Nomcorrcomp, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrcompName" } })
+          @Html.ValidationMessageFor(model => model.Nomcorrcomp, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitmat, "Mercado a Término")
+          @Html.EditorFor(model => model.Cuitmat, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitmat" } })
+          @Html.ValidationMessageFor(model => model.Cuitmat, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nommat)
+          @Html.EditorFor(model => model.Nommat, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitmatName" } })
+          @Html.ValidationMessageFor(model => model.Nommat, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitcorrvta, "Corredor Vendedor")
+          @Html.EditorFor(model => model.Cuitcorrvta, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitcorrvta" } })
+          @Html.ValidationMessageFor(model => model.Cuitcorrvta, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomcorrvta)
+          @Html.EditorFor(model => model.Nomcorrvta, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitcorrvtaName" } })
+          @Html.ValidationMessageFor(model => model.Nomcorrvta, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitrteent, "Representante/Entregador")
+          @Html.EditorFor(model => model.Cuitrteent, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitrteent" } })
+          @Html.ValidationMessageFor(model => model.Cuitrteent, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomrteent)
+          @Html.EditorFor(model => model.Nomrteent, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitrteentName" } })
+          @Html.ValidationMessageFor(model => model.Nomrteent, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-4">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Cuitdestinatario, "Destinatario")
+          @Html.EditorFor(model => model.Cuitdestinatario, new { htmlAttributes = new { @class = "form-control cuit-cuenta", id = "Cuitdestinatario" } })
+          @Html.ValidationMessageFor(model => model.Cuitdestinatario, "", new { @class = "text-danger" })
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="form-group">
+          @Html.LabelFor(model => model.Nomdestinatario)
+          @Html.EditorFor(model => model.Nomdestinatario, new { htmlAttributes = new { @class = "form-control nombre-cuenta", id = "CuitdestinatarioName" } })
+          @Html.ValidationMessageFor(model => model.Nomdestinatario, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="col-md-12">
+        <div class="form-group">
+          @Html.LabelFor(model => model.ContactoComercial, "ContactoComercial")
+          @Html.EditorFor(model => model.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
+          @Html.ValidationMessageFor(model => model.ContactoComercial, "", new { @class = "text-danger" })
+        </div>
+      </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Caratula))
+    {
+      <div class="form-row">
+        <div class="col-md-12">
+          <div class="form-group">
+            @Html.LabelFor(model => model.Caratula, "Caratula")
+            @Html.EditorFor(model => model.Caratula, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.Caratula, "", new { @class = "text-danger" })
+          </div>
+        </div>
+      </div>
+    }
+  </div>
 </div>

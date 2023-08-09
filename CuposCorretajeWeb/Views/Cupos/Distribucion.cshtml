@@ -11,6 +11,7 @@
   @Styles.Render("~/Content/autocompletecss")
   @Styles.Render("~/Content/datatables")
   @Styles.Render("~/Content/spinner")
+  @Styles.Render("~/Content/WordTag")
 }
 
 <h2>Distribucion</h2>
@@ -298,6 +299,24 @@
                   </div>
                 </div><!--col-->
               </div><!--row-->
+
+              <div class="row">
+                <div class="col-lg-6">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.ContactoComercial)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
+                  </div>
+                </div>
+                @if (Model.CuentaComprador == 30525698412 || Model.CuentaVendedor == 30525698412)
+                {
+                  <div id="col-caratula" class="col-lg-6">
+                    <div class="form-group">
+                      @Html.LabelFor(model => model.ConsignacionSeleccionada.Caratula)
+                      @Html.EditorFor(model => model.ConsignacionSeleccionada.Caratula, new { htmlAttributes = new { @class = "form-control" } })
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           </div>
         </div><!--card-->
@@ -457,6 +476,7 @@
   @Scripts.Render("~/bundles/skeleton")
   @Scripts.Render("~/bundles/datatables")
   @Scripts.Render("~/bundles/spinner")
+  @Scripts.Render("~/bundles/WordTag")
   <script>
         var spinnerBtnAceptar = new Spinner(document.getElementById("btnAceptar"));
         var spinnerBtnAceptarMotivo = new Spinner(document.getElementById("btnAceptarMotivo"));
@@ -476,6 +496,7 @@
             //actionGetCuentaFromNombre: "@Url.Action("GetCuentaFromNombre", "Cuenta")",
             actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
             actionGetDetallePendienteAplicar: "@Url.Action("GetDetallePendienteAplicar", "Contrato")",
+            actionGetContactoComercial: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
             cuentaComprador: "@Model.CuentaComprador",
             cuentaVendedor: "@Model.CuentaVendedor",
             cuentaPuerto: "@Model.CuentaPuerto",
