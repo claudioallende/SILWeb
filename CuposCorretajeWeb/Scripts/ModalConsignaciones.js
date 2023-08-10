@@ -35,6 +35,7 @@ ModalConsignaciones.prototype.setConsignacionSeleccionada = function (fila) {
   this.consignacionSeleccionada.NomRteComercialProductor = arrayCuitConsignacion[17];
   this.consignacionSeleccionada.CuitRteComercialVentaPrimaria = arrayCuitConsignacion[18];
   this.consignacionSeleccionada.NomRteComercialVentaPrimaria = arrayCuitConsignacion[19];
+  this.consignacionSeleccionada.Caratula = arrayCuitConsignacion[20];
 }
 
 ModalConsignaciones.prototype.main = function () {

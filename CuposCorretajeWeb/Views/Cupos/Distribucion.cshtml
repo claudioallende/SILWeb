@@ -307,15 +307,12 @@
                     @Html.EditorFor(model => model.ConsignacionSeleccionada.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
                   </div>
                 </div>
-                @if (Model.CuentaComprador == 30525698412 || Model.CuentaVendedor == 30525698412)
-                {
-                  <div id="col-caratula" class="col-lg-6">
-                    <div class="form-group">
-                      @Html.LabelFor(model => model.ConsignacionSeleccionada.Caratula)
-                      @Html.EditorFor(model => model.ConsignacionSeleccionada.Caratula, new { htmlAttributes = new { @class = "form-control" } })
-                    </div>
+                <div id="col-caratula" class="col-lg-6">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Caratula)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Caratula, new { htmlAttributes = new { @class = "form-control" } })
                   </div>
-                }
+                </div>
               </div>
             </div>
           </div>

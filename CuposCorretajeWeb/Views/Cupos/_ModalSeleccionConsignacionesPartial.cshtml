@@ -22,6 +22,7 @@
               <th>Corr. Venta Sec.</th>
               <th>Repr. Entr.</th>
               <th>Destinatario</th>
+              <th>Carátula</th>
             </tr>
           </thead>
           <tbody>
@@ -42,6 +43,7 @@
               radioValue += '/' + Consignacion.Cuitdestinatario + '/' + Consignacion.Nomdestinatario;
               radioValue += '/' + Consignacion.CuitRteComercialProductor + '/' + Consignacion.NomRteComercialProductor;
               radioValue += '/' + Consignacion.CuitRteComercialVentaPrimaria + '/' + Consignacion.NomRteComercialVentaPrimaria;
+              radioValue += '/' + Consignacion.Caratula;
               <tr data-observacion="@Consignacion.GetObservacion()">
                 <td>
                   <div class="custom-control custom-radio">
@@ -60,6 +62,7 @@
                 <td>@Consignacion.Nomcorrcomp</td>
                 <td>@Consignacion.Nomrteent</td>
                 <td>@Consignacion.Nomdestinatario</td>
+                <td>@Consignacion.Caratula</td>
               </tr>
             }
           </tbody>

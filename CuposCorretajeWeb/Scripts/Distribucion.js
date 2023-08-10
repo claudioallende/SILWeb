@@ -23,7 +23,9 @@
   nomrtecomercialproductor: "",
   cuitrtecomercialventaprimaria: "",
   nomrtecomercialventaprimaria: "",
-  observa: ""
+  observa: "",
+  caratula: "",
+  contactocomercial: "",
 }
 
 window.modelData.cupo = cupo;
@@ -38,9 +40,7 @@ var modalConsignaciones = new ModalConsignaciones();
 $(document).ready(function () {
 
   modalConsignaciones.filaClickEventListener(seleccionarConsignacion);
-  //modalConsignaciones.btnAceptarClickEventListener(function () {
-  //    handleDiaFocus();
-  //});
+
   document.getElementById("btnInformaCupos").onclick = function () { distribuir(btnInformaCupos, getMotivo(), true); };
 
   //Obsolete, los totales están incluidos en la tabla que responde _DistribucionContratosPartial
@@ -215,6 +215,7 @@ function llenarDatosConsignacion() {
   $('#CuitRteComercialProductorName').val(cupo.nomrtecomercialproductor.trim());
   $('#CuitRteComercialVentaPrimaria').val(cupo.cuitrtecomercialventaprimaria.trim());
   $('#CuitRteComercialVentaPrimariaName').val(cupo.nomrtecomercialventaprimaria.trim());
+  $('#ConsignacionSeleccionada_Caratula').val(cupo.caratula.trim());
   $('#Observaciones').val(cupo.observa.trim());
 }
 
@@ -252,6 +253,7 @@ function seleccionarConsignacion(el) {
   cupo.nomrtecomercialproductor = arrayCuitConsignacion[17];
   cupo.cuitrtecomercialventaprimaria = arrayCuitConsignacion[18];
   cupo.nomrtecomercialventaprimaria = arrayCuitConsignacion[19];
+  cupo.caratula = arrayCuitConsignacion[20];
   cupo.observa = $(el).data("observacion");
   llenarDatosConsignacion();
 }
