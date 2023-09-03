@@ -30,7 +30,7 @@ namespace CuposCorretajeWeb.Models
     [Required(AllowEmptyStrings = false)]
     [Display(Name = "Centro")]
     public string CentroSeleccionado { get; set; }
-    public IList<Consignacion> Consignaciones;
+    public IList<ConsignacionDpo> Consignaciones;
     public IList<Counter<Cupos>> ConsignacionesAgrupadosPorFecha;
     public string Buscador { get; set; }
     public DistribucionDisponible DistribucionesDisponibles { get; set; }

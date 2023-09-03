@@ -195,35 +195,50 @@ function camposNoVacios() {
 
 //Llenar texts datos consignacion
 function llenarDatosConsignacion() {
-  $('#Cuitsolicitante').val(cupo.cuitsolicitante.trim());
-  $('#CuitsolicitanteName').val(cupo.nomsolicitante.trim());
-  $('#Cuitintermediario').val(cupo.cuitintermediario.trim());
-  $('#CuitintermediarioName').val(cupo.nomintermediario.trim());
-  $('#Cuitrtecomercial').val(cupo.cuitrtecomercial.trim());
-  $('#CuitrtecomercialName').val(cupo.nomrtecomercial.trim());
-  $('#Cuitcorrcomp').val(cupo.cuitcorrcomp.trim());
-  $('#CuitcorrcompName').val(cupo.nomcorrcomp.trim());
-  $('#Cuitmat').val(cupo.cuitmat.trim());
-  $('#CuitmatName').val(cupo.nommat.trim());
-  $('#Cuitcorrvta').val(cupo.cuitcorrvta.trim());
-  $('#CuitcorrvtaName').val(cupo.nomcorrvta.trim());
-  $('#Cuitrteent').val(cupo.cuitrteent.trim());
-  $('#CuitrteentName').val(cupo.nomrteent.trim());
-  $('#Cuitdestinatario').val(cupo.cuitdestinatario.trim());
-  $('#CuitdestinatarioName').val(cupo.nomdestinatario.trim());
-  $('#CuitRteComercialProductor').val(cupo.cuitrtecomercialproductor.trim());
-  $('#CuitRteComercialProductorName').val(cupo.nomrtecomercialproductor.trim());
-  $('#CuitRteComercialVentaPrimaria').val(cupo.cuitrtecomercialventaprimaria.trim());
-  $('#CuitRteComercialVentaPrimariaName').val(cupo.nomrtecomercialventaprimaria.trim());
-  $('#ConsignacionSeleccionada_Caratula').val(cupo.caratula.trim());
-  $('#Observaciones').val(cupo.observa.trim());
+  $('#Cuitsolicitante').val(cupo.cuitsolicitante?.trim());
+  $('#CuitsolicitanteName').val(cupo.nomsolicitante?.trim());
+  $('#Cuitintermediario').val(cupo.cuitintermediario?.trim());
+  $('#CuitintermediarioName').val(cupo.nomintermediario?.trim());
+  $('#Cuitrtecomercial').val(cupo.cuitrtecomercial?.trim());
+  $('#CuitrtecomercialName').val(cupo.nomrtecomercial?.trim());
+  $('#Cuitcorrcomp').val(cupo.cuitcorrcomp?.trim());
+  $('#CuitcorrcompName').val(cupo.nomcorrcomp?.trim());
+  $('#Cuitmat').val(cupo.cuitmat?.trim());
+  $('#CuitmatName').val(cupo.nommat?.trim());
+  $('#Cuitcorrvta').val(cupo.cuitcorrvta?.trim());
+  $('#CuitcorrvtaName').val(cupo.nomcorrvta?.trim());
+  $('#Cuitrteent').val(cupo.cuitrteent?.trim());
+  $('#CuitrteentName').val(cupo.nomrteent?.trim());
+  $('#Cuitdestinatario').val(cupo.cuitdestinatario?.trim());
+  $('#CuitdestinatarioName').val(cupo.nomdestinatario?.trim());
+  $('#CuitRteComercialProductor').val(cupo.cuitrtecomercialproductor?.trim());
+  $('#CuitRteComercialProductorName').val(cupo.nomrtecomercialproductor?.trim());
+  $('#CuitRteComercialVentaPrimaria').val(cupo.cuitrtecomercialventaprimaria?.trim());
+  $('#CuitRteComercialVentaPrimariaName').val(cupo.nomrtecomercialventaprimaria?.trim());
+  $('#ConsignacionSeleccionada_Caratula').val(cupo.caratula?.trim());
+  $('#Observaciones').val(cupo.observa?.trim());
+  //contactosComerciales.tokenfield('setTokens', cupo.contactocomercial.split(";").map(function (cc) {
+  //  return { value: cc, label: cc }
+  //}))
 }
 
-//function getObservacionConsignacionSeleccionada(value) {
-//    return window.modelData.observaciones.find(function (el) {
-//        return el.clave == value;
-//    }).valor;
-//}
+function getContactosComerciales() {
+  $.ajax({
+    url: window.modelData.actionGetCuentas,
+    contentType: 'application/json; charset=utf-8',
+    type: "POST",
+    dataType: "json",
+    data: JSON.stringify(cupo.contactocomercial.split(";")),
+    success: function (data) {
+      //contactosComerciales.tokenfield('setTokens', data.data.map(function (cc) {
+      //  return { value: cc.Cuit, label: cc.Cuit + " - " + cc.Nombre }
+      //}))
+    },
+    error: function (data) {
+
+    }
+  });
+}
 
 function cambioEnObservaciones() {
   return document.getElementById("Observaciones").value !== cupo.observa;
@@ -233,27 +248,29 @@ function seleccionarConsignacion(el) {
   arrayNombresConsignacion = [].slice.call(el.cells).slice(1, el.cells.length);
   arrayCuitConsignacion = $(el).find('input:radio').val().split('/');
   consignacionSeleccionada.clave = $(el).find('input:radio').val();
-  cupo.cuitsolicitante = arrayCuitConsignacion[0];
-  cupo.nomsolicitante = arrayCuitConsignacion[1];
-  cupo.cuitintermediario = arrayCuitConsignacion[2];
-  cupo.nomintermediario = arrayCuitConsignacion[3];
-  cupo.cuitrtecomercial = arrayCuitConsignacion[4];
-  cupo.nomrtecomercial = arrayCuitConsignacion[5];
-  cupo.cuitcorrcomp = arrayCuitConsignacion[6];
-  cupo.nomcorrcomp = arrayCuitConsignacion[7];
-  cupo.cuitmat = arrayCuitConsignacion[8];
-  cupo.nommat = arrayCuitConsignacion[9];
-  cupo.cuitcorrvta = arrayCuitConsignacion[10];
-  cupo.nomcorrvta = arrayCuitConsignacion[11];
-  cupo.cuitrteent = arrayCuitConsignacion[12];
-  cupo.nomrteent = arrayCuitConsignacion[13];
-  cupo.cuitdestinatario = arrayCuitConsignacion[14];
-  cupo.nomdestinatario = arrayCuitConsignacion[15];
-  cupo.cuitrtecomercialproductor = arrayCuitConsignacion[16];
-  cupo.nomrtecomercialproductor = arrayCuitConsignacion[17];
-  cupo.cuitrtecomercialventaprimaria = arrayCuitConsignacion[18];
-  cupo.nomrtecomercialventaprimaria = arrayCuitConsignacion[19];
-  cupo.caratula = arrayCuitConsignacion[20];
+  var consignacion = modalConsignaciones.getConsignacionSeleccionada()
+  cupo.cuitsolicitante = consignacion.Cuitsolicitante;
+  cupo.nomsolicitante = consignacion.Nomsolicitante;
+  cupo.cuitintermediario = consignacion.Cuitintermediario;
+  cupo.nomintermediario = consignacion.Nomintermediario;
+  cupo.cuitrtecomercial = consignacion.Cuitrtecomercial;
+  cupo.nomrtecomercial = consignacion.Nomrtecomercial;
+  cupo.cuitcorrcomp = consignacion.Cuitcorrcomp;
+  cupo.nomcorrcomp = consignacion.Nomcorrcomp;
+  cupo.cuitmat = consignacion.Cuitmat;
+  cupo.nommat = consignacion.Nommat;
+  cupo.cuitcorrvta = consignacion.Cuitcorrvta;
+  cupo.nomcorrvta = consignacion.Nomcorrvta;
+  cupo.cuitrteent = consignacion.Cuitrteent;
+  cupo.nomrteent = consignacion.Nomrteent;
+  cupo.cuitdestinatario = consignacion.Cuitdestinatario;
+  cupo.nomdestinatario = consignacion.Nomdestinatario;
+  cupo.cuitrtecomercialproductor = consignacion.CuitRteComercialProductor;
+  cupo.nomrtecomercialproductor = consignacion.NomRteComercialProductor;
+  cupo.cuitrtecomercialventaprimaria = consignacion.CuitRteComercialVentaPrimaria;
+  cupo.nomrtecomercialventaprimaria = consignacion.NomRteComercialVentaPrimaria;
+  cupo.caratula = consignacion.Caratula;
+  cupo.contactocomercial = consignacion.ContactoComercial;
   cupo.observa = $(el).data("observacion");
   llenarDatosConsignacion();
 }
@@ -358,7 +375,7 @@ function handleChangeFiltroCantidadCupoSuperaDisponible(check) {
   }
 }
 
-$('#ConsignacionSeleccionada_ContactoComercial').tokenfield({
+var contactosComerciales = $('#ConsignacionSeleccionada_ContactoComercial').tokenfield({
   delimiter: [";"],
   autocomplete: {
     source: function (request, response) {
@@ -384,5 +401,6 @@ $('#ConsignacionSeleccionada_ContactoComercial').tokenfield({
     },
     delay: 300
   },
-  showAutocompleteOnFocus: false
+  showAutocompleteOnFocus: false,
+  minWidth: 200
 });

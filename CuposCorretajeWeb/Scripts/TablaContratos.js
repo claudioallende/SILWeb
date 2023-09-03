@@ -44,6 +44,7 @@ $("#btnAceptarModalConsignaciones").click(function () {
         handleDiaFocus();
         spinnerBtnAceptarConsignacion.ocultarSpinner();
         $("#idModalConsignaciones").modal("hide");
+        getContactosComerciales()
       },
       error: function (msg) {
       }

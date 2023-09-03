@@ -1,4 +1,4 @@
-﻿@model IEnumerable<CuposCorretajeWeb.Models.Consignacion>
+﻿@model IEnumerable<CuposCorretajeWeb.Models.ConsignacionDpo>
 <!-- Modal Consignaciones -->
 <div class="modal fade" id="idModalConsignaciones" tabindex="-1" role="dialog"
      aria-labelledby="idModalConsignacionesTitulo" aria-hidden="true" data-open="@ViewData["OpenModal"]" data-backdrop="static">
@@ -44,7 +44,7 @@
               radioValue += '/' + Consignacion.CuitRteComercialProductor + '/' + Consignacion.NomRteComercialProductor;
               radioValue += '/' + Consignacion.CuitRteComercialVentaPrimaria + '/' + Consignacion.NomRteComercialVentaPrimaria;
               radioValue += '/' + Consignacion.Caratula;
-              <tr data-observacion="@Consignacion.GetObservacion()">
+              <tr data-observacion="@Consignacion.GetObservacion()" data-consignacion="@Consignacion.Id">
                 <td>
                   <div class="custom-control custom-radio">
                     <input type="radio" id="@radioId" name="Consignacion" class="custom-control-input"
