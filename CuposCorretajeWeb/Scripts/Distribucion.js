@@ -230,9 +230,9 @@ function getContactosComerciales() {
     dataType: "json",
     data: JSON.stringify(cupo.contactocomercial.split(";")),
     success: function (data) {
-      //contactosComerciales.tokenfield('setTokens', data.data.map(function (cc) {
-      //  return { value: cc.Cuit, label: cc.Cuit + " - " + cc.Nombre }
-      //}))
+      contactosComerciales.tokenfield('setTokens', data.data.map(function (cc) {
+        return { value: cc.Cuit, label: cc.Cuit + " - " + cc.Nombre }
+      }))
     },
     error: function (data) {
 
