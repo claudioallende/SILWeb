@@ -39,7 +39,7 @@ namespace CuposCorretajeWeb.Models
     private string Cyo { get; set; }
     private FiltroDistribucion filtro { get; set; }
     public IList<CuposAgrupadosPdf> CuposAgrupados { get; set; }
-    public Consignacion ConsignacionSeleccionada { get; set; }
+    public ConsignacionDpo ConsignacionSeleccionada { get; set; }
   }
 
   public class RespuestaBusquedaContratos

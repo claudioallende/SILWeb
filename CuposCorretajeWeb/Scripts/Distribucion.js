@@ -217,9 +217,9 @@ function llenarDatosConsignacion() {
   $('#CuitRteComercialVentaPrimariaName').val(cupo.nomrtecomercialventaprimaria?.trim());
   $('#ConsignacionSeleccionada_Caratula').val(cupo.caratula?.trim());
   $('#Observaciones').val(cupo.observa?.trim());
-  //contactosComerciales.tokenfield('setTokens', cupo.contactocomercial.split(";").map(function (cc) {
-  //  return { value: cc, label: cc }
-  //}))
+  contactosComerciales.tokenfield('setTokens', cupo.contactocomercial.split(";").map(function (cc) {
+    return { value: cc, label: cc }
+  }))
 }
 
 function getContactosComerciales() {

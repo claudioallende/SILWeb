@@ -161,14 +161,16 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
             Cuitdestinatario: $('#Cuitdestinatario').val(),
             Nomdestinatario: $('#CuitdestinatarioName').val(),
             Motbaja: textMotivo,
-            Observa: document.getElementById("Observaciones").value
+            Observa: document.getElementById("Observaciones").value,
+            Caratula: $('#ConsignacionSeleccionada_Caratula').val(),
+            ContactoComercial: contactosComerciales.tokenfield('getTokens').map(function (val) { return val.value }).join(";")
           },
           puerto: cupo.puerto,
           cosechaDesde: $('#CosechaDesde').val(),
           cosechaHasta: $('#CosechaHasta').val(),
           fechaDesde: $('#EntregaDesde').val() == "" ? null : $('#EntregaDesde').val(),
           fecha: $('#EntregaHasta').val(),
-          ConsignacionSeleccionada: $('input[name="Consignacion"]:checked').val(),
+          ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),
           tieneVendedor: cupo.vendcta != 0,
           CentroSeleccionado: modelData.centrocontratos
           //DistribucionCupos: controlEstados.getObjetoDistribucion()
