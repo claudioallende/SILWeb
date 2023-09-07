@@ -19,7 +19,8 @@ $("#btnAceptarModalConsignaciones").click(function () {
         Cuitrtecomercial: model.cupo.cuitrtecomercial,
         Cuitdestinatario: model.cupo.cuitdestinatario,
         CuitRteComercialProductor: model.cupo.cuitrtecomercialproductor,
-        CuitRteComercialVentaPrimaria: model.cupo.cuitrtecomercialventaprimaria
+        CuitRteComercialVentaPrimaria: model.cupo.cuitrtecomercialventaprimaria,
+        Caratula: model.cupo.Caratula,
       },
       CuentaPuerto: window.modelData.cuentaPuerto,
       fechaDesde: $("#EntregaDesde").val(),
@@ -43,6 +44,7 @@ $("#btnAceptarModalConsignaciones").click(function () {
         handleDiaFocus();
         spinnerBtnAceptarConsignacion.ocultarSpinner();
         $("#idModalConsignaciones").modal("hide");
+        getContactosComerciales()
       },
       error: function (msg) {
       }

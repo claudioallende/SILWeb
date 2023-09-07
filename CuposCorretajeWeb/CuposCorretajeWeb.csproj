@@ -241,6 +241,7 @@
     <Compile Include="Models\Configuracion\EmailViewModel.cs" />
     <Compile Include="Models\Configuracion\PanelViewModel.cs" />
     <Compile Include="Models\Consignacion.cs" />
+    <Compile Include="Models\ConsignacionDpo.cs" />
     <Compile Include="Models\Contratos\Vista_CuposMpeCorreV3.cs" />
     <Compile Include="Models\Counter.cs" />
     <Compile Include="Models\CuentaViewModel.cs" />

@@ -307,15 +307,12 @@
                     @Html.EditorFor(model => model.ConsignacionSeleccionada.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
                   </div>
                 </div>
-                @if (Model.CuentaComprador == 30525698412 || Model.CuentaVendedor == 30525698412)
-                {
-                  <div id="col-caratula" class="col-lg-6">
-                    <div class="form-group">
-                      @Html.LabelFor(model => model.ConsignacionSeleccionada.Caratula)
-                      @Html.EditorFor(model => model.ConsignacionSeleccionada.Caratula, new { htmlAttributes = new { @class = "form-control" } })
-                    </div>
+                <div id="col-caratula" class="col-lg-6">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.Caratula)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.Caratula, new { htmlAttributes = new { @class = "form-control" } })
                   </div>
-                }
+                </div>
               </div>
             </div>
           </div>
@@ -477,7 +474,7 @@
   @Scripts.Render("~/bundles/datatables")
   @Scripts.Render("~/bundles/spinner")
   @Scripts.Render("~/bundles/WordTag")
-  <script>
+<script>
         var spinnerBtnAceptar = new Spinner(document.getElementById("btnAceptar"));
         var spinnerBtnAceptarMotivo = new Spinner(document.getElementById("btnAceptarMotivo"));
         var btnInformaCupos = new Spinner(document.getElementById("btnInformaCupos"));
@@ -497,6 +494,7 @@
             actionGetCuposCuitFromNroCuentaOrNombre: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
             actionGetDetallePendienteAplicar: "@Url.Action("GetDetallePendienteAplicar", "Contrato")",
             actionGetContactoComercial: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
+            actionGetCuentas: "@Url.Action("GetCuentas", "Cuenta")",
             cuentaComprador: "@Model.CuentaComprador",
             cuentaVendedor: "@Model.CuentaVendedor",
             cuentaPuerto: "@Model.CuentaPuerto",
@@ -511,9 +509,10 @@
             observaciones: [],
             @{string cyo = Request.QueryString["cyo"] != null ? "&cyo=true" : "";}
             cyo: "@cyo",
-            cuentas: []
+            cuentas: [],
+            consignaciones: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Consignaciones)),
         }
-  </script>
+</script>
   @Scripts.Render("~/bundles/Consignaciones")
   @Scripts.Render("~/bundles/Distribucion")
   @Scripts.Render("~/bundles/motivoanulacion")
