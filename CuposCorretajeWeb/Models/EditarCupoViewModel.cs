@@ -14,8 +14,9 @@ namespace CuposCorretajeWeb.Models
         public virtual IEnumerable<SelectListItem> ListaConsignaciones { get; set; }
         private IList<Cupos> CuerposConsignacion { get; set; }
         public string Consignacion { get; set; }
-        public Consignacion ConsignacionSeleccionada { get; set; }
-        public IEnumerable<Consignacion> Consignaciones;
+        public ConsignacionDpo ConsignacionSeleccionada { get; set; }
+
+        public IEnumerable<ConsignacionDpo> Consignaciones;
         public string Producto { get; set; }
         public string Comprador { get; set; }
         public string Vendedor { get; set; }
