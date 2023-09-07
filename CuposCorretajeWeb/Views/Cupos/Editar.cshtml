@@ -83,7 +83,7 @@
   @Scripts.Render("~/bundles/jqueryval")
   @Scripts.Render("~/bundles/Consignaciones")
   @Scripts.Render("~/bundles/motivoanulacion")
-  <script type="text/javascript">
+<script type="text/javascript">
         window.modelData = {
             actionGetMotivo: "@Url.Action("GetMotivo")",
             actionAnular: "@Url.Action("Anular")",
@@ -91,8 +91,9 @@
             centrodistribucion: "@Request.Params["centrodistribucion"]",
             estadoBtnCancelar: false,
             estadoBtnAceptar: false,
-            cyo: @((string.IsNullOrEmpty(Request.Params["cyo"]) || Request.Params["cyo"].ToLower() == "false") ? "false" : "true")
+            cyo: @((string.IsNullOrEmpty(Request.Params["cyo"]) || Request.Params["cyo"].ToLower() == "false") ? "false" : "true"),
+            consignaciones: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Consignaciones)),
         }
-  </script>
+</script>
   @Scripts.Render("~/bundles/Editar")
 }
