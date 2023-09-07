@@ -60,8 +60,9 @@ ModalConsignaciones.prototype.btnAceptarClickEventListener = function (aceptarBt
 }
 
 ModalConsignaciones.prototype.seleccionarSiEsUnicaFila = function () {
-  if (this.$filas.length == 1) {
-    var $radio = this.$filas.find('input:radio');
-    $radio.prop("checked", true);
+  if (modelData.consignaciones.length == 1) {
+    //var $radio = this.$filas.find('input:radio');
+    //$radio.prop("checked", true);
+    this.consignacionSeleccionada = modelData.consignaciones[0];
   }
 }

@@ -18,7 +18,7 @@ namespace CuposCorretajeWeb.Models
         public string puerto { get; set; }
         [Required]
         [Display(Name="Consignacion")]
-        public string ConsignacionSeleccionada { get; set; }
+        public Consignacion ConsignacionSeleccionada { get; set; }
         public string CosechaDesde { get; set; }
         public string CosechaHasta { get; set; }
         public DateTime? fecha { get; set; }

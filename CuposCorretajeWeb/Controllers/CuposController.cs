@@ -206,6 +206,7 @@ namespace CuposCorretajeWeb.Controllers
           }
           else
           {
+            //response.ConsignacionSeleccionada = response.Consignaciones.ElementAt(0);
             ViewBag.OpenModal = false;
           }
         }
