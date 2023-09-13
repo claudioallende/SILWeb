@@ -77,7 +77,9 @@ function getNuevo() {
     CodigosDias: getCodigosDias(),
     Observaciones: getValue("Observaciones"),
     Centro: getValue("Centro"),
-    CentroAnterior: cupoOriginal.Centro
+    CentroAnterior: cupoOriginal.Centro,
+    Caratula: getValue("Caratula"),
+    ContactoComercial: tfContactoComercial.tokenfield('getTokensList', ';')
   }
 
   return nuevoCupo;
@@ -738,6 +740,15 @@ function quitarSeleccionAlfa(elem) {
   }
 }
 
+function visibleCaratula(value) {
+  //MATBA ROFEX
+  if (value.trim() == "30525698412" || value.trim() == '30-52569841-2') {
+    document.getElementById("col-caratula").style.display = "block";
+  } else {
+    document.getElementById("col-caratula").style.display = "none";
+  }
+}
+
 function limpiarAlfasSeleccionados() {
 
 }
@@ -746,3 +757,51 @@ function limpiarAlfasSeleccionados() {
     el.value = agregarGuionesText(el.value);
   })
 })();
+
+$(document).ready(function () {
+  visibleCaratula(document.getElementById("Compcta").value);
+  if ($("#Compcta").val().trim() != "30525698412" && $("#Compcta").val().trim() != '30-52569841-2') {
+    visibleCaratula(document.getElementById("Vendcta").value);
+  }
+
+  $("#Vendcta").change(function () {
+    if ($("#Compcta").val().trim() != "30525698412" && $("#Compcta").val().trim() != '30-52569841-2') {
+      visibleCaratula(this.value.trim());
+    }
+  });
+
+  $("#Compcta").change(function () {
+    if ($("#Vendcta").val().trim() != "30525698412" && $("#Vendcta").val().trim() != '30-52569841-2') {
+      visibleCaratula(this.value.trim());
+    }
+  });
+})
+
+var tfContactoComercial = $('#ContactoComercial').tokenfield({
+  delimiter: [";"],
+  autocomplete: {
+    source: function (request, response) {
+      if (request.term !== undefined && request.term !== "") {
+        $.ajax({
+          url: modelData.actionGetContactoComercial,// + "?q=" + request.term,
+          type: "POST",
+          dataType: "json",
+          data: { Texto: request.term },
+          success: function (data) {
+            response($.map(data, function (item) {
+              return {
+                label: item.Cuenta + " - " + item.Nombre,
+                value: item.Cuenta
+              };
+            }))
+          },
+          select: function (event, ui) {
+            ui.item.classList.add("success");
+          }
+        })
+      }
+    },
+    delay: 300
+  },
+  showAutocompleteOnFocus: false
+});

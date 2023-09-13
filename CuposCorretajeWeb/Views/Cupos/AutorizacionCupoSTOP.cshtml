@@ -271,9 +271,25 @@
         </div>
       </div>
       <div class="col-lg-4">
-        <div class="form-group">
-          @Html.LabelFor(model => model.Observaciones)
-          @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+        <div class="form-row">
+          <div class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Observaciones)
+              @Html.TextAreaFor(model => model.Observaciones, new { @class = "form-control", rows = "8" })
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.ContactoComercial)
+              @Html.EditorFor(model => model.ContactoComercial, new { htmlAttributes = new { @class = "form-control" } })
+            </div>
+          </div>
+          <div id="col-caratula" class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.Caratula)
+              @Html.EditorFor(model => model.Caratula, new { htmlAttributes = new { @class = "form-control" } })
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -363,6 +379,7 @@
             actionCambiarCentro: "@Url.Action("CambiarCentroCupoPendienteStop", "Cupos")",
             actionPendientesAutorizar: "@Url.Action("AutorizacionesPendientes", "Cupos")",
             actionEsCYO: "@Url.Action("GetCuentaYOrdenByNumeroCuenta", "Configuracion")",
+            actionGetContactoComercial: "@Url.Action("GetCuposCuitFromNroCuentaOrNombre", "Cuenta")",
             nuevoCupo: {}
         }
 
