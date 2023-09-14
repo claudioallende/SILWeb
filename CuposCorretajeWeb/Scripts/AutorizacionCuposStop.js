@@ -797,11 +797,18 @@ var tfContactoComercial = $('#ContactoComercial').tokenfield({
           },
           select: function (event, ui) {
             ui.item.classList.add("success");
-          }
+          },
         })
       }
     },
     delay: 300
   },
   showAutocompleteOnFocus: false
+}).on('tokenfield:createtoken', function (event) {
+  var existingTokens = $(this).tokenfield('getTokens');
+  $.each(existingTokens, function (index, token) {
+    if (token.value === event.attrs.value) {
+      event.preventDefault();
+    }
+  });
 });
