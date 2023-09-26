@@ -192,6 +192,7 @@ function autorizado(data) {
     });
     setEstado(cupoOriginal);
     checkearSiQuedanCuposPendientesAutorizar();
+    visibleCaratula("")
     mensajeAlerta.addAlert("Se agregaron correctamente", "alert-success");
   }
 }
@@ -746,6 +747,7 @@ function visibleCaratula(value) {
     document.getElementById("col-caratula").style.display = "block";
   } else {
     document.getElementById("col-caratula").style.display = "none";
+    document.getElementById("Caratula").value = "";
   }
 }
 
