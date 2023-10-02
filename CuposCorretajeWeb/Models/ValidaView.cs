@@ -10,35 +10,35 @@ using System.Web.Mvc;
 
 namespace CuposCorretajeWeb.Models
 {
-    public class ValidateAjaxAttribute : ActionFilterAttribute
+  public class ValidateAjaxAttribute : ActionFilterAttribute
+  {
+    public override void OnActionExecuting(ActionExecutingContext filterContext)
     {
-        public override void OnActionExecuting(ActionExecutingContext filterContext)
-        {
-            if (!filterContext.HttpContext.Request.IsAjaxRequest())
-                return;
+      if (!filterContext.HttpContext.Request.IsAjaxRequest())
+        return;
 
-            var modelState = filterContext.Controller.ViewData.ModelState;
-            //var errors = modelState.Where(x => x.Value.Errors.Count > 0).ToList();
-            //Console.Write(errors);
-            if (!modelState.IsValid)
-            {
-                throw new Exception("La estructura del AJAX no es válida");
-                //var errorModel =
-                //        from x in modelState.Keys
-                //        where modelState[x].Errors.Count > 0
-                //        select new
-                //        {
-                //            key = x,
-                //            errors = modelState[x].Errors.
-                //                                   Select(y => y.ErrorMessage).
-                //                                   ToArray()
-                //        };
-                //filterContext.Result = new JsonResult()
-                //{
-                //    Data = errorModel
-                //};
-                //filterContext.HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            }
-        }
+      var modelState = filterContext.Controller.ViewData.ModelState;
+      //var errors = modelState.Where(x => x.Value.Errors.Count > 0).ToList();
+      //Console.Write(errors);
+      if (!modelState.IsValid)
+      {
+        var errorModel =
+                from x in modelState.Keys
+                where modelState[x].Errors.Count > 0
+                select new
+                {
+                  key = x,
+                  errors = modelState[x].Errors.
+                                           Select(y => y.ErrorMessage).
+                                           ToArray()
+                };
+        throw new Exception("La estructura del AJAX no es válida");
+        //filterContext.Result = new JsonResult()
+        //{
+        //    Data = errorModel
+        //};
+        //filterContext.HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+      }
     }
+  }
 }

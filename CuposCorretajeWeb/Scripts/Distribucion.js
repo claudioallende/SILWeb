@@ -217,9 +217,11 @@ function llenarDatosConsignacion() {
   $('#CuitRteComercialVentaPrimariaName').val(cupo.nomrtecomercialventaprimaria?.trim());
   $('#ConsignacionSeleccionada_Caratula').val(cupo.caratula?.trim());
   $('#Observaciones').val(cupo.observa?.trim());
-  contactosComerciales.tokenfield('setTokens', cupo.contactocomercial.split(";").map(function (cc) {
-    return { value: cc, label: cc }
-  }))
+  if (cupo.contactocomercial) {
+    contactosComerciales.tokenfield('setTokens', cupo.contactocomercial.split(";").map(function (cc) {
+      return { value: cc, label: cc }
+    }))
+  }
 }
 
 function getContactosComerciales() {
@@ -231,7 +233,7 @@ function getContactosComerciales() {
     data: JSON.stringify(cupo.contactocomercial.split(";")),
     success: function (data) {
       contactosComerciales.tokenfield('setTokens', data.data.map(function (cc) {
-        return { value: cc.Cuit, label: cc.Cuit + " - " + cc.Nombre }
+        return { value: cc.Cuenta, label: cc.Cuenta + " - " + cc.Nombre }
       }))
     },
     error: function (data) {

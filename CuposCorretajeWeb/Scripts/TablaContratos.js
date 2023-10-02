@@ -44,7 +44,9 @@ $("#btnAceptarModalConsignaciones").click(function () {
         handleDiaFocus();
         spinnerBtnAceptarConsignacion.ocultarSpinner();
         $("#idModalConsignaciones").modal("hide");
-        getContactosComerciales()
+        if (cupo.contactocomercial) {
+          getContactosComerciales()
+        }
       },
       error: function (msg) {
       }
