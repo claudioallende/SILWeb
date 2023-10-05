@@ -23,6 +23,7 @@
               <th>Repr. Entr.</th>
               <th>Destinatario</th>
               <th>Carátula</th>
+              <th>Contactos Comerciales</th>
             </tr>
           </thead>
           <tbody>
@@ -64,6 +65,7 @@
                 <td>@Consignacion.Nomrteent</td>
                 <td>@Consignacion.Nomdestinatario</td>
                 <td>@Consignacion.Caratula</td>
+                <td>@(Consignacion.NomContactoComercial != null && Consignacion.NomContactoComercial.Count > 0 ? String.Join(", ", Consignacion.NomContactoComercial) : "")</td>
               </tr>
             }
           </tbody>
