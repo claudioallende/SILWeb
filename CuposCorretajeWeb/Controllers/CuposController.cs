@@ -11,6 +11,8 @@ using CuposCorretajeWeb.Models.Auditoria;
 using CuposCorretajeWeb.Models.Data;
 using System.Threading.Tasks;
 using CuposCorretajeWeb.Models.Error;
+using System.Text.RegularExpressions;
+using System.Web.UI.WebControls;
 
 namespace CuposCorretajeWeb.Controllers
 {
@@ -74,6 +76,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
+          model.ContactoComercial = string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x)); 
           await repo.RequestPostAndDeserializeAsync<NuevoCupoViewModel>("Cupos", "Nuevo", model);
         }
       }
@@ -233,6 +236,7 @@ namespace CuposCorretajeWeb.Controllers
         {
           using (WebServiceSILRespository repo = new WebServiceSILRespository())
           {
+            model.nuevo.ContactoComercial = string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
             model.Confirmacion = Confirmacion;
             return Json(await repo.RequestPostAndDeserializeAsync<int>("Cupos", "ActualizarDistribucion", model));
           }
@@ -451,6 +455,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
+          dto.ContactoComercial = string.Join(";", Regex.Replace(dto.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
           Autorizado = await repo.RequestPostAndDeserializeAsync<bool>("CupoSTOPtoSIL", "AgregarCupos", dto);
         }
       }
