@@ -87,6 +87,8 @@ namespace CuposCorretajeWeb.Models
     public string CuitRteComercialProductor { get; set; }
     public string CuitRteComercialVentaPrimaria { get; set; }
     public int Vendcyo { get; set; }
+    public string Caratula { get; set; }
+    public string ContactoComercial { get; set; }
 
     public Consignacion GetConsignacion()
     {
