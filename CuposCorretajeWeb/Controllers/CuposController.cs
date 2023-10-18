@@ -76,7 +76,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
-          model.ContactoComercial = string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x)); 
+          model.ContactoComercial = string.IsNullOrEmpty(model.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x)); 
           await repo.RequestPostAndDeserializeAsync<NuevoCupoViewModel>("Cupos", "Nuevo", model);
         }
       }
@@ -236,7 +236,7 @@ namespace CuposCorretajeWeb.Controllers
         {
           using (WebServiceSILRespository repo = new WebServiceSILRespository())
           {
-            model.nuevo.ContactoComercial = string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+            model.nuevo.ContactoComercial = string.IsNullOrEmpty(model.nuevo.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
             model.Confirmacion = Confirmacion;
             return Json(await repo.RequestPostAndDeserializeAsync<int>("Cupos", "ActualizarDistribucion", model));
           }
@@ -455,7 +455,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
-          dto.ContactoComercial = string.Join(";", Regex.Replace(dto.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+          dto.ContactoComercial = string.IsNullOrEmpty(dto.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(dto.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
           Autorizado = await repo.RequestPostAndDeserializeAsync<bool>("CupoSTOPtoSIL", "AgregarCupos", dto);
         }
       }
