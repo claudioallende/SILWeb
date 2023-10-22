@@ -293,6 +293,7 @@
             <div class="form-group">
               @Html.LabelFor(model => model.Caratula)
               @Html.EditorFor(model => model.Caratula, new { htmlAttributes = new { @class = "form-control" } })
+              @Html.ValidationMessageFor(model => model.Caratula, "", new { @class = "text-danger" })
             </div>
           </div>
         </div>

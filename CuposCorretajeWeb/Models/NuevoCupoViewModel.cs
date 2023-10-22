@@ -90,6 +90,7 @@ namespace CuposCorretajeWeb.Models
     public virtual string ContactoComercial { get; set; }
 
     [Display(Name = "Carátula")]
+    [RegularExpression(@"\d{6}", ErrorMessage = "El campo Carátula debe contener un número de 6 dígitos")]
     public virtual string Caratula { get; set; }
 
     public NuevoCupoViewModel()

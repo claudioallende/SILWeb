@@ -65,34 +65,8 @@ function agregoGuionesIECompatibilidad(cuit) {
   return cuit;
 }
 
-function visibleCaratula(value) {
-  //MATBA ROFEX
-  if (value.trim() == "30525698412" || value.trim() == '30-52569841-2') {
-    document.getElementById("col-caratula").style.display = "block";
-  } else {
-    document.getElementById("col-caratula").style.display = "none";
-  }
-}
-
 $(document).ready(function () {
   var model = { cuentas: undefined };
-
-  visibleCaratula(document.getElementById("Compcta").value);
-  if ($("#Compcta").val().trim() != "30525698412" && $("#Compcta").val().trim() != '30-52569841-2') {
-    visibleCaratula(document.getElementById("Vendcta").value);
-  }
-
-  $("#Vendcta").change(function () {
-    if ($("#Compcta").val().trim() != "30525698412" && $("#Compcta").val().trim() != '30-52569841-2') {
-      visibleCaratula(this.value.trim());
-    }
-  });
-
-  $("#Compcta").change(function () {
-    if ($("#Vendcta").val().trim() != "30525698412" && $("#Vendcta").val().trim() != '30-52569841-2') {
-      visibleCaratula(this.value.trim());
-    }
-  });
 
   $(".input-cuenta").autocomplete({
     source: function (request, response) {
