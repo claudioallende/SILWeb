@@ -1,7 +1,8 @@
 ﻿var name,
   highlight,
   mousedownVendcyoCheck = false,
-  valorCuit = "";
+  valorCuit = "",
+  Cuitcorrcomp = $('#Cuitcorrcomp').val().replaceAll("-", "");
 
 var ConsignacionInicial = {}
 
@@ -20,6 +21,9 @@ $('#Cuitsolicitante, #Cuitintermediario, #Cuitrtecomercial, #Cuitcorrcomp, #Cuit
       dataType: "json",
       success: function (data) {
         SuccessGetCuit(data);
+        if (data) {
+          agregarContactoComercialSiCorredor(name, data[0].Cuit + " - " + data[0].Nombre, data[0].Cuit, Cuitcorrcomp)
+        }
       },
       error: function (msg) {
         alert(msg.responseText);
@@ -163,6 +167,7 @@ $(document).ready(function () {
       var item_selected = model.cuentas.find(function (el) {
         if (el.Cuenta == nrocuenta) return el;
       });
+      agregarContactoComercialSiCorredor(event.target.id, ui.item.label, item_selected.Cuit, $(this).closest(".form-row").find(".cuit-cuenta").val().replaceAll("-", ""))
       $(this).closest(".form-row").find(".cuit-cuenta").val(agregoGuionesIECompatibilidad(item_selected.Cuit));
     },
     search: function (event, ui) {
@@ -324,6 +329,30 @@ function agregarNombreRemitenteComercial(nroCuenta) {
       SuccessGetCuit(data, "Cuitrtecomercial");
     });
   }
+}
+
+function agregarContactoComercialSiCorredor(inputId, label, value, previousCuit) {
+  if ((inputId == "Cuitcorrcomp" || inputId == "CuitcorrcompName") && value != "30500120882" && document.getElementById("Vendcta").value == "30525698412") {
+    borrarContactoComercial(previousCuit)
+    agregarContactoComercial({ label: label, value: value })
+    Cuitcorrcomp = value
+  }
+}
+
+function borrarContactoComercial(value) {
+  var tokens = $('#ContactoComercial').tokenfield("getTokens")
+  if (tokens) {
+    var filtered = tokens.filter(function (item) {
+      return item.value != value
+    })
+    $('#ContactoComercial').tokenfield('setTokens', filtered);
+  }
+}
+
+function agregarContactoComercial(item) {
+  var tokens = $('#ContactoComercial').tokenfield("getTokens");
+  tokens.push(item)
+  $('#ContactoComercial').tokenfield('setTokens', tokens);
 }
 
 $('#VendcyoGroup').mousedown(function () {
