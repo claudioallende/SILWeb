@@ -467,9 +467,11 @@ $('#ContactoComercial').tokenfield({
 
 document.getElementById("Caratula").addEventListener("change", function (ev) {
   var observacion = document.getElementById("Observaciones").value;
-  if (observacion) {
-    document.getElementById("Observaciones").value = observacion.concat(". Carátula: ", ev.currentTarget.value)
-  } else {
-    document.getElementById("Observaciones").value = observacion.concat("Carátula: ", ev.currentTarget.value)
+  if (document.getElementById("Caratula").value.length == 6) {
+    if (observacion) {
+      document.getElementById("Observaciones").value = observacion.concat(". Carátula: ", ev.currentTarget.value)
+    } else {
+      document.getElementById("Observaciones").value = observacion.concat("Carátula: ", ev.currentTarget.value)
+    }
   }
 })
