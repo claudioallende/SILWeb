@@ -2,7 +2,7 @@
   highlight,
   mousedownVendcyoCheck = false,
   valorCuit = "",
-  Cuitcorrcomp = $('#Cuitcorrcomp').val().replaceAll("-", "");
+  MemoCuitCorredor = $('#Cuitcorrvta').val().replaceAll("-", "");
 
 var ConsignacionInicial = {}
 
@@ -21,8 +21,8 @@ $('#Cuitsolicitante, #Cuitintermediario, #Cuitrtecomercial, #Cuitcorrcomp, #Cuit
       dataType: "json",
       success: function (data) {
         SuccessGetCuit(data);
-        if (data) {
-          agregarContactoComercialSiCorredor(name, data[0].Cuit + " - " + data[0].Nombre, data[0].Cuit, Cuitcorrcomp)
+        if (data && name == "Cuitcorrvta") {
+          agregarContactoComercialSiCorredor(data[0].Cuit, data[0].Cuit + " - " + data[0].Nombre, document.getElementById("Vendcta").value, MemoCuitCorredor)
         }
       },
       error: function (msg) {
@@ -167,7 +167,9 @@ $(document).ready(function () {
       var item_selected = model.cuentas.find(function (el) {
         if (el.Cuenta == nrocuenta) return el;
       });
-      agregarContactoComercialSiCorredor(event.target.id, ui.item.label, item_selected.Cuit, $(this).closest(".form-row").find(".cuit-cuenta").val().replaceAll("-", ""))
+      if (event.target.id == "CuitcorrvtaName") {
+        agregarContactoComercialSiCorredor(item_selected.Cuit, ui.item.label, document.getElementById("Vendcta").value, $(this).closest(".form-row").find(".cuit-cuenta").val().replaceAll("-", ""))
+      }
       $(this).closest(".form-row").find(".cuit-cuenta").val(agregoGuionesIECompatibilidad(item_selected.Cuit));
     },
     search: function (event, ui) {
@@ -308,6 +310,9 @@ function sugerirCuentaYOrden(vendedor) {
 //remitente comercial y cyo
 $("#Vendcta").blur(function () {
   agregarNombreRemitenteComercial(this.value);
+  var cuitCorredor = document.getElementById("Cuitcorrvta").value.replaceAll("-", "")
+  var nombreCorredor = document.getElementById("CuitcorrvtaName").value
+  agregarContactoComercialSiCorredor(cuitCorredor, cuitCorredor + " - " + nombreCorredor, this.value, cuitCorredor)
 });
 
 $("#VendcyoBoolValue").click(function () {
@@ -331,11 +336,11 @@ function agregarNombreRemitenteComercial(nroCuenta) {
   }
 }
 
-function agregarContactoComercialSiCorredor(inputId, label, value, previousCuit) {
-  if ((inputId == "Cuitcorrcomp" || inputId == "CuitcorrcompName") && value != "30500120882" && document.getElementById("Vendcta").value == "30525698412") {
-    borrarContactoComercial(previousCuit)
-    agregarContactoComercial({ label: label, value: value })
-    Cuitcorrcomp = value
+function agregarContactoComercialSiCorredor(cuitCorredor, nombreCorredor, cuentaVendedor, cuitCorredorAnterior) {
+  if (cuitCorredor != "30500120882" && cuentaVendedor == "30525698412") {
+    borrarContactoComercial(cuitCorredorAnterior)
+    agregarContactoComercial({ label: nombreCorredor, value: cuitCorredor })
+    MemoCuitCorredor = cuitCorredor
   }
 }
 
@@ -459,3 +464,12 @@ $('#ContactoComercial').tokenfield({
     }
   });
 });
+
+document.getElementById("Caratula").addEventListener("change", function (ev) {
+  var observacion = document.getElementById("Observaciones").value;
+  if (observacion) {
+    document.getElementById("Observaciones").value = observacion.concat(". Carátula: ", ev.currentTarget.value)
+  } else {
+    document.getElementById("Observaciones").value = observacion.concat("Carátula: ", ev.currentTarget.value)
+  }
+})
