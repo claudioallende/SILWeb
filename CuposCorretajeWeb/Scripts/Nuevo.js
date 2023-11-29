@@ -469,9 +469,9 @@ document.getElementById("Caratula").addEventListener("change", function (ev) {
   var observacion = document.getElementById("Observaciones").value;
   if (document.getElementById("Caratula").value.length == 6) {
     if (observacion) {
-      document.getElementById("Observaciones").value = observacion.concat(". Carátula: ", ev.currentTarget.value)
+      document.getElementById("Observaciones").value = observacion.concat(". Carátula matba rofex: ", ev.currentTarget.value)
     } else {
-      document.getElementById("Observaciones").value = observacion.concat("Carátula: ", ev.currentTarget.value)
+      document.getElementById("Observaciones").value = observacion.concat("Carátula matba rofex: ", ev.currentTarget.value)
     }
   }
 })
