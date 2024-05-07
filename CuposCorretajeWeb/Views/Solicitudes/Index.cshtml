@@ -1,0 +1,239 @@
+﻿@model CuposCorretajeWeb.Models.Solicitudes.IndexModel
+@{
+  ViewBag.Title = "Solicitudes";
+}
+@section Styles{
+  @Styles.Render("~/Content/datatablesv2")
+}
+
+<table id="tablaSolicitudes" class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
+  <thead>
+    <tr>
+      <th>Grano</th>
+      <th>Vendedor</th>
+      <th>Comprador</th>
+      <th>Destino</th>
+      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+      {
+        <th colspan="1" class="border-left">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+      }
+      <th class="border-left"></th>
+    </tr>
+  </thead>
+  <tbody>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+      {
+        <td></td>
+      }
+      <td class="border-left text-center"></td>
+    </tr>
+  </tfoot>
+</table>
+
+<table id="tablaSolicitudesFuturo" class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
+  <thead>
+    <tr>
+      <th>Grano</th>
+      <th>Vendedor</th>
+      <th>Comprador</th>
+      <th>Destino</th>
+      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+      {
+        <th colspan="1" class="border-left">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+      }
+      <th class="border-left"></th>
+    </tr>
+  </thead>
+  <tbody>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+      {
+        <td></td>
+      }
+      <td class="border-left text-center"></td>
+    </tr>
+  </tfoot>
+</table>
+@section Scripts{
+  @Scripts.Render("~/bundles/datatablesv2")
+  <script type="text/javascript">
+    var groupColumn = 0;
+    const cantidadColumnasAntesFechas = 4
+
+    let dataTable = new DataTable('#tablaSolicitudes', {
+      ajax: "/Solicitudes/GetAllShiftRequests",
+      ordering: false,
+      paging: false,
+      columnDefs: [{ visible: false, targets: groupColumn }],
+      columns: [
+        { data: "NombreGrano" },
+        { data: "NombreVendedor" },
+        { data: "NombreComprador" },
+        { data: "NombreDestino" },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return "";
+          }
+        },
+      ],
+      drawCallback: function (settings) {
+        var api = this.api();
+        var rows = api.rows({ page: 'current' }).nodes();
+        var last = null;
+
+        api.column(groupColumn, { page: 'current' })
+          .data()
+          .each(function (group, i) {
+            if (last !== group) {
+              $(rows)
+                .eq(i)
+                .before(
+                  '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
+                  group +
+                  '</td></tr>'
+                );
+
+              last = group;
+            }
+          });
+      },
+      language: {
+        "search": "Buscar",
+        "loadingRecords": "Cargando...",
+        "zeroRecords": "No se encontraron datos",
+        "info": "Mostrando _START_ hasta _END_ de _TOTAL_ filas",
+        "infoEmpty": "Mostrando 0 hasta 0 de 0 filas",
+        "infoFiltered": "(filtrado desde un total de _MAX_ filas)",
+      }
+    })
+    let dataTableFuturo = new DataTable('#tablaSolicitudesFuturo', {
+      ajax: "/Solicitudes/GetAllFutureShiftRequests",
+      ordering: false,
+      paging: false,
+      columnDefs: [{ visible: false, targets: groupColumn }],
+      columns: [
+        { data: "NombreGrano" },
+        { data: "NombreVendedor" },
+        { data: "NombreComprador" },
+        { data: "NombreDestino" },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
+          }
+        },
+        {
+          data: function (row, type, set, meta) {
+            return "";
+          }
+        },
+      ],
+      drawCallback: function (settings) {
+        var api = this.api();
+        var rows = api.rows({ page: 'current' }).nodes();
+        var last = null;
+
+        api.column(groupColumn, { page: 'current' })
+          .data()
+          .each(function (group, i) {
+            if (last !== group) {
+              $(rows)
+                .eq(i)
+                .before(
+                  '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
+                  group +
+                  '</td></tr>'
+                );
+
+              last = group;
+            }
+          });
+      },
+      language: {
+        "search": "Buscar",
+        "loadingRecords": "Cargando...",
+        "zeroRecords": "No se encontraron datos",
+        "info": "Mostrando _START_ hasta _END_ de _TOTAL_ filas",
+        "infoEmpty": "Mostrando 0 hasta 0 de 0 filas",
+        "infoFiltered": "(filtrado desde un total de _MAX_ filas)",
+      }
+    })
+  </script>
+}

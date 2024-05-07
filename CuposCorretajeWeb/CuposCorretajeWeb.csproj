@@ -214,6 +214,7 @@
     <Compile Include="Controllers\DocController.cs" />
     <Compile Include="Controllers\GranoController.cs" />
     <Compile Include="Controllers\LandingController.cs" />
+    <Compile Include="Controllers\SolicitudesController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -289,6 +290,9 @@
     <Compile Include="Models\ServicioCentro.cs" />
     <Compile Include="Models\ServicioPuerto.cs" />
     <Compile Include="Models\ServicioGrano.cs" />
+    <Compile Include="Models\Solicitudes\IndexModel.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
     <Compile Include="Models\TablaIndexViewModel.cs" />
     <Compile Include="Models\TablaTurnosPendienteAutorizarViewModel.cs" />
     <Compile Include="Models\TurnoViewModel.cs" />
@@ -478,6 +482,7 @@
     <Content Include="Views\Configuracion\_NuevaRelacionPuertoStopPartial.cshtml" />
     <Content Include="Views\Configuracion\PuertoStop.cshtml" />
     <Content Include="Views\Configuracion\_NuevoPuertoStopPartial.cshtml" />
+    <Content Include="Views\Solicitudes\Index.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

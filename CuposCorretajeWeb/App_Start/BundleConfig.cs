@@ -74,8 +74,14 @@ namespace CuposCorretajeWeb
       bundles.Add(new StyleBundle("~/Content/datatables").Include(
                 "~/Content/datatables.min.css"));
 
+      bundles.Add(new StyleBundle("~/Content/datatablesv2").Include(
+                "~/Content/datatables-v2_0_2.min.css"));
+
       bundles.Add(new ScriptBundle("~/bundles/datatables").Include(
                 "~/Scripts/datatables.min.js"));
+
+      bundles.Add(new ScriptBundle("~/bundles/datatablesv2").Include(
+                "~/Scripts/datatables-v2_0_2.min.js"));
 
       bundles.Add(new ScriptBundle("~/bundles/Detalle").Include(
                 "~/Scripts/Observable.js",
