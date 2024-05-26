@@ -70,14 +70,86 @@
 @section Scripts{
   @Scripts.Render("~/bundles/datatablesv2")
   <script type="text/javascript">
-    var groupColumn = 0;
+    var granoGroupColumn = 0;
     const cantidadColumnasAntesFechas = 4
+
+    function drawCallbackTablaSolicitudes(settings) {
+      var api = this.api();
+      var rows = api.rows({ page: 'current' }).nodes();
+      var lastGranoGroup = null;
+      var lastSolicitanteGroup = null;
+
+      var solicitanteGroupColumn = 0;
+      var groups = []
+
+      api.column(granoGroupColumn, { page: 'current' })
+        .data()
+        .each(function (granoGroup, i) {
+          var dataRow = Array.from(rows[i].cells).map(function (cell) { return cell.innerText });
+
+          if (lastGranoGroup !== granoGroup) {
+            groups.push({
+              grano: granoGroup,
+              solicitantes: [{
+                nombre: dataRow[solicitanteGroupColumn],
+                filas: [dataRow],
+                indice: i
+              }]
+            })
+            $(rows)
+              .eq(i)
+              .before(
+                '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
+                granoGroup +
+                '</td></tr>'
+              );
+
+            lastGranoGroup = granoGroup;
+            lastSolicitanteGroup = dataRow[solicitanteGroupColumn]
+          } else {
+            var group = groups.find(function (group) { return group.grano === granoGroup })
+            var solicitante = group.solicitantes.find(function (sol) { return sol.nombre == dataRow[solicitanteGroupColumn] })
+            if (solicitante) {
+              solicitante.filas.push(dataRow)
+            } else {
+              group.solicitantes.push({ nombre: dataRow[solicitanteGroupColumn], filas: [dataRow], indice: i })
+            }
+          }
+          rows[i].cells[solicitanteGroupColumn].innerText = ""
+        });
+
+      lastSolicitanteGroup = null
+      groups.forEach(function (group, i) {
+        group.solicitantes.forEach(function (solicitante) {
+          if (lastSolicitanteGroup !== solicitante.nombre) {
+            $(rows)
+              .eq(solicitante.indice)
+              .before(
+                '<tr class="group" style="background-color:black;color:white"><td colspan="3">' +
+                solicitante.nombre +
+                '</td>' + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[3]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[4]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[5]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[6]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[7]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[8]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
+                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[9]) }).reduce(function (accum, a) { return accum + a }) + '</td><td></td>'
+                + '</tr>'
+            );
+
+            lastSolicitanteGroup = solicitante.nombre
+          }
+        })
+        lastSolicitanteGroup = null
+      })
+    }
 
     let dataTable = new DataTable('#tablaSolicitudes', {
       ajax: "/Solicitudes/GetAllShiftRequests",
-      ordering: false,
+      //ordering: false,
+      order: [[0, 'asc'], [1, 'asc']],
       paging: false,
-      columnDefs: [{ visible: false, targets: groupColumn }],
+      columnDefs: [{ visible: false, targets: granoGroupColumn }],
       columns: [
         { data: "NombreGrano" },
         { data: "NombreVendedor" },
@@ -124,27 +196,7 @@
           }
         },
       ],
-      drawCallback: function (settings) {
-        var api = this.api();
-        var rows = api.rows({ page: 'current' }).nodes();
-        var last = null;
-
-        api.column(groupColumn, { page: 'current' })
-          .data()
-          .each(function (group, i) {
-            if (last !== group) {
-              $(rows)
-                .eq(i)
-                .before(
-                  '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
-                  group +
-                  '</td></tr>'
-                );
-
-              last = group;
-            }
-          });
-      },
+      drawCallback: drawCallbackTablaSolicitudes,
       language: {
         "search": "Buscar",
         "loadingRecords": "Cargando...",
@@ -156,9 +208,10 @@
     })
     let dataTableFuturo = new DataTable('#tablaSolicitudesFuturo', {
       ajax: "/Solicitudes/GetAllFutureShiftRequests",
-      ordering: false,
+      //ordering: false,
+      order: [[0, 'asc'], [1, 'asc']],
       paging: false,
-      columnDefs: [{ visible: false, targets: groupColumn }],
+      columnDefs: [{ visible: false, targets: granoGroupColumn }],
       columns: [
         { data: "NombreGrano" },
         { data: "NombreVendedor" },
@@ -205,27 +258,7 @@
           }
         },
       ],
-      drawCallback: function (settings) {
-        var api = this.api();
-        var rows = api.rows({ page: 'current' }).nodes();
-        var last = null;
-
-        api.column(groupColumn, { page: 'current' })
-          .data()
-          .each(function (group, i) {
-            if (last !== group) {
-              $(rows)
-                .eq(i)
-                .before(
-                  '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
-                  group +
-                  '</td></tr>'
-                );
-
-              last = group;
-            }
-          });
-      },
+      drawCallback: drawCallbackTablaSolicitudes,
       language: {
         "search": "Buscar",
         "loadingRecords": "Cargando...",
