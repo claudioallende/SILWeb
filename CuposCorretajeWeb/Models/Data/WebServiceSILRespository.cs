@@ -6,8 +6,10 @@ using System.Web;
 
 namespace CuposCorretajeWeb.Models.Data
 {
-    public class WebServiceSILRespository : Util
-    {
-        public override string GetWebSerive { get { return ConfigurationManager.AppSettings["WebServiceCuposCorretaje"]; } internal set { } }
-    }
+  public class WebServiceSILRespository : Util
+  {
+    public override string GetWebSerive { get { return ConfigurationManager.AppSettings["WebServiceCuposCorretaje"]; } internal set { } }
+    // atributo para conexion con API SILData
+    public override string GetWebServiceSILData { get { return ConfigurationManager.AppSettings["SILDataApi"]; } internal set { } }
+  }
 }

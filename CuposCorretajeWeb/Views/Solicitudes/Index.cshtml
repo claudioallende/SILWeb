@@ -1,272 +1,276 @@
 ﻿@model CuposCorretajeWeb.Models.Solicitudes.IndexModel
 @{
-  ViewBag.Title = "Solicitudes";
+    ViewBag.Title = "Solicitudes";
 }
 @section Styles{
-  @Styles.Render("~/Content/datatablesv2")
+    @Styles.Render("~/Content/datatablesv2")
+    @*<link href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css" rel="stylesheet" />*@
+    <style>
+        .table-wrap-bordered {
+            border-collapse: collapse;
+        }
+
+            .table-wrap-bordered th, .table-wrap-bordered td {
+                border: 1px solid #ddd;
+                text-align: center;
+                padding: 5px;
+            }
+
+        .header-sp {
+            background-color: #cce5ff;
+            font-weight: bold;
+        }
+
+        .group-header {
+            background-color: #1c1f5e;
+            color: white;
+            font-weight: bold;
+        }
+        .grano-row td {
+            text-align: left !important;
+            font-weight: bold;
+            padding-left: 10px; /* Ajusta el margen */
+        }
+
+        .centered{
+            text-align:center !important;
+            vertical-align:middle !important;
+        }
+
+        .group-row {
+            background-color: #cce5ff !important; /* Color diferente */
+            color: #000;
+            font-weight: bold;
+        }
+    </style>
 }
 
-<table id="tablaSolicitudes" class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
-  <thead>
-    <tr>
-      <th>Grano</th>
-      <th>Vendedor</th>
-      <th>Comprador</th>
-      <th>Destino</th>
-      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-      {
-        <th colspan="1" class="border-left">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
-      }
-      <th class="border-left"></th>
-    </tr>
-  </thead>
-  <tbody>
-  </tbody>
-  <tfoot>
-    <tr>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-      {
-        <td></td>
-      }
-      <td class="border-left text-center"></td>
-    </tr>
-  </tfoot>
-</table>
+<div class="row">
+    <div class="col-sm-12 col-md-12 col-lg-12 col-xl-12">
+        <h3>Solicitudes CONTRACTUAL</h3>
+        <table id="tablaSolicitudes" class="table table-sm table-striped table-wrap-bordered display" style="font-size: 0.9rem;width:100%;">
+            <thead>
+                <tr>
+                    <th>Grano</th>
+                    <th class="centered">Solicitante</th>
+                    <th class="centered">Comprador</th>
+                    <th class="centered">Zona</th>
+                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+                    {
+                        <th class="header-sp centered">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+                    }
+                    <th class="border-left"></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+            <tfoot>
+                <tr class="group-header">
+                    <td colspan="4" style="text-align:left;">TOTAL</td>
+                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+                    {
+                        <td class="total-column">0</td>
+                    }
+                </tr>
+            </tfoot>
+        </table>
 
-<table id="tablaSolicitudesFuturo" class="table table-sm table-striped table-wrap-bordered" style="font-size: 0.9rem;margin-bottom:7px;width:100%;white-space:nowrap;">
-  <thead>
-    <tr>
-      <th>Grano</th>
-      <th>Vendedor</th>
-      <th>Comprador</th>
-      <th>Destino</th>
-      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-      {
-        <th colspan="1" class="border-left">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
-      }
-      <th class="border-left"></th>
-    </tr>
-  </thead>
-  <tbody>
-  </tbody>
-  <tfoot>
-    <tr>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-      {
-        <td></td>
-      }
-      <td class="border-left text-center"></td>
-    </tr>
-  </tfoot>
-</table>
+        <h3>Solicitudes FUTURO</h3>
+        <table id="tablaSolicitudesFuturo" class="table table-sm table-striped table-wrap-bordered display" style="font-size: 0.9rem;width:100%;">
+            <thead>
+                <tr>
+                    <th>Grano</th>
+                    <th class="centered">Solicitante</th>
+                    <th class="centered">Comprador</th>
+                    <th class="centered">Zona</th>
+                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+                    {
+                        <th class="header-sp centered">@DateTime.Now.AddDays(Dia).Date.ToString("dd/MM")</th>
+                    }
+                    <th class="border-left"></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+            <tfoot>
+                <tr class="group-header">
+                    <td colspan="4">TOTAL</td>
+                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
+                    {
+                        <td class="total-column">0</td>
+                    }
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+
+
+
 @section Scripts{
-  @Scripts.Render("~/bundles/datatablesv2")
-  <script type="text/javascript">
-    var granoGroupColumn = 0;
-    const cantidadColumnasAntesFechas = 4
+    @Scripts.Render("~/bundles/datatablesv2")
+    @*<script src="https://cdn.datatables.net/2.2.2/js/dataTables.js"></script>*@
 
-    function drawCallbackTablaSolicitudes(settings) {
-      var api = this.api();
-      var rows = api.rows({ page: 'current' }).nodes();
-      var lastGranoGroup = null;
-      var lastSolicitanteGroup = null;
+    <script type="text/javascript">
 
-      var solicitanteGroupColumn = 0;
-      var groups = []
+        $(document).ready(function () {
+            $.ajax({
+                url: "/Solicitudes/GetAllPendingShiftRequests",
+                method: "GET",
+                dataType: "json",
+                success: function (response) {
+                    let futuros = {};
+                    let contractuales = {};
 
-      api.column(granoGroupColumn, { page: 'current' })
-        .data()
-        .each(function (granoGroup, i) {
-          var dataRow = Array.from(rows[i].cells).map(function (cell) { return cell.innerText });
+                    // Agrupar datos por grano y clasificar por tipo futuro o contractual
+                    response.forEach((item, index) => {
+                        let grupo = item.NombreGrano;
+                        let key = `${item.NombreGrano}|${item.NombreVendedor}|${item.NombreComprador || 'Sin Comprador'}|${item.NombreDestino || 'Sin Zona'}`;
+                        let solicitud = item.EsFuturo ? futuros : contractuales;
 
-          if (lastGranoGroup !== granoGroup) {
-            groups.push({
-              grano: granoGroup,
-              solicitantes: [{
-                nombre: dataRow[solicitanteGroupColumn],
-                filas: [dataRow],
-                indice: i
-              }]
-            })
-            $(rows)
-              .eq(i)
-              .before(
-                '<tr class="group" style="background-color:#1c1f5e;color:white"><td colspan="11">' +
-                granoGroup +
-                '</td></tr>'
-              );
+                        if (!solicitud[key]) {
+                            solicitud[key] = {
+                                NombreGrano: item.NombreGrano,
+                                Solicitante: item.NombreVendedor,
+                                Comprador: item.NombreComprador || 'Sin Comprador',
+                                Zona: item.NombreDestino || 'Sin Zona',
+                                Fechas: {} // Guardar cantidad de solicitudes por fecha
+                            };
+                        }
+                        let fechaKey = new Date(item.FechaSolicitado).toISOString().split('T')[0]; // YYYY-MM-DD
+                        solicitud[key].Fechas[fechaKey] = (solicitud[key].Fechas[fechaKey] || 0) + 1;
+                    });
 
-            lastGranoGroup = granoGroup;
-            lastSolicitanteGroup = dataRow[solicitanteGroupColumn]
-          } else {
-            var group = groups.find(function (group) { return group.grano === granoGroup })
-            var solicitante = group.solicitantes.find(function (sol) { return sol.nombre == dataRow[solicitanteGroupColumn] })
-            if (solicitante) {
-              solicitante.filas.push(dataRow)
-            } else {
-              group.solicitantes.push({ nombre: dataRow[solicitanteGroupColumn], filas: [dataRow], indice: i })
+                    // Llenar las tablas dinámicamente
+                    renderTable("#tablaSolicitudes", contractuales);
+                    renderTable("#tablaSolicitudesFuturo", futuros);
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error al obtener los datos:", error);
+                }
+            });
+
+            function renderTable(tableId, groupedData) {
+                let dataTable = $(tableId).DataTable();
+                dataTable.clear(); // Limpiar datos previos
+                Object.values(groupedData).forEach(item => {
+                    let rowData = [
+                        item.NombreGrano,
+                        item.Solicitante,
+                        item.Comprador,
+                        item.Zona,
+                        ...generateDateColumnsArray(item.Fechas),
+                        ""
+                    ];
+                    dataTable.row.add(rowData);
+                });
+
+                dataTable.draw(); // Redibujar la tabla con los nuevos datos
+                //$('.dataTables_processing').hide();
             }
-          }
-          rows[i].cells[solicitanteGroupColumn].innerText = ""
+
+            function generateDateColumnsArray(fechaSolicitada) {
+                let fechaBase = new Date();
+                let columns = [];
+                //Revisar el manejo de fechas
+                debugger;
+                for (let i = 0; i < 7; i++) {
+                    let fechaIterada = new Date(fechaBase);
+                    fechaIterada.setDate(fechaBase.getDate() + i);
+                    let fechaKey = fechaIterada.toISOString().split('T')[0];
+
+                    let cantidad = fechaSolicitada[fechaKey] || 0;
+                    let highlight = cantidad > 0 ? `<span style="padding: 5px;">${cantidad}</span>` : "";
+                    columns.push(highlight);
+                }
+                return columns;
+            }
+
+            
+            // Configuración de DataTables con agrupación visual
+            var groupColumn = 0;
+            var groupSolicitante = 1;
+            var table = $("#tablaSolicitudes, #tablaSolicitudesFuturo").DataTable({
+                columnDefs: [
+                    { visible: false, targets: groupColumn }, // pongo invisible el nombre de la comuna de grano
+                    { className: "centered", targets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }, // centro los datos de todas las celdas
+                    { orderable: false, targets: [4, 5, 6, 7, 8, 9, 10] },
+                    //{searchable: false, targets: []}, // se puede configurar porque columna se quiere realizar la busqueda
+                ],
+                order: [[groupColumn, 'asc']],
+                displayLength: 25,
+                paging: true,
+                ordering: true, // Para evitar que se desordenen las filas agrupadas
+                searching: true,
+                info: true,
+                responsive: false,
+                autoWidth: false,
+                //processing: true,
+                //serverSide: true,
+                //scrollCollapse: true,
+                //scrollY: '500px',
+                language: {
+                    lengthMenu: "Mostrar _MENU_ registros por página",
+                    search: "Buscar: ",
+                    loadingRecords: "Cargando...",
+                    emptyTable: "No hay datos para mostrar",
+                    zeroRecords: "Ningun registro encontrado",
+                    info: "Mostrando de _START_ a _END_ de un total de _TOTAL_ registros",
+                    infoEmpty: "Ningun registro encontrado",
+                    infoFiltered: "(filtrado desde _MAX_ registros totales)",
+                    paginate: {
+                        first: "Primero",
+                        last: "Último",
+                        next: "Siguiente",
+                        previous: "Anterior"
+                    },
+                    processing:"Procesando..."
+                },
+                rowGroup: {
+                    dataSrc: 0, // Agrupa primero por "Grano", luego por "Solicitante"
+                    startRender: function (rows, group) {
+                        // Calcular los totales por fecha dentro del grupo
+                        let totalPorFecha = [];
+
+                        rows.every(function () {
+                            let data = this.data();
+
+                            console.log(data);
+                            for (let i = 4; i <= 10; i++) { // Ajustar según el índice de las fechas
+                                let html = data[i] || '';
+                                let valor = parseInt($(html).text()) || 0;
+                                totalPorFecha[i - 4] = (totalPorFecha[i - 4] || 0) + valor;
+                                //totalPorFecha[i] = (totalPorFecha[i] || 0) + (parseInt(data[i].text) || 0);
+                            }
+                        });
+                        console.log(totalPorFecha);
+                        // Crear fila de grupo con totales
+                        let totalRow = $('<tr class="group-row" data-group="' + group + '">').append('<td colspan="3" style="text-align:left;"><strong>' + group + '</strong></td>');
+
+                        for (let i = 0; i < totalPorFecha.length; i++) {
+                            totalRow.append('<td class="centered">' + (totalPorFecha[i] || 0) + '</td>');
+                        }
+
+                        // Celda vacía al final (acciones, etc.)
+                        totalRow.append('<td></td>');
+
+                        return totalRow.get(0);
+                    }
+                }
+            });
+
+            // Order by the grouping
+            $('#tablaSolicitudes, #tablaSolicitudesFuturo, tbody').on('click', 'tr.group-row', function () {
+                var currentOrder = table.order()[0];
+                if (currentOrder[0] === groupColumn && currentOrder[1] === 'asc') {
+                    table.order([groupColumn, 'desc']).draw();
+                }
+                else {
+                    table.order([groupColumn, 'asc']).draw();
+                }
+            });
         });
-
-      lastSolicitanteGroup = null
-      groups.forEach(function (group, i) {
-        group.solicitantes.forEach(function (solicitante) {
-          if (lastSolicitanteGroup !== solicitante.nombre) {
-            $(rows)
-              .eq(solicitante.indice)
-              .before(
-                '<tr class="group" style="background-color:black;color:white"><td colspan="3">' +
-                solicitante.nombre +
-                '</td>' + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[3]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[4]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[5]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[6]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[7]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[8]) }).reduce(function (accum, a) { return accum + a }) + '</td>'
-                + '<td style="text-align:right">' + solicitante.filas.map(function (fila) { return Number(fila[9]) }).reduce(function (accum, a) { return accum + a }) + '</td><td></td>'
-                + '</tr>'
-            );
-
-            lastSolicitanteGroup = solicitante.nombre
-          }
-        })
-        lastSolicitanteGroup = null
-      })
-    }
-
-    let dataTable = new DataTable('#tablaSolicitudes', {
-      ajax: "/Solicitudes/GetAllShiftRequests",
-      //ordering: false,
-      order: [[0, 'asc'], [1, 'asc']],
-      paging: false,
-      columnDefs: [{ visible: false, targets: granoGroupColumn }],
-      columns: [
-        { data: "NombreGrano" },
-        { data: "NombreVendedor" },
-        { data: "NombreComprador" },
-        { data: "NombreDestino" },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return "";
-          }
-        },
-      ],
-      drawCallback: drawCallbackTablaSolicitudes,
-      language: {
-        "search": "Buscar",
-        "loadingRecords": "Cargando...",
-        "zeroRecords": "No se encontraron datos",
-        "info": "Mostrando _START_ hasta _END_ de _TOTAL_ filas",
-        "infoEmpty": "Mostrando 0 hasta 0 de 0 filas",
-        "infoFiltered": "(filtrado desde un total de _MAX_ filas)",
-      }
-    })
-    let dataTableFuturo = new DataTable('#tablaSolicitudesFuturo', {
-      ajax: "/Solicitudes/GetAllFutureShiftRequests",
-      //ordering: false,
-      order: [[0, 'asc'], [1, 'asc']],
-      paging: false,
-      columnDefs: [{ visible: false, targets: granoGroupColumn }],
-      columns: [
-        { data: "NombreGrano" },
-        { data: "NombreVendedor" },
-        { data: "NombreComprador" },
-        { data: "NombreDestino" },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return row.CantidadFechas.find(function (el) { return el.DiaSemana == (meta.col - cantidadColumnasAntesFechas) })?.Cantidad ?? 0;
-          }
-        },
-        {
-          data: function (row, type, set, meta) {
-            return "";
-          }
-        },
-      ],
-      drawCallback: drawCallbackTablaSolicitudes,
-      language: {
-        "search": "Buscar",
-        "loadingRecords": "Cargando...",
-        "zeroRecords": "No se encontraron datos",
-        "info": "Mostrando _START_ hasta _END_ de _TOTAL_ filas",
-        "infoEmpty": "Mostrando 0 hasta 0 de 0 filas",
-        "infoFiltered": "(filtrado desde un total de _MAX_ filas)",
-      }
-    })
-  </script>
+    </script>
+    
 }

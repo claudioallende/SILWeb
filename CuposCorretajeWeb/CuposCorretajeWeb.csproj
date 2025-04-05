@@ -265,6 +265,7 @@
     <Compile Include="Models\DTabla.cs" />
     <Compile Include="Models\EditarCupoViewModel.cs" />
     <Compile Include="Models\Email\MailPdf.cs" />
+    <Compile Include="Models\Enums\Enum.cs" />
     <Compile Include="Models\Error\ApiException.cs" />
     <Compile Include="Models\EstadoAlfanumericoModel.cs" />
     <Compile Include="Models\FiltroCentro.cs" />
@@ -291,6 +292,8 @@
     <Compile Include="Models\ServicioPuerto.cs" />
     <Compile Include="Models\ServicioGrano.cs" />
     <Compile Include="Models\Solicitudes\IndexModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestPendingViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
     <Compile Include="Models\TablaIndexViewModel.cs" />

@@ -18,10 +18,17 @@ namespace CuposCorretajeWeb.Models.Data
   public abstract class Util : IDisposable
   {
     public abstract string GetWebSerive { get; internal set; }
+    public abstract string GetWebServiceSILData { get; internal set; }
 
     public string GetPath(string Controller)
     {
       return GetWebSerive + Controller + "/";
+    }
+
+    //Obtengo la url para para conexion api SilData
+    public string GetPathApiSilData(string Controller)
+    {
+      return GetWebServiceSILData + Controller + "/";
     }
 
     public async Task<string> RequestAsync(string Controller, string Action)
@@ -71,6 +78,19 @@ namespace CuposCorretajeWeb.Models.Data
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
     }
 
+    public async Task<T> RequestSILDataPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
+    {
+      //var token = GetTokenAsync();
+      var client = new HttpClient();
+      //client.SetBearerToken(token);
+      var jsonString = JsonConvert.SerializeObject(Data);
+      HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+      var json = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
+      if (json.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (json.StatusCode == System.Net.HttpStatusCode.InternalServerError || json.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await json.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
+    }
     public async Task<T> DeserializeAsync<T>(string JsonResponse)
     {
       return await Task.FromResult(JsonConvert.DeserializeObject<T>(JsonResponse));
