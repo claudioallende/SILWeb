@@ -26,15 +26,16 @@
             color: white;
             font-weight: bold;
         }
+
         .grano-row td {
             text-align: left !important;
             font-weight: bold;
             padding-left: 10px; /* Ajusta el margen */
         }
 
-        .centered{
-            text-align:center !important;
-            vertical-align:middle !important;
+        .centered {
+            text-align: center !important;
+            vertical-align: middle !important;
         }
 
         .group-row {
@@ -64,7 +65,7 @@
             </thead>
             <tbody>
             </tbody>
-            <tfoot>
+            @*<tfoot>
                 <tr class="group-header">
                     <td colspan="4" style="text-align:left;">TOTAL</td>
                     @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
@@ -72,7 +73,7 @@
                         <td class="total-column">0</td>
                     }
                 </tr>
-            </tfoot>
+            </tfoot>*@
         </table>
 
         <h3>Solicitudes FUTURO</h3>
@@ -92,7 +93,7 @@
             </thead>
             <tbody>
             </tbody>
-            <tfoot>
+            @*<tfoot>
                 <tr class="group-header">
                     <td colspan="4">TOTAL</td>
                     @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
@@ -100,7 +101,7 @@
                         <td class="total-column">0</td>
                     }
                 </tr>
-            </tfoot>
+            </tfoot>*@
         </table>
     </div>
 </div>
@@ -165,20 +166,24 @@
                     ];
                     dataTable.row.add(rowData);
                 });
-
+                $('.dt-processing').show();
                 dataTable.draw(); // Redibujar la tabla con los nuevos datos
-                //$('.dataTables_processing').hide();
+
+                setTimeout(function () {
+                    $('.dt-processing').fadeOut(300);
+                }, 800); // Delay para mostrar el efecto "procesando..."
             }
 
             function generateDateColumnsArray(fechaSolicitada) {
                 let fechaBase = new Date();
                 let columns = [];
                 //Revisar el manejo de fechas
-                debugger;
                 for (let i = 0; i < 7; i++) {
                     let fechaIterada = new Date(fechaBase);
                     fechaIterada.setDate(fechaBase.getDate() + i);
-                    let fechaKey = fechaIterada.toISOString().split('T')[0];
+
+                    // Obtengo mi fecha formateada de una funcion en mi archivo Functions.js
+                    let fechaKey = FormatearFechaLocal(fechaIterada);
 
                     let cantidad = fechaSolicitada[fechaKey] || 0;
                     let highlight = cantidad > 0 ? `<span style="padding: 5px;">${cantidad}</span>` : "";
@@ -187,11 +192,16 @@
                 return columns;
             }
 
-            
+
             // Configuración de DataTables con agrupación visual
             var groupColumn = 0;
             var groupSolicitante = 1;
             var table = $("#tablaSolicitudes, #tablaSolicitudesFuturo").DataTable({
+                //drawCallback: function (settings) {
+                //    setTimeout(function () {
+                //        $('.dt-processing').fadeOut(300);
+                //    }, 800); // Delay para mostrar el efecto "procesando..."
+                //},
                 columnDefs: [
                     { visible: false, targets: groupColumn }, // pongo invisible el nombre de la comuna de grano
                     { className: "centered", targets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }, // centro los datos de todas las celdas
@@ -206,7 +216,7 @@
                 info: true,
                 responsive: false,
                 autoWidth: false,
-                //processing: true,
+                processing: true,
                 //serverSide: true,
                 //scrollCollapse: true,
                 //scrollY: '500px',
@@ -225,7 +235,7 @@
                         next: "Siguiente",
                         previous: "Anterior"
                     },
-                    processing:"Procesando..."
+                    processing: "Procesando..."
                 },
                 rowGroup: {
                     dataSrc: 0, // Agrupa primero por "Grano", luego por "Solicitante"
@@ -272,5 +282,5 @@
             });
         });
     </script>
-    
+
 }

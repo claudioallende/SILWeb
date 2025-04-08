@@ -376,6 +376,7 @@
     <Content Include="Scripts\Distribucion.js" />
     <Content Include="Scripts\Editar.js" />
     <Content Include="Scripts\Alert.js" />
+    <Content Include="Scripts\Functions.js" />
     <Content Include="Scripts\PuertoStop.js" />
     <Content Include="Scripts\highlightTextArea.js" />
     <Content Include="Scripts\InformarPorLote.js" />
