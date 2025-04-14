@@ -296,6 +296,7 @@
     <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudViewModel.cs" />
     <Compile Include="Models\TablaIndexViewModel.cs" />
     <Compile Include="Models\TablaTurnosPendienteAutorizarViewModel.cs" />
     <Compile Include="Models\TurnoViewModel.cs" />
@@ -487,6 +488,7 @@
     <Content Include="Views\Configuracion\PuertoStop.cshtml" />
     <Content Include="Views\Configuracion\_NuevoPuertoStopPartial.cshtml" />
     <Content Include="Views\Solicitudes\Index.cshtml" />
+    <Content Include="Views\Solicitudes\AltaSolicitud.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

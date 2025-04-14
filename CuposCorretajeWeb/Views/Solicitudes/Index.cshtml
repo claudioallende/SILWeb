@@ -5,6 +5,7 @@
 @section Styles{
     @Styles.Render("~/Content/datatablesv2")
     @*<link href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css" rel="stylesheet" />*@
+
     <style>
         .table-wrap-bordered {
             border-collapse: collapse;
@@ -16,14 +17,14 @@
                 padding: 5px;
             }
 
-        .header-sp {
+        /*        .header-sp {
             background-color: #cce5ff;
             font-weight: bold;
-        }
+        }*/
 
         .group-header {
-            background-color: #1c1f5e;
-            color: white;
+            background-color: #3498db !important;
+            color: #000;
             font-weight: bold;
         }
 
@@ -49,7 +50,7 @@
 <div class="row">
     <div class="col-sm-12 col-md-12 col-lg-12 col-xl-12">
         <h3>Solicitudes CONTRACTUAL</h3>
-        <table id="tablaSolicitudes" class="table table-sm table-striped table-wrap-bordered display" style="font-size: 0.9rem;width:100%;">
+        <table id="tablaSolicitudes" class="table table-sm table-hover table-wrap-bordered display" style="font-size: 0.9rem;width:100%;">
             <thead>
                 <tr>
                     <th>Grano</th>
@@ -65,15 +66,6 @@
             </thead>
             <tbody>
             </tbody>
-            @*<tfoot>
-                <tr class="group-header">
-                    <td colspan="4" style="text-align:left;">TOTAL</td>
-                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-                    {
-                        <td class="total-column">0</td>
-                    }
-                </tr>
-            </tfoot>*@
         </table>
 
         <h3>Solicitudes FUTURO</h3>
@@ -93,15 +85,6 @@
             </thead>
             <tbody>
             </tbody>
-            @*<tfoot>
-                <tr class="group-header">
-                    <td colspan="4">TOTAL</td>
-                    @for (int Dia = 0; Dia < Model.CantidadDias; Dia++)
-                    {
-                        <td class="total-column">0</td>
-                    }
-                </tr>
-            </tfoot>*@
         </table>
     </div>
 </div>
@@ -162,7 +145,12 @@
                         item.Comprador,
                         item.Zona,
                         ...generateDateColumnsArray(item.Fechas),
-                        ""
+                        // 👉 Agregamos aquí los botones
+                        `<div class="btn-group" role="group">
+                                <button id="btnAltaSolicitud" data-item='${JSON.stringify(item)}'  type="button" class="btn btn-sm btn-primary btn-alta-solicitud" title="">
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>`
                     ];
                     dataTable.row.add(rowData);
                 });
@@ -194,7 +182,7 @@
 
 
             // Configuración de DataTables con agrupación visual
-            var groupColumn = 0;
+            var groupColumnGrano = 0;
             var groupSolicitante = 1;
             var table = $("#tablaSolicitudes, #tablaSolicitudesFuturo").DataTable({
                 //drawCallback: function (settings) {
@@ -203,12 +191,12 @@
                 //    }, 800); // Delay para mostrar el efecto "procesando..."
                 //},
                 columnDefs: [
-                    { visible: false, targets: groupColumn }, // pongo invisible el nombre de la comuna de grano
+                    { visible: false, targets: groupColumnGrano }, // pongo invisible el nombre de la comuna de grano
                     { className: "centered", targets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }, // centro los datos de todas las celdas
                     { orderable: false, targets: [4, 5, 6, 7, 8, 9, 10] },
                     //{searchable: false, targets: []}, // se puede configurar porque columna se quiere realizar la busqueda
                 ],
-                order: [[groupColumn, 'asc']],
+                order: [[groupColumnGrano, 'asc'], [groupSolicitante, 'asc']],
                 displayLength: 25,
                 paging: true,
                 ordering: true, // Para evitar que se desordenen las filas agrupadas
@@ -238,31 +226,32 @@
                     processing: "Procesando..."
                 },
                 rowGroup: {
-                    dataSrc: 0, // Agrupa primero por "Grano", luego por "Solicitante"
-                    startRender: function (rows, group) {
+                    dataSrc: [groupColumnGrano, groupSolicitante], // Agrupa primero por "Grano", luego por "Solicitante"
+                    startRender: function (rows, group, level) {
                         // Calcular los totales por fecha dentro del grupo
                         let totalPorFecha = [];
 
                         rows.every(function () {
                             let data = this.data();
-
-                            console.log(data);
                             for (let i = 4; i <= 10; i++) { // Ajustar según el índice de las fechas
                                 let html = data[i] || '';
                                 let valor = parseInt($(html).text()) || 0;
                                 totalPorFecha[i - 4] = (totalPorFecha[i - 4] || 0) + valor;
-                                //totalPorFecha[i] = (totalPorFecha[i] || 0) + (parseInt(data[i].text) || 0);
                             }
                         });
-                        console.log(totalPorFecha);
-                        // Crear fila de grupo con totales
-                        let totalRow = $('<tr class="group-row" data-group="' + group + '">').append('<td colspan="3" style="text-align:left;"><strong>' + group + '</strong></td>');
+
+                        let claseFila = (level === 0) ? "group-header" : "group-row";
+                        let colspan = (level === 0) ? 3 : 3;
+
+                        let totalRow = $('<tr>')
+                            .addClass(claseFila)
+                            .attr("data-group", group)
+                            .append(`<td colspan="${colspan}" style="text-align:left;"><strong>${group}</strong></td>`);
 
                         for (let i = 0; i < totalPorFecha.length; i++) {
-                            totalRow.append('<td class="centered">' + (totalPorFecha[i] || 0) + '</td>');
+                            totalRow.append(`<td class="centered">${totalPorFecha[i] || 0}</td>`);
                         }
 
-                        // Celda vacía al final (acciones, etc.)
                         totalRow.append('<td></td>');
 
                         return totalRow.get(0);
@@ -279,6 +268,24 @@
                 else {
                     table.order([groupColumn, 'asc']).draw();
                 }
+            });
+
+            $(document).on('click', '.btn-alta-solicitud', function () {
+                debugger;
+                const itemSelected = $(this).data('item');
+                console.log(itemSelected);
+                $.ajax({
+                    url: "/Solicitudes/AltaSolicitud",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(itemSelected),
+                    success: function () {
+
+                    },
+                    error: function () {
+                        alert("Error al guardar la solicitud.");
+                    }
+                });
             });
         });
     </script>

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
+//using System.Web.Http;
 using System.Web.Mvc;
 
 namespace CuposCorretajeWeb.Controllers
@@ -40,40 +41,18 @@ namespace CuposCorretajeWeb.Controllers
         throw;
       }
     }
-    //[HttpGet]
-    //public async Task<JsonResult> GetAllShiftRequests()
-    //{
-    //  try
-    //  {
-    //    IEnumerable<SolicitudTurnoGrupoView> result;
-    //    var repo = new WebServiceSILRespository();
-    //    result = (await repo.RequestGetAndDeserializeAsync<IEnumerable<SolicitudTurnoGrupoView>>("SolicitudesTurnos", "Grupo")) ?? new List<SolicitudTurnoGrupoView>();
 
-    //    //var result = (await repo.RequestGetAndDeserializeAsync<IEnumerable<SolicitudTurnoGrupoView>>("SolicitudesTurnos", "Grupo"))
-    //    //     ?.Select(s => new {
-    //    //       s.NombreVendedor,
-    //    //       s.NombreComprador,
-    //    //       s.NombreDestino,
-    //    //       CantidadFechas = s.CantidadFechas.ToDictionary(cf => DateTime.Parse(cf.Fecha).ToString("dd/MM"), cf => cf.Cantidad)
-    //    //     }) ?? Enumerable.Empty<object>();
-
-    //    return Json(new { data = result }, JsonRequestBehavior.AllowGet);
-    //  }
-    //  catch (Exception ex)
-    //  {
-    //    return Json(new { error = "Error al obtener los datos", details = ex.Message }, JsonRequestBehavior.AllowGet);
-    //  }
-    //}
-
-    //[HttpGet]
-    //public async Task<JsonResult> GetAllFutureShiftRequests()
-    //{
-    //  IEnumerable<SolicitudTurnoGrupoView> result;
-    //  using (WebServiceSILRespository repo = new WebServiceSILRespository())
-    //  {
-    //    result = (await repo.RequestGetAndDeserializeAsync<IEnumerable<SolicitudTurnoGrupoView>>("SolicitudesTurnos", "Grupo?futuro=true")) ?? new List<SolicitudTurnoGrupoView>();
-    //  }
-    //  return Json(new { data = result }, JsonRequestBehavior.AllowGet);
-    //}
+    [HttpPost]
+    public ActionResult AltaSolicitud([System.Web.Http.FromBody] SolicitudViewModel solicitud)
+    {
+      try
+      {
+        return RedirectToAction("AltaSolicitud");
+      }
+      catch (Exception ex)
+      {
+        throw ex;
+      }
+    }
   }
 }
