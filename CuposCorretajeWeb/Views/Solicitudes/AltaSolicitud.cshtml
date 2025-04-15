@@ -1,7 +1,154 @@
-﻿
+﻿@using CuposCorretajeWeb.Models.Solicitudes
+@model SolicitudViewModel
 @{
-    ViewBag.Title = "AltaSolicitud";
+  ViewBag.Title = "AltaSolicitud";
+
+  var nombreGrano = (Model != null && Model.NombreGrano != null) ? Model.NombreGrano : "";
+  var solicitante = (Model != null && Model.Solicitante != null) ? Model.Solicitante : "";
+  var comprador = (Model != null && Model.Comprador != null) ? Model.Comprador : "";
+  var zona = (Model != null && Model.Zona != null) ? Model.Zona : "";
+  var fechas = Model != null ? Model.Fechas : null;
 }
 
-<h2>AltaSolicitud</h2>
+<div class="container-fluid">
+    <div class="col-12" style="display:flex">
+        <div class="col-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="col-12">
+                        <h2>Solicitudes</h2>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="control-label">Fecha</label>
+                                <input type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-6">
+                                <label class="control-label">Producto</label>
+                                @Html.DropDownListFor(x => x.NombreGrano, new List<SelectListItem>(), nombreGrano ?? "--Seleccione--", new { @class = "form-select form-control" })
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="control-label">Vendedor/Solicitante</label>
+                                @Html.TextBoxFor(x => x.CuentaVendedor, new { @class = "form-control" })
+                                <small class="form-text text-primary fw-bold d-flex justify-content-end">@solicitante</small>
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-11">
+                                <label class="control-label">Comprador</label>
+                                @Html.TextBoxFor(x => x.CuentaComprador, new { @class = "form-control" })
+                                <small class="form-text text-primary fw-bold d-flex justify-content-end">@comprador</small>
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-10">
+                                <label class="control-label">Zona Portuaria</label>
+                                @Html.DropDownListFor(x => x.Zona, new List<SelectListItem>(), zona ?? "-- Seleccione --", new { @class = "form-select form-control" })
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                <table id="tablaAltaSolicitud" class="table table-sm table-hover table-bordered display" style="font-size: 0.9rem;width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th>Día</th>
+                                            <th>Cantidad</th>
+                                            <th>Selección</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int dia = 0; dia < 7; dia++)
+                                        {
+                                            var fecha = DateTime.Now.AddDays(dia).Date;
+                                            var fechaKey = fecha.ToString("yyyy-MM-dd"); // mismo formato que en el diccionario
+                                            var cantidad = (fechas != null && fechas.ContainsKey(fechaKey)) ? fechas[fechaKey] : 0;
+                                            <tr>
+                                                <td class="text-center">@fecha.ToString("dd/MM/yyyy")</td>
+                                                <td class="text-center">@cantidad</td>
+                                                <td style="text-align: center; vertical-align: middle;">
+                                                    <input type="checkbox" class="form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="col-12">
+                        <h2>Turnos</h2>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="control-label">Fecha</label>
+                                <input type="date" class="form-control" />
+                            </div>
+                            <div class="col-6">
+                                <label class="control-label">Producto</label>
+                                @Html.DropDownListFor(x => x.NombreGrano, new List<SelectListItem>(), nombreGrano ?? "--Seleccione--", new { @class = "form-select form-control" })
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-11">
+                                <label class="control-label">Comprador</label>
+                                @Html.TextBoxFor(x => x.CuentaComprador, new { @class = "form-control" })
+                                <small class="form-text text-primary fw-bold d-flex justify-content-end">@comprador</small>
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                <table id="tablaAltaSolicitud" class="table table-sm table-hover table-bordered display" style="font-size: 0.9rem;width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th>Destino</th>
+                                            <th>Turnos Disp.</th>
+                                            <th>Selección</th>
+                                            <th>CCPP</th>
+                                            <th>Turnos Rest.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @*@for (int dia = 0; dia < 7; dia++)
+                                        {
+                                            var fecha = DateTime.Now.AddDays(dia).Date;
+                                            var fechaKey = fecha.ToString("yyyy-MM-dd"); // mismo formato que en el diccionario
+                                            var cantidad = (fechas != null && fechas.ContainsKey(fechaKey)) ? fechas[fechaKey] : 0;
+                                            <tr>
+                                                <td class="text-center">@fecha.ToString("dd/MM/yyyy")</td>
+                                                <td class="text-center">@cantidad</td>
+                                                <td style="text-align: center; vertical-align: middle;">
+                                                    <input type="checkbox" class="form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
+                                                </td>
+                                            </tr>
+                                        }*@
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-12 d-flex justify-content-end">
+                                <button class="btn btn-primary" type="submit">Aceptar</button>
+                                
+                                <button class="btn btn-danger">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 

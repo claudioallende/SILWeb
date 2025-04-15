@@ -41,17 +41,33 @@ namespace CuposCorretajeWeb.Controllers
         throw;
       }
     }
-
+    [HttpGet]
+    public ActionResult AltaSolicitud()
+    {
+      try
+      {
+        var solicitud = TempData["Solicitud"] as SolicitudViewModel;
+        return View(solicitud); // Podés pasarlo al modelo
+      }
+      catch (Exception ex)
+      {
+        throw ex;
+      }
+    }
     [HttpPost]
     public ActionResult AltaSolicitud([System.Web.Http.FromBody] SolicitudViewModel solicitud)
     {
       try
       {
-        return RedirectToAction("AltaSolicitud");
+        // Guardás en TempData si necesitás pasar el objeto a la próxima vista
+        TempData["Solicitud"] = solicitud;
+
+        // Retornás la URL a la vista que querés mostrar
+        return Json(new { success = true, redirectUrl = Url.Action("AltaSolicitud") });
       }
       catch (Exception ex)
       {
-        throw ex;
+        return Json(new { success = false, message = ex.Message });
       }
     }
   }

@@ -119,7 +119,11 @@
                                 Solicitante: item.NombreVendedor,
                                 Comprador: item.NombreComprador || 'Sin Comprador',
                                 Zona: item.NombreDestino || 'Sin Zona',
-                                Fechas: {} // Guardar cantidad de solicitudes por fecha
+                                Fechas: {}, // Guardar cantidad de solicitudes por fecha
+                                CodigoGrano: item.CodigoGrano,
+                                CuentaVendedor: item.CuentaVendedor,
+                                CuentaComprador: item.CuentaComprador,
+                                CuentaDestino: item.CuentaDestino
                             };
                         }
                         let fechaKey = new Date(item.FechaSolicitado).toISOString().split('T')[0]; // YYYY-MM-DD
@@ -279,8 +283,12 @@
                     type: "POST",
                     contentType: "application/json",
                     data: JSON.stringify(itemSelected),
-                    success: function () {
-
+                    success: function (response) {
+                        if (response.success) {
+                            window.location.href = response.redirectUrl;
+                        } else {
+                            alert("Error: " + response.message);
+                        }
                     },
                     error: function () {
                         alert("Error al guardar la solicitud.");
