@@ -27,7 +27,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         SILSolicitudDeTurnosFilterViewModel filterSolicitud = new SILSolicitudDeTurnosFilterViewModel
         {
-          Centros = new List<string> {"ROS", "BSAS"},
+          Centros = new List<string> {"ROS", "BSAS", "CBA"},
           Dias = 7
         };
         IEnumerable<ShiftRequestPendingViewModel> shiftRequestPendingViewModel = new List<ShiftRequestPendingViewModel>();
@@ -47,6 +47,10 @@ namespace CuposCorretajeWeb.Controllers
       try
       {
         var solicitud = TempData["Solicitud"] as SolicitudViewModel;
+        if (solicitud == null)
+        {
+          return RedirectToAction("Index");
+        }
         return View(solicitud); // Podés pasarlo al modelo
       }
       catch (Exception ex)

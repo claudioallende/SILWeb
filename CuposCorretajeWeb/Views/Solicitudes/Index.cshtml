@@ -99,6 +99,22 @@
     <script type="text/javascript">
 
         $(document).ready(function () {
+            // Mostrar loader al iniciar cualquier petición AJAX
+            $(document).ajaxStart(function () {
+                ShowLoader();
+            });
+
+            // Ocultar loader cuando termine cualquier AJAX
+            $(document).ajaxStop(function () {
+                setTimeout(function () {
+                    HideLoader();
+                }, 8000); // Delay para mostrar el efecto "procesando..."
+            });
+
+            $(document).ajaxError(function () {
+                HideLoader();
+            });
+
             $.ajax({
                 url: "/Solicitudes/GetAllPendingShiftRequests",
                 method: "GET",
@@ -136,6 +152,9 @@
                 },
                 error: function (xhr, status, error) {
                     console.error("Error al obtener los datos:", error);
+                },
+                complete: function () {
+                    HideLoader();
                 }
             });
 
@@ -162,7 +181,8 @@
                 dataTable.draw(); // Redibujar la tabla con los nuevos datos
 
                 setTimeout(function () {
-                    $('.dt-processing').fadeOut(300);
+                    /*$('.dt-processing').fadeOut(300);*/
+                    //HideLoader();
                 }, 800); // Delay para mostrar el efecto "procesando..."
             }
 
@@ -208,10 +228,10 @@
                 info: true,
                 responsive: false,
                 autoWidth: false,
-                processing: true,
+                //processing: true,
                 //serverSide: true,
-                //scrollCollapse: true,
-                //scrollY: '500px',
+                scrollCollapse: true,
+                scrollY: '300px',
                 language: {
                     lengthMenu: "Mostrar _MENU_ registros por página",
                     search: "Buscar: ",
@@ -275,7 +295,6 @@
             });
 
             $(document).on('click', '.btn-alta-solicitud', function () {
-                debugger;
                 const itemSelected = $(this).data('item');
                 console.log(itemSelected);
                 $.ajax({
@@ -284,6 +303,7 @@
                     contentType: "application/json",
                     data: JSON.stringify(itemSelected),
                     success: function (response) {
+                        ShowLoader();
                         if (response.success) {
                             window.location.href = response.redirectUrl;
                         } else {
@@ -291,7 +311,16 @@
                         }
                     },
                     error: function () {
-                        alert("Error al guardar la solicitud.");
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No puede acceder a la siguiente pantalla',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#3085d6'
+                        });
+                    },
+                    complete: function () {
+                        HideLoader();
                     }
                 });
             });

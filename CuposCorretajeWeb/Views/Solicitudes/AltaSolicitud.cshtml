@@ -1,13 +1,13 @@
 ﻿@using CuposCorretajeWeb.Models.Solicitudes
 @model SolicitudViewModel
 @{
-  ViewBag.Title = "AltaSolicitud";
+    ViewBag.Title = "AltaSolicitud";
 
-  var nombreGrano = (Model != null && Model.NombreGrano != null) ? Model.NombreGrano : "";
-  var solicitante = (Model != null && Model.Solicitante != null) ? Model.Solicitante : "";
-  var comprador = (Model != null && Model.Comprador != null) ? Model.Comprador : "";
-  var zona = (Model != null && Model.Zona != null) ? Model.Zona : "";
-  var fechas = Model != null ? Model.Fechas : null;
+    var nombreGrano = (Model != null && Model.NombreGrano != null) ? Model.NombreGrano : "";
+    var solicitante = (Model != null && Model.Solicitante != null) ? Model.Solicitante : "";
+    var comprador = (Model != null && Model.Comprador != null) ? Model.Comprador : "";
+    var zona = (Model != null && Model.Zona != null) ? Model.Zona : "";
+    var fechas = Model != null ? Model.Fechas : null;
 }
 
 <div class="container-fluid">
@@ -24,14 +24,14 @@
                             </div>
                             <div class="col-6">
                                 <label class="control-label">Producto</label>
-                                @Html.DropDownListFor(x => x.NombreGrano, new List<SelectListItem>(), nombreGrano ?? "--Seleccione--", new { @class = "form-select form-control" })
+                                @Html.TextBoxFor(x => x.NombreGrano, new { @class = "form-control", @disabled = "disabled" })
                             </div>
                         </div>
                         <br />
                         <div class="row">
                             <div class="col-12">
                                 <label class="control-label">Vendedor/Solicitante</label>
-                                @Html.TextBoxFor(x => x.CuentaVendedor, new { @class = "form-control" })
+                                @Html.TextBoxFor(x => x.CuentaVendedor, new { @class = "form-control", @disabled = "disabled" })
                                 <small class="form-text text-primary fw-bold d-flex justify-content-end">@solicitante</small>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                                                 <td class="text-center">@fecha.ToString("dd/MM/yyyy")</td>
                                                 <td class="text-center">@cantidad</td>
                                                 <td style="text-align: center; vertical-align: middle;">
-                                                    <input type="checkbox" class="form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
+                                                    <input type="checkbox" class="chkFechaSolicitud form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
                                                 </td>
                                             </tr>
                                         }
@@ -79,11 +79,21 @@
                                 </table>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-12 d-flex justify-content-end">
+                                <button class="btn btn-primary" type="button" id="btnSiguientePanelTurnos">Siguiente</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6">
+        <!-- Leyenda cuando Turnos está oculto -->
+        <div id="mensajeTurnos" class="col-6 d-flex align-items-center justify-content-center border border-secondary rounded p-4 text-muted">
+            <h5>Seleccione una fecha y haga clic en <strong>Siguiente</strong> para continuar.</h5>
+        </div>
+        <!-- Panel derecho: Turnos -->
+        <div id="panelTurnos" class="col-6 d-none">
             <div class="card">
                 <div class="card-body">
                     <div class="col-12">
@@ -91,11 +101,11 @@
                         <div class="row">
                             <div class="col-6">
                                 <label class="control-label">Fecha</label>
-                                <input type="date" class="form-control" />
+                                <input type="date" id="inputFechaTurno" class="form-control" />
                             </div>
                             <div class="col-6">
                                 <label class="control-label">Producto</label>
-                                @Html.DropDownListFor(x => x.NombreGrano, new List<SelectListItem>(), nombreGrano ?? "--Seleccione--", new { @class = "form-select form-control" })
+                                @Html.TextBoxFor(x => x.NombreGrano, new { @class = "form-control", @disabled = "disabled" })
                             </div>
                         </div>
                         <br />
@@ -121,18 +131,18 @@
                                     </thead>
                                     <tbody>
                                         @*@for (int dia = 0; dia < 7; dia++)
-                                        {
-                                            var fecha = DateTime.Now.AddDays(dia).Date;
-                                            var fechaKey = fecha.ToString("yyyy-MM-dd"); // mismo formato que en el diccionario
-                                            var cantidad = (fechas != null && fechas.ContainsKey(fechaKey)) ? fechas[fechaKey] : 0;
-                                            <tr>
-                                                <td class="text-center">@fecha.ToString("dd/MM/yyyy")</td>
-                                                <td class="text-center">@cantidad</td>
-                                                <td style="text-align: center; vertical-align: middle;">
-                                                    <input type="checkbox" class="form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
-                                                </td>
-                                            </tr>
-                                        }*@
+                                            {
+                                                var fecha = DateTime.Now.AddDays(dia).Date;
+                                                var fechaKey = fecha.ToString("yyyy-MM-dd"); // mismo formato que en el diccionario
+                                                var cantidad = (fechas != null && fechas.ContainsKey(fechaKey)) ? fechas[fechaKey] : 0;
+                                                <tr>
+                                                    <td class="text-center">@fecha.ToString("dd/MM/yyyy")</td>
+                                                    <td class="text-center">@cantidad</td>
+                                                    <td style="text-align: center; vertical-align: middle;">
+                                                        <input type="checkbox" class="form-check-input" style="transform: scale(1.3); margin: 0;" data-dia="@fechaKey" />
+                                                    </td>
+                                                </tr>
+                                            }*@
                                     </tbody>
                                 </table>
                             </div>
@@ -141,8 +151,7 @@
                         <div class="row">
                             <div class="col-12 d-flex justify-content-end">
                                 <button class="btn btn-primary" type="submit">Aceptar</button>
-                                
-                                <button class="btn btn-danger">Cancelar</button>
+                                <button class="btn btn-danger ml-2">Cancelar</button>
                             </div>
                         </div>
                     </div>
@@ -151,4 +160,31 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('#btnSiguientePanelTurnos').on('click', function () {
+                const $chkFecha = $('.chkFechaSolicitud:checked').first();
+
+                if ($chkFecha.length > 0) {
+                    const fechaSeleccionada = $chkFecha.data('dia'); // lee el atributo data-dia
+
+                    $('#inputFechaTurno').val(fechaSeleccionada); // setea en input
+                    $('#panelTurnos').removeClass('d-none');       // muestra panel
+                    $('#mensajeTurnos').removeClass('d-flex').addClass('d-none').hide(); // oculta leyenda
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Selecciona una fecha',
+                        text: 'Debes elegir al menos una fecha antes de continuar.',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#3085d6'
+                    });
+                }
+            });
+        });
+
+    </script>
+}
 
