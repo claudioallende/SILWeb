@@ -251,6 +251,7 @@
     <Compile Include="Models\CuposAgrupados.cs" />
     <Compile Include="Models\CuposAgrupadosDetalle.cs" />
     <Compile Include="Models\CuposAgrupadosPdf.cs" />
+    <Compile Include="Models\Solicitudes\CuposDisponibleViewModel.cs" />
     <Compile Include="Models\CuposDist.cs" />
     <Compile Include="Models\CuposPorDiaDTO.cs" />
     <Compile Include="Models\Cupo\EstadoCupo.cs" />
@@ -291,6 +292,7 @@
     <Compile Include="Models\ServicioCentro.cs" />
     <Compile Include="Models\ServicioPuerto.cs" />
     <Compile Include="Models\ServicioGrano.cs" />
+    <Compile Include="Models\Solicitudes\FilterCuposDisponible.cs" />
     <Compile Include="Models\Solicitudes\IndexModel.cs" />
     <Compile Include="Models\Solicitudes\ShiftRequestPendingViewModel.cs" />
     <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />

@@ -85,11 +85,12 @@ namespace CuposCorretajeWeb.Models.Data
       //client.SetBearerToken(token);
       var jsonString = JsonConvert.SerializeObject(Data);
       HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
-      var json = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
-      if (json.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
-      if (json.StatusCode == System.Net.HttpStatusCode.InternalServerError || json.StatusCode == System.Net.HttpStatusCode.Conflict)
-        throw new ApiException(await json.Content.ReadAsStringAsync());
-      return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
+      var response = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
     }
     public async Task<T> DeserializeAsync<T>(string JsonResponse)
     {

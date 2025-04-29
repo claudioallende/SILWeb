@@ -99,6 +99,7 @@
     <script type="text/javascript">
 
         $(document).ready(function () {
+            ShowLoader();
             // Mostrar loader al iniciar cualquier petición AJAX
             $(document).ajaxStart(function () {
                 ShowLoader();
@@ -106,9 +107,7 @@
 
             // Ocultar loader cuando termine cualquier AJAX
             $(document).ajaxStop(function () {
-                setTimeout(function () {
-                    HideLoader();
-                }, 8000); // Delay para mostrar el efecto "procesando..."
+                HideLoader();
             });
 
             $(document).ajaxError(function () {
@@ -179,11 +178,6 @@
                 });
                 $('.dt-processing').show();
                 dataTable.draw(); // Redibujar la tabla con los nuevos datos
-
-                setTimeout(function () {
-                    /*$('.dt-processing').fadeOut(300);*/
-                    //HideLoader();
-                }, 800); // Delay para mostrar el efecto "procesando..."
             }
 
             function generateDateColumnsArray(fechaSolicitada) {
@@ -297,13 +291,14 @@
             $(document).on('click', '.btn-alta-solicitud', function () {
                 const itemSelected = $(this).data('item');
                 console.log(itemSelected);
+                ShowLoader();
                 $.ajax({
                     url: "/Solicitudes/AltaSolicitud",
                     type: "POST",
                     contentType: "application/json",
                     data: JSON.stringify(itemSelected),
                     success: function (response) {
-                        ShowLoader();
+                        /*ShowLoader();*/
                         if (response.success) {
                             window.location.href = response.redirectUrl;
                         } else {
@@ -320,7 +315,7 @@
                         });
                     },
                     complete: function () {
-                        HideLoader();
+                        //HideLoader();
                     }
                 });
             });

@@ -1,4 +1,5 @@
 ﻿@using CuposCorretajeWeb.Models.Solicitudes
+@using Newtonsoft.Json;
 @model SolicitudViewModel
 @{
     ViewBag.Title = "AltaSolicitud";
@@ -39,15 +40,15 @@
                         <div class="row">
                             <div class="col-11">
                                 <label class="control-label">Comprador</label>
-                                @Html.TextBoxFor(x => x.CuentaComprador, new { @class = "form-control" })
-                                <small class="form-text text-primary fw-bold d-flex justify-content-end">@comprador</small>
+                                @Html.DropDownListFor(x => x.CuentaComprador, (IEnumerable<SelectListItem>)ViewBag.Compradores, "Seleccione comprador", new { @class = "form-select form-control" })
+                                <small class="form-text text-primary fw-bold d-flex justify-content-end" id="nombreComprador">@comprador</small>
                             </div>
                         </div>
                         <br />
                         <div class="row">
                             <div class="col-10">
                                 <label class="control-label">Zona Portuaria</label>
-                                @Html.DropDownListFor(x => x.Zona, new List<SelectListItem>(), zona ?? "-- Seleccione --", new { @class = "form-select form-control" })
+                                @Html.DropDownListFor(x => x.Zona, (IEnumerable<SelectListItem>)ViewBag.ZonaPortuaria, zona ?? "Seleccione Zona", new { @class = "form-select form-control" })
                             </div>
                         </div>
                         <br />
@@ -90,7 +91,7 @@
         </div>
         <!-- Leyenda cuando Turnos está oculto -->
         <div id="mensajeTurnos" class="col-6 d-flex align-items-center justify-content-center border border-secondary rounded p-4 text-muted">
-            <h5>Seleccione una fecha y haga clic en <strong>Siguiente</strong> para continuar.</h5>
+            <h5>Haga clic en <strong>Siguiente</strong> para continuar.</h5>
         </div>
         <!-- Panel derecho: Turnos -->
         <div id="panelTurnos" class="col-6 d-none">
@@ -112,8 +113,7 @@
                         <div class="row">
                             <div class="col-11">
                                 <label class="control-label">Comprador</label>
-                                @Html.TextBoxFor(x => x.CuentaComprador, new { @class = "form-control" })
-                                <small class="form-text text-primary fw-bold d-flex justify-content-end">@comprador</small>
+                                @Html.TextBox("NombreComprador", comprador, new {@class = "form-control", @disabled = "disabled", id = "inputNombreComprador"})
                             </div>
                         </div>
                         <br />
@@ -165,24 +165,32 @@
     <script type="text/javascript">
         $(document).ready(function () {
             $('#btnSiguientePanelTurnos').on('click', function () {
+                // Obtener fecha seleccionada o actual
                 const $chkFecha = $('.chkFechaSolicitud:checked').first();
+                let fechaSeleccionada = $chkFecha.length > 0 ? $chkFecha.data('dia') : new Date().toISOString().split('T')[0]; // Fecha actual en formato YYYY-MM-DD
 
-                if ($chkFecha.length > 0) {
-                    const fechaSeleccionada = $chkFecha.data('dia'); // lee el atributo data-dia
-
-                    $('#inputFechaTurno').val(fechaSeleccionada); // setea en input
-                    $('#panelTurnos').removeClass('d-none');       // muestra panel
-                    $('#mensajeTurnos').removeClass('d-flex').addClass('d-none').hide(); // oculta leyenda
-                } else {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Selecciona una fecha',
-                        text: 'Debes elegir al menos una fecha antes de continuar.',
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#3085d6'
-                    });
-                }
+                // Actualizar input y mostrar panel
+                $('#inputFechaTurno').val(fechaSeleccionada); // setea en input
+                $('#panelTurnos').removeClass('d-none');       // muestra panel
+                $('#mensajeTurnos').removeClass('d-flex').addClass('d-none').hide(); // oculta leyenda
             });
+
+            var compradorMap = @Html.Raw(ViewBag.CompradorMap);
+            // Actualizar nombre al cambiar selección
+            $('#CuentaComprador').on('change', function () {
+                const nombre = compradorMap[$(this).val()] || '';
+
+                // Actualiza ambos lugares
+                $('#nombreComprador').text(nombre);       // Small del primer panel
+                $('#inputNombreComprador').val(nombre);   // Input del panel derecho
+            });
+
+            // Actualizar al cargar la página
+            const cuentaInicial = $('#CuentaComprador').val();
+            const nombreInicial = compradorMap[cuentaInicial] || '@comprador';
+
+            $('#nombreComprador').text(nombreInicial);
+            $('#inputNombreComprador').val(nombreInicial);
         });
 
     </script>
