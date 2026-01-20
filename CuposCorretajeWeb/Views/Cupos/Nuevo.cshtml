@@ -296,6 +296,13 @@
               @Html.ValidationMessageFor(model => model.Caratula, "", new { @class = "text-danger" })
             </div>
           </div>
+          <div id="col-condicion-grano" class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CondicionGrano)
+              @Html.DropDownListFor(model => model.CondicionGranoSeleccionado, Model.CondicionGrano, "Seleccione..", new { @class = "form-control" })
+              @Html.ValidationMessageFor(model => model.CondicionGrano, "", new { @class = "text-danger" })
+            </div>
+          </div>
         </div>
       </div>
     </div>
