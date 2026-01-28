@@ -64,6 +64,8 @@ namespace CuposCorretajeWeb.Models
 
     [Display(Name = "Carátula")]
     public string Caratula { get; set; }
+    [Display(Name = "Condición Grano")]
+    public string CondicionGrano { get; set; }
 
     public string Observacion { get; set; }
     public void SetObservacion(string Observacion)
