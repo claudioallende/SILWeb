@@ -330,7 +330,7 @@ namespace CuposCorretajeWeb.Controllers
     /// <param name="Cyo"></param>
     /// <returns>Retorna un PartialView de una tabla con los totales de cupos pendiente de distribuir por dia incluido.</returns>
     public async Task<ActionResult> GetTablaContratos(VistaCuposDistribuidos datosContrato, long CuentaPuerto,
-        DateTime? fechaDesde, DateTime? fechaHasta, string cosechaDesde, string cosechaHasta, Consignacion ConsignacionSeleccionada, string Cyo = "FALSE")
+        DateTime? fechaDesde, DateTime? fechaHasta, string cosechaDesde, string cosechaHasta, ConsignacionDpo ConsignacionSeleccionada, string Cyo = "FALSE")
     {
       try
       {

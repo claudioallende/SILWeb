@@ -300,7 +300,7 @@
             <div class="form-group">
               @Html.LabelFor(model => model.CondicionGrano)
               @Html.DropDownListFor(model => model.CondicionGranoSeleccionado, Model.CondicionGrano, "Seleccione..", new { @class = "form-control" })
-              @Html.ValidationMessageFor(model => model.CondicionGrano, "", new { @class = "text-danger" })
+              @Html.ValidationMessageFor(model => model.CondicionGranoSeleccionado, "", new { @class = "text-danger" })
             </div>
           </div>
         </div>

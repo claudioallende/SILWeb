@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Mvc;
 
 namespace CuposCorretajeWeb.Models
 {
@@ -66,6 +67,7 @@ namespace CuposCorretajeWeb.Models
     public string Caratula { get; set; }
     [Display(Name = "Condición Grano")]
     public string CondicionGrano { get; set; }
+    public virtual IEnumerable<SelectListItem> CondicionGranoList { get; set; }
 
     public string Observacion { get; set; }
     public void SetObservacion(string Observacion)

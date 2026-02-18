@@ -17,7 +17,8 @@ namespace CuposCorretajeWeb.Models
     public int PuertoSeleccionado { get; set; }
     public int CompctaSeleccionada { get; set; }
     public int VendctaSeleccionada { get; set; }
-    public int CondicionGranoSeleccionado { get; set; }
+    [Display(Name = "Condición Grano")]
+    public string CondicionGranoSeleccionado { get; set; }
     public readonly int CantidadDias = 20;
 
     [Display(Name = "Producto")]

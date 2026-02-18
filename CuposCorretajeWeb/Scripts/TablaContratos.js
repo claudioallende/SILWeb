@@ -28,7 +28,8 @@ $("#btnAceptarModalConsignaciones").click(function () {
       fechaHasta: $("#EntregaHasta").val(),
       cosechaDesde: $("#CosechaDesde").val(),
       cosechaHasta: $("#CosechaHasta").val(),
-      ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),
+      ConsignacionSeleccionada: consignaciones,
+      /*ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),*/
       Cyo: window.modelData.cyo !== "" ? "TRUE" : "FALSE"
     };
 
