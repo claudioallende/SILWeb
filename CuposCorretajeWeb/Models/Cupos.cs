@@ -158,7 +158,7 @@ namespace CuposCorretajeWeb.Models
         Nomrteent = this.Nomrteent,
         Cuitdestinatario = this.Cuitdestinatario,
         Nomdestinatario = this.Nomdestinatario,
-        CondicionGranoSeleccionado = this.CondicionGrano
+        CondicionGrano = this.CondicionGrano
       };
     }
 
@@ -182,7 +182,7 @@ namespace CuposCorretajeWeb.Models
         Nomrteent = string.IsNullOrEmpty(this.Nomrteent) ? null : this.Nomrteent.Trim(),
         Cuitdestinatario = string.IsNullOrEmpty(this.Cuitdestinatario) ? null : this.Cuitdestinatario.Trim(),
         Nomdestinatario = string.IsNullOrEmpty(this.Nomdestinatario) ? null : this.Nomdestinatario.Trim(),
-        CondicionGranoSeleccionado = string.IsNullOrEmpty(this.CondicionGrano) ? null : this.CondicionGrano.Trim()
+        CondicionGrano = string.IsNullOrEmpty(this.CondicionGrano) ? null : this.CondicionGrano.Trim()
       };
     }
 

@@ -22,14 +22,15 @@ $("#btnAceptarModalConsignaciones").click(function () {
         CuitRteComercialVentaPrimaria: model.cupo.cuitrtecomercialventaprimaria,
         Caratula: model.cupo.caratula,
         ContactoComercial: model.cupo.contactocomercial,
+        CondicionGrano: model.cupo.CondicionGrano,
       },
       CuentaPuerto: window.modelData.cuentaPuerto,
       fechaDesde: $("#EntregaDesde").val(),
       fechaHasta: $("#EntregaHasta").val(),
       cosechaDesde: $("#CosechaDesde").val(),
       cosechaHasta: $("#CosechaHasta").val(),
-      ConsignacionSeleccionada: consignaciones,
-      /*ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),*/
+      //ConsignacionSeleccionada: consignaciones,
+      ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),
       Cyo: window.modelData.cyo !== "" ? "TRUE" : "FALSE"
     };
 

@@ -26,6 +26,7 @@
   observa: "",
   caratula: "",
   contactocomercial: "",
+  condiciongrano: "",
 }
 
 window.modelData.cupo = cupo;
@@ -222,6 +223,7 @@ function llenarDatosConsignacion() {
       return { value: cc, label: cc }
     }))
   }
+  $('#ConsignacionSeleccionada_CondicionGrano').val(cupo.condiciongrano?.trim());
 }
 
 function getContactosComerciales() {
@@ -274,6 +276,7 @@ function seleccionarConsignacion(el) {
   cupo.caratula = consignacion.Caratula;
   cupo.contactocomercial = consignacion.ContactoComercial;
   cupo.observa = $(el).data("observacion");
+  cupo.condiciongrano = consignacion.CondicionGrano;
   llenarDatosConsignacion();
 }
 

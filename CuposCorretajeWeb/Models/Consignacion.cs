@@ -61,9 +61,9 @@ namespace CuposCorretajeWeb.Models
     [Display(Name = "Carátula")]
     public string Caratula { get; set; }
     //[Display(Name = "Condición Grano")]
-    public virtual IEnumerable<SelectListItem> CondicionGrano { get; set; }
+    //public virtual IEnumerable<SelectListItem> CondicionGrano { get; set; }
     [Display(Name = "Condición Grano")]
-    public string CondicionGranoSeleccionado { get; set; }
+    public string CondicionGrano { get; set; }
 
     public string Observacion { get; set; }
 
@@ -114,7 +114,7 @@ namespace CuposCorretajeWeb.Models
         Nomrteent = this.Nomrteent,
         Cuitdestinatario = this.Cuitdestinatario,
         Nomdestinatario = this.Nomdestinatario,
-        CondicionGrano = this.CondicionGranoSeleccionado
+        CondicionGrano = this.CondicionGrano
       };
     }
 

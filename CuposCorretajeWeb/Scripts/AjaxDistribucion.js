@@ -163,7 +163,8 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
             Motbaja: textMotivo,
             Observa: document.getElementById("Observaciones").value,
             Caratula: $('#ConsignacionSeleccionada_Caratula').val(),
-            ContactoComercial: contactosComerciales.tokenfield('getTokens').map(function (val) { return val.value }).join(";")
+            ContactoComercial: contactosComerciales.tokenfield('getTokens').map(function (val) { return val.value }).join(";"),
+            CondicionGrano: $('#ConsignacionSeleccionada_CondicionGrano').val()
           },
           puerto: cupo.puerto,
           cosechaDesde: $('#CosechaDesde').val(),
