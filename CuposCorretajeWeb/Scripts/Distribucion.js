@@ -315,7 +315,7 @@ function agregoGuionesIECompatibilidad(cuit) {
 }
 
 //Llenar tabla contratos
-function llenarTablaContratos(idTabla, datos) {
+function llenarTablaContratos(idTabla, datos) { 
   $tabla = $('#' + idTabla);
   $body = $tabla.find('tbody');
   filas = "";

@@ -22,7 +22,7 @@ $("#btnAceptarModalConsignaciones").click(function () {
         CuitRteComercialVentaPrimaria: model.cupo.cuitrtecomercialventaprimaria,
         Caratula: model.cupo.caratula,
         ContactoComercial: model.cupo.contactocomercial,
-        CondicionGrano: model.cupo.CondicionGrano,
+        CondicionGrano: model.cupo.condiciongrano,
       },
       CuentaPuerto: window.modelData.cuentaPuerto,
       fechaDesde: $("#EntregaDesde").val(),
