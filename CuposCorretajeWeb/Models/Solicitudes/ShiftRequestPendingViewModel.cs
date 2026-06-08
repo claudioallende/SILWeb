@@ -22,6 +22,8 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string NombreGrano { get; set; }
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaSolicitado { get; set; }
+    public int Cantidad { get; set; } = 1;
+    public int CantidadFuturo { get; set; }
     public bool EsFuturo { get; set; }
     public string CodigoCentro { get; set; }
     public string NombreCentro { get; set; }
