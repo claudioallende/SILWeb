@@ -185,14 +185,16 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Agrupa el response crudo por (grano, vendedor) y arma la lista de
-    /// CantidadFechas dentro de la ventana. Comprador y destino pueden venir
-    /// null (solicitudes sólo con solicitante), por lo que no participan de la
-    /// clave de agrupación.
+    /// Agrupa el response crudo por (grano, vendedor, comprador, destino) y arma
+    /// la lista de CantidadFechas dentro de la ventana.
     ///
     /// La separación entre las dos tablas (CONTRACTUAL y FUTURO) se hace a nivel
-    /// del llamador filtrando por EsFuturo, así que acá sólo se agrupa por
-    /// (grano, vendedor) ignorando el tipo de solicitud.
+    /// del llamador filtrando por EsFuturo, así que acá se agrupa por la
+    /// combinación (grano, vendedor, comprador, destino) ignorando el tipo de
+    /// solicitud. Comprador y destino pueden venir null (solicitudes sólo con
+    /// solicitante): en ese caso el null participa de la key y las filas con
+    /// destino null forman su propio grupo, no se mezclan con las que sí
+    /// tienen destino.
     ///
     /// El parámetro campoCantidadTR indica qué campo del item se acumula en la
     /// columna TR de la celda resultante. La columna TO se mantiene en 0 por
@@ -212,7 +214,11 @@ namespace CuposCorretajeWeb.Controllers
           x.CodigoGrano,
           x.NombreGrano,
           x.CuentaVendedor,
-          x.NombreVendedor
+          x.NombreVendedor,
+          x.CuentaComprador,
+          x.NombreComprador,
+          x.CuentaDestino,
+          x.NombreDestino
         });
 
       List<SolicitudTurnoGrupoView> result = new List<SolicitudTurnoGrupoView>();
@@ -254,12 +260,13 @@ namespace CuposCorretajeWeb.Controllers
           NombreGrano = g.Key.NombreGrano,
           CuentaVendedor = g.Key.CuentaVendedor,
           NombreVendedor = g.Key.NombreVendedor,
-          // Comprador y destino pueden ser null (solicitudes sólo con
-          // solicitante). Los tomamos del primer item del grupo, no de g.Key.
-          CuentaComprador = first.CuentaComprador,
-          NombreComprador = first.NombreComprador,
-          CuentaDestino = first.CuentaDestino,
-          NombreDestino = first.NombreDestino,
+          // Comprador y destino participan de la key, así que se leen de g.Key.
+          // (Si vienen null en la API, vienen null acá también.)
+          CuentaComprador = g.Key.CuentaComprador,
+          NombreComprador = g.Key.NombreComprador,
+          CuentaDestino = g.Key.CuentaDestino,
+          NombreDestino = g.Key.NombreDestino,
+          CodigoCentro = first.CodigoCentro,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
           CantidadFechas = detalles.Values

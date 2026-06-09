@@ -26,6 +26,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public long? CuentaDestino { get; set; }
     public string NombreDestino { get; set; }
 
+    /// <summary>Código del centro al que pertenece la solicitud (ROS, BSAS, CBA).</summary>
+    public string CodigoCentro { get; set; }
+
     /// <summary>Clase CSS del badge de estado ("pending" | "asig" | "rech").</summary>
     public string EstadoBadge { get; set; } = "pending";
 

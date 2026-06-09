@@ -235,7 +235,7 @@
                         renderCeldaTexto(r.NombreGrano || '—', 'tl') +
                         renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
                         renderCeldaTexto(r.NombreComprador || '—', 'tl') +
-                        renderCeldaTexto(abreviarZona(r.NombreDestino), '') +
+                        renderCeldaTexto(r.CodigoCentro || '—', '') +
                         renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
                         renderCeldaCupos(r.CuposCompatibles);
 
@@ -375,14 +375,6 @@
 
                 if (!html) html = '<span style="font-size:11px;color:#9aa3b5;">' + escapeHtml(cc.TextoResumen || '—') + '</span>';
                 return '<td>' + html + '</td>';
-            }
-
-            function abreviarZona(zona) {
-                if (!zona) return '—';
-                // Si es "ROSARIO", devolver "ROS". Si ya viene abreviado, dejar igual.
-                const map = { 'ROSARIO': 'ROS', 'BUENOS AIRES': 'BSAS', 'CORDOBA': 'CBA' };
-                const upper = zona.toUpperCase().trim();
-                return map[upper] || (upper.length > 4 ? upper.substring(0, 3) : upper);
             }
 
             function escapeHtml(s) {
