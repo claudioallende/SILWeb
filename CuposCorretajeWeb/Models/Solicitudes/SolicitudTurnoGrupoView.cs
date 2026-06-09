@@ -1,12 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
 namespace CuposCorretajeWeb.Models.Solicitudes
 {
+  /// <summary>
+  /// Fila de la grilla de solicitudes de turno (Pantalla 1).
+  /// Agrupa todas las solicitudes del mismo (grano, vendedor, comprador, destino)
+  /// para la ventana de días solicitada.
+  /// </summary>
   public class SolicitudTurnoGrupoView
   {
+    /// <summary>Identificador de la solicitud (la primera del grupo, sirve para navegar al detalle).</summary>
+    public long Id { get; set; }
+
     public int CodigoGrano { get; set; }
     public string NombreGrano { get; set; }
     public long CuentaVendedor { get; set; }
@@ -15,13 +23,45 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string NombreComprador { get; set; }
     public long? CuentaDestino { get; set; }
     public string NombreDestino { get; set; }
+
+    /// <summary>Clase CSS del badge de estado ("pending" | "asig" | "rech").</summary>
+    public string EstadoBadge { get; set; } = "pending";
+
+    /// <summary>Etiqueta visible del estado ("Pendiente" | "Asignada" | "Rechazada").</summary>
+    public string EstadoLabel { get; set; } = "Pendiente";
+
+    /// <summary>Resumen de cupos compatibles para mostrar en la columna "Cupos compatibles".</summary>
+    public CupoCompatibleResumenViewModel CuposCompatibles { get; set; } = new CupoCompatibleResumenViewModel();
+
+    /// <summary>Detalle de cantidad de solicitudes por fecha (TR y TO), alineado con la grilla.</summary>
     public IEnumerable<SolicitudTurnoDetalleGrupoView> CantidadFechas { get; set; }
   }
 
+  /// <summary>
+  /// Detalle por fecha de una fila de la grilla.
+  /// Permite distinguir TR (Toneladas Requeridas) y TO (Toneladas Ofrecidas/cupo disponible).
+  /// </summary>
   public class SolicitudTurnoDetalleGrupoView
   {
+    /// <summary>Fecha en formato yyyy-MM-dd (alineado con la key usada por el JS de la vista).</summary>
     public string Fecha { get; set; }
-    public int Cantidad { get; set; }
+
+    /// <summary>Fecha en formato dd/MM para mostrar en el header de la grilla.</summary>
+    public string FechaDisplay { get; set; }
+
+    /// <summary>Día de la semana (1=lunes ... 7=domingo) para mostrar en el header de la grilla.</summary>
     public int DiaSemana { get; set; }
+
+    /// <summary>Cantidad de solicitudes contractuales (TR) para esta fecha.</summary>
+    public int Cantidad { get; set; }
+
+    /// <summary>Cantidad de solicitudes futuras (TO) para esta fecha. 0 si no hay TO para esta fecha.</summary>
+    public int CantidadFuturo { get; set; }
+
+    /// <summary>
+    /// Indica si para esta fecha hay cupos disponibles sin asignar.
+    /// Cuando es true y Cantidad es 0, la celda de TR/TO se pinta con chip rojo.
+    /// </summary>
+    public bool TieneCupoDisponible { get; set; }
   }
 }

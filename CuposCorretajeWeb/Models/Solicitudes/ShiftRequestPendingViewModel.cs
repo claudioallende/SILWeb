@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -22,13 +22,48 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string NombreGrano { get; set; }
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaSolicitado { get; set; }
+
+    /// <summary>Cantidad de solicitudes contractuales para la fecha solicitada. Usado en la tabla CONTRACTUAL.</summary>
     public int Cantidad { get; set; } = 1;
+
+    /// <summary>Cantidad de solicitudes futuras para la fecha solicitada. Usado en la tabla FUTURO.</summary>
     public int CantidadFuturo { get; set; }
+
     public bool EsFuturo { get; set; }
     public string CodigoCentro { get; set; }
     public string NombreCentro { get; set; }
     public string Observacion { get; set; }
     public short? EstadoCupo { get; set; }
     public short? CtgCupo { get; set; }
+
+    /// <summary>
+    /// Devuelve la clave CSS del badge de estado para la grilla de Pantalla 1.
+    /// Valores posibles: "pending" | "asig" | "rech".
+    /// </summary>
+    public string GetEstadoBadgeClass()
+    {
+      // 1 = Pendiente, 2 = Asignada, 3 = Rechazada.
+      // Si el EstadoCupo indica asignación, gana sobre CodigoEstado.
+      if (EstadoCupo.HasValue && EstadoCupo.Value == 2) return "asig";
+      switch (CodigoEstado)
+      {
+        case 2: return "asig";
+        case 3: return "rech";
+        default: return "pending";
+      }
+    }
+
+    /// <summary>
+    /// Devuelve la etiqueta visible del estado de la solicitud.
+    /// </summary>
+    public string GetEstadoBadgeLabel()
+    {
+      switch (GetEstadoBadgeClass())
+      {
+        case "asig": return "Asignada";
+        case "rech": return "Rechazada";
+        default: return "Pendiente";
+      }
+    }
   }
 }

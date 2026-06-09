@@ -1,0 +1,336 @@
+/* =========================================================
+   SIL — Solicitudes de Turno (Pantalla 1)
+   Hoja de estilos específica para Index.cshtml
+   Paleta tomada del mockup de Matching de Solicitudes v1.0
+   ========================================================= */
+
+:root {
+    --sil-navy: #1a3a6b;
+    --sil-navy-dark: #122952;
+    --sil-navy-light: #2c4a8a;
+    --sil-teal: #0e7c60;
+    --sil-teal-light: #d4f0e8;
+    --sil-amber: #b37400;
+    --sil-amber-light: #fff3cd;
+    --sil-amber-border: #f0c040;
+    --sil-red: #a93226;
+    --sil-red-light: #fdf0f0;
+    --sil-red-border: #f1a0a6;
+    --sil-green: #155724;
+    --sil-green-light: #d4edda;
+    --sil-green-border: #82c896;
+    --sil-purple: #5c3d8f;
+    --sil-purple-light: #f5f0fb;
+
+    --sil-bg: #f4f6f9;
+    --sil-surface: #ffffff;
+    --sil-border: #dde3ec;
+    --sil-border-light: #edf0f5;
+    --sil-text-primary: #1a2340;
+    --sil-text-secondary: #5a6680;
+    --sil-text-tertiary: #9aa3b5;
+}
+
+/* ---- page header ---- */
+.sil-page-hd {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin: 14px 0 12px;
+}
+
+.sil-page-hd h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--sil-text-primary);
+    margin: 0;
+}
+
+.sil-page-hd p {
+    font-size: 12px;
+    color: var(--sil-text-secondary);
+    margin: 2px 0 0 0;
+}
+
+/* ---- toolbar ---- */
+.sil-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.sil-toolbar .sil-spacer { flex: 1; }
+
+.sil-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sil-border);
+    background: var(--sil-surface);
+    color: var(--sil-text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.sil-btn:hover {
+    border-color: var(--sil-navy-light);
+    color: var(--sil-navy);
+}
+
+.sil-btn-navy {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+.sil-btn-navy:hover {
+    background: var(--sil-navy-dark);
+    color: #fff;
+    border-color: var(--sil-navy-dark);
+}
+
+.sil-btn-teal {
+    background: var(--sil-teal);
+    color: #fff;
+    border-color: var(--sil-teal);
+}
+
+.sil-btn-danger {
+    background: var(--sil-red);
+    color: #fff;
+    border-color: var(--sil-red);
+}
+
+/* ---- legend ---- */
+.sil-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+/* ---- badges ---- */
+.sil-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    border-radius: 20px;
+    padding: 2px 9px;
+    border: 1px solid;
+    font-weight: 500;
+    white-space: nowrap;
+    margin: 0 2px;
+}
+
+.sil-badge-pending {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-asig {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-rech {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+
+.sil-badge-dir {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-par {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-obs {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+
+/* ---- table wrap ---- */
+.sil-tbl-wrap {
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
+    overflow: hidden;
+    overflow-x: auto;
+    background: var(--sil-surface);
+}
+
+.sil-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 860px;
+}
+
+.sil-tbl thead tr:first-child th {
+    background: var(--sil-navy);
+    color: #fff;
+}
+
+.sil-tbl thead tr:last-child th {
+    background: var(--sil-navy-light);
+    color: rgba(255,255,255,.92);
+    font-size: 11px;
+}
+
+.sil-tbl th {
+    padding: 7px 9px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sil-tbl th.tl { text-align: left; }
+
+.sil-tbl td {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--sil-border-light);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--sil-text-primary);
+    font-size: 12px;
+}
+
+.sil-tbl td.tl { text-align: left; }
+
+.sil-tbl tbody tr:last-child td { border-bottom: none; }
+
+.sil-tbl tbody tr:hover td { background: #f0f4fa; }
+
+.sil-tbl tfoot tr.sil-tr-total td {
+    background: var(--sil-bg);
+    font-weight: 600;
+    border-top: 1px solid var(--sil-border);
+    position: sticky;
+    bottom: 0;
+}
+
+.sil-zero { color: var(--sil-text-tertiary); }
+
+.sil-cell-red {
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 22px;
+}
+
+.sil-row-highlight td { background: #f5f9ff; }
+.sil-row-hl td { background: #f0f7f4; }
+
+.sil-icon-btn {
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--sil-text-secondary);
+    font-family: inherit;
+    transition: all .12s;
+}
+
+.sil-icon-btn:hover {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+/* ---- annotation / help box ---- */
+.sil-annotation {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    background: #eef2fa;
+    border-left: 3px solid var(--sil-navy-light);
+    border-radius: 0 6px 6px 0;
+    padding: 9px 13px;
+    line-height: 1.55;
+}
+
+.sil-annotation strong { font-weight: 600; color: var(--sil-navy); }
+
+/* ---- section title for each table ---- */
+.sil-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sil-text-primary);
+    margin: 18px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sil-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--sil-border);
+}
+
+.sil-section-subtitle {
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+/* ---- empty state ---- */
+.sil-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+}
+
+.sil-empty .sil-empty-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+/* ---- DataTables overrides (suavizar estilo Bootstrap vs mockup) ---- */
+table.dataTable.sil-tbl thead .sorting,
+table.dataTable.sil-tbl thead .sorting_asc,
+table.dataTable.sil-tbl thead .sorting_desc {
+    background-image: none;
+}
+
+table.dataTable.sil-tbl tbody tr.group-header td {
+    background-color: #cce5ff !important;
+    color: #000;
+    font-weight: bold;
+}
+
+table.dataTable.sil-tbl tbody tr.group-row td {
+    background-color: #e6f1ff !important;
+    color: #000;
+    font-weight: bold;
+}
