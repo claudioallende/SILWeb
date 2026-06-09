@@ -176,27 +176,41 @@
 .sil-tbl-wrap {
     border: 1px solid var(--sil-border);
     border-radius: 8px;
-    overflow: hidden;
     overflow-x: auto;
     background: var(--sil-surface);
 }
 
+.sil-tbl-scroller {
+    /* Contenedor con scroll vertical acotado; el scroll horizontal
+       queda en .sil-tbl-wrap (más natural con sticky en thead). */
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: visible;
+}
+
 .sil-tbl {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 12px;
-    min-width: 860px;
+    min-width: 1400px;
 }
 
 .sil-tbl thead tr:first-child th {
     background: var(--sil-navy);
     color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 3;
 }
 
 .sil-tbl thead tr:last-child th {
     background: var(--sil-navy-light);
     color: rgba(255,255,255,.92);
     font-size: 11px;
+    position: sticky;
+    top: 32px; /* alto aprox. de la primera fila del thead */
+    z-index: 2;
 }
 
 .sil-tbl th {
@@ -215,6 +229,7 @@
     white-space: nowrap;
     color: var(--sil-text-primary);
     font-size: 12px;
+    background: var(--sil-surface);
 }
 
 .sil-tbl td.tl { text-align: left; }
@@ -229,6 +244,7 @@
     border-top: 1px solid var(--sil-border);
     position: sticky;
     bottom: 0;
+    z-index: 2;
 }
 
 .sil-zero { color: var(--sil-text-tertiary); }
@@ -262,6 +278,54 @@
     background: var(--sil-navy);
     color: #fff;
     border-color: var(--sil-navy);
+}
+
+/* ---- pager ---- */
+.sil-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 8px 10px;
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-pager .sil-pager-info { margin-right: auto; }
+
+.sil-pager button {
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    min-width: 26px;
+    transition: all .12s;
+}
+
+.sil-pager button:hover:not(:disabled) {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+.sil-pager button:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+.sil-pager button.sil-pager-active {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+    font-weight: 600;
 }
 
 /* ---- annotation / help box ---- */

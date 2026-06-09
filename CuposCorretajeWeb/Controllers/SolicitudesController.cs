@@ -50,10 +50,11 @@ namespace CuposCorretajeWeb.Controllers
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        // 2) Agrupar el response crudo por (grano, vendedor, comprador, destino),
-        //    separando EsFuturo. Dentro de cada grupo acumular Cantidad y CantidadFuturo por fecha.
-        var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, usarCantidadFuturo: false);
-        var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, usarCantidadFuturo: true);
+        // 2) Agrupar el response crudo por (grano, vendedor), separando EsFuturo.
+        //    CONTRACTUAL: la columna TR muestra Cantidad. FUTURO: la columna TR
+        //    muestra CantidadFuturo. La columna TO queda en 0 en ambos casos.
+        var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
+        var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
 
         // 3) Enriquecer cada fila con el resumen de matching (placeholder por ahora).
         contractuales.ForEach(r => r.CuposCompatibles = BuildResumenMatching(r));
@@ -184,27 +185,34 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Agrupa el response crudo por (grano, vendedor, comprador, destino) y arma
-    /// la lista de CantidadFechas (TR y/o TO) dentro de la ventana.
-    /// Si usarCantidadFuturo=true, se usa el campo CantidadFuturo (tabla FUTURO);
-    /// en caso contrario, se usa Cantidad (tabla CONTRACTUAL).
+    /// Agrupa el response crudo por (grano, vendedor) y arma la lista de
+    /// CantidadFechas dentro de la ventana. Comprador y destino pueden venir
+    /// null (solicitudes sólo con solicitante), por lo que no participan de la
+    /// clave de agrupación.
+    ///
+    /// La separación entre las dos tablas (CONTRACTUAL y FUTURO) se hace a nivel
+    /// del llamador filtrando por EsFuturo, así que acá sólo se agrupa por
+    /// (grano, vendedor) ignorando el tipo de solicitud.
+    ///
+    /// El parámetro campoCantidadTR indica qué campo del item se acumula en la
+    /// columna TR de la celda resultante. La columna TO se mantiene en 0 por
+    /// ahora; se completará en una iteración posterior.
     /// </summary>
     private static List<SolicitudTurnoGrupoView> GroupBySolicitud(
       IEnumerable<ShiftRequestPendingViewModel> items,
       List<SolicitudTurnoDetalleGrupoView> ventana,
-      bool usarCantidadFuturo)
+      string campoCantidadTR)
     {
+      if (campoCantidadTR != "Cantidad" && campoCantidadTR != "CantidadFuturo")
+        throw new ArgumentException("campoCantidadTR debe ser 'Cantidad' o 'CantidadFuturo'.");
+
       var grupos = items
         .GroupBy(x => new
         {
           x.CodigoGrano,
           x.NombreGrano,
           x.CuentaVendedor,
-          x.NombreVendedor,
-          x.CuentaComprador,
-          x.NombreComprador,
-          x.CuentaDestino,
-          x.NombreDestino
+          x.NombreVendedor
         });
 
       List<SolicitudTurnoGrupoView> result = new List<SolicitudTurnoGrupoView>();
@@ -229,14 +237,11 @@ namespace CuposCorretajeWeb.Controllers
           string fechaKey = item.FechaSolicitado.ToString("yyyy-MM-dd");
           if (!detalles.ContainsKey(fechaKey)) continue; // fuera de la ventana
 
-          if (usarCantidadFuturo)
-          {
-            detalles[fechaKey].CantidadFuturo += item.CantidadFuturo > 0 ? item.CantidadFuturo : 1;
-          }
-          else
-          {
-            detalles[fechaKey].Cantidad += item.Cantidad;
-          }
+          // Tabla CONTRACTUAL: campoCantidadTR = "Cantidad"  → TR recibe Cantidad.
+          // Tabla FUTURO:      campoCantidadTR = "CantidadFuturo" → TR recibe CantidadFuturo.
+          // La columna TO queda en 0 (se completará después).
+          int valor = campoCantidadTR == "Cantidad" ? item.Cantidad : item.CantidadFuturo;
+          if (valor > 0) detalles[fechaKey].Cantidad += valor;
         }
 
         // El estado de la fila lo define la primera solicitud del grupo.
@@ -249,10 +254,12 @@ namespace CuposCorretajeWeb.Controllers
           NombreGrano = g.Key.NombreGrano,
           CuentaVendedor = g.Key.CuentaVendedor,
           NombreVendedor = g.Key.NombreVendedor,
-          CuentaComprador = g.Key.CuentaComprador,
-          NombreComprador = g.Key.NombreComprador,
-          CuentaDestino = g.Key.CuentaDestino,
-          NombreDestino = g.Key.NombreDestino,
+          // Comprador y destino pueden ser null (solicitudes sólo con
+          // solicitante). Los tomamos del primer item del grupo, no de g.Key.
+          CuentaComprador = first.CuentaComprador,
+          NombreComprador = first.NombreComprador,
+          CuentaDestino = first.CuentaDestino,
+          NombreDestino = first.NombreDestino,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
           CantidadFechas = detalles.Values

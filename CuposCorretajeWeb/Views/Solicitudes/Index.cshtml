@@ -29,10 +29,6 @@
         <button type="button" class="sil-btn" id="btnFiltro">
             <i class="fa-solid fa-magnifying-glass"></i>&nbsp; Filtro
         </button>
-        <span class="sil-spacer"></span>
-        <button type="button" class="sil-btn sil-btn-navy" id="btnNuevoTurno">
-            <i class="fa-solid fa-plus"></i>&nbsp; Nuevo turno
-        </button>
     </div>
 
     <!-- ===== Leyenda ===== -->
@@ -53,15 +49,18 @@
         <span class="sil-section-subtitle" id="lblContractualCount">—</span>
     </div>
     <div class="sil-tbl-wrap">
-        <table id="tablaSolicitudes" class="sil-tbl">
-            <thead id="theadContractual">
-                <!-- Se completa con JS al cargar la respuesta del endpoint -->
-            </thead>
-            <tbody id="tbodyContractual">
-                <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
-            </tbody>
-            <tfoot id="tfootContractual"></tfoot>
-        </table>
+        <div class="sil-tbl-scroller">
+            <table id="tablaSolicitudes" class="sil-tbl">
+                <thead id="theadContractual">
+                    <!-- Se completa con JS al cargar la respuesta del endpoint -->
+                </thead>
+                <tbody id="tbodyContractual">
+                    <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
+                </tbody>
+                <tfoot id="tfootContractual"></tfoot>
+            </table>
+        </div>
+        <div class="sil-pager" id="pagerContractual"></div>
     </div>
 
     <!-- ===== Tabla FUTURO ===== -->
@@ -70,13 +69,16 @@
         <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
     </div>
     <div class="sil-tbl-wrap">
-        <table id="tablaSolicitudesFuturo" class="sil-tbl">
-            <thead id="theadFuturo"></thead>
-            <tbody id="tbodyFuturo">
-                <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
-            </tbody>
-            <tfoot id="tfootFuturo"></tfoot>
-        </table>
+        <div class="sil-tbl-scroller">
+            <table id="tablaSolicitudesFuturo" class="sil-tbl">
+                <thead id="theadFuturo"></thead>
+                <tbody id="tbodyFuturo">
+                    <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
+                </tbody>
+                <tfoot id="tfootFuturo"></tfoot>
+            </table>
+        </div>
+        <div class="sil-pager" id="pagerFuturo"></div>
     </div>
 
     <!-- ===== Anotación / ayuda contextual ===== -->
@@ -120,15 +122,6 @@
                 });
             });
 
-            $('#btnNuevoTurno').on('click', function () {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Nuevo turno',
-                    text: 'Alta manual de turno — próximamente.',
-                    confirmButtonColor: '#1a3a6b'
-                });
-            });
-
             // ----- Carga inicial -----
             $.ajax({
                 url: "/Solicitudes/GetAllPendingShiftRequests",
@@ -140,16 +133,22 @@
                         tbodyId: '#tbodyContractual',
                         tfootId: '#tfootContractual',
                         countLabelId: '#lblContractualCount',
+                        pagerId: '#pagerContractual',
                         rows: response.Contractuales || [],
-                        fechasHeader: response.FechasHeader || []
+                        fechasHeader: response.FechasHeader || [],
+                        pageSize: 10,
+                        currentPage: 1
                     });
                     renderTabla({
                         theadId: '#theadFuturo',
                         tbodyId: '#tbodyFuturo',
                         tfootId: '#tfootFuturo',
                         countLabelId: '#lblFuturoCount',
+                        pagerId: '#pagerFuturo',
                         rows: response.Futuros || [],
-                        fechasHeader: response.FechasHeader || []
+                        fechasHeader: response.FechasHeader || [],
+                        pageSize: 10,
+                        currentPage: 1
                     });
                 },
                 error: function (xhr, status, error) {
@@ -169,9 +168,14 @@
 
             // ----- Función reutilizable de render de tabla -----
             function renderTabla(opts) {
-                const { theadId, tbodyId, tfootId, countLabelId, rows, fechasHeader } = opts;
+                const { theadId, tbodyId, tfootId, countLabelId, pagerId, rows, fechasHeader, pageSize, currentPage } = opts;
 
-                // Header: 2 filas
+                const colspanTotal = 6 + fechasHeader.length * 2 + 1;
+                const totalRows = rows.length;
+                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+
+                // Header: 2 filas (siempre el mismo)
                 let headHtml = '<tr>' +
                     '<th class="tl" rowspan="2">Grano</th>' +
                     '<th class="tl" rowspan="2">Solicitante</th>' +
@@ -191,18 +195,18 @@
                 headHtml += '</tr>';
                 $(theadId).html(headHtml);
 
-                // Contador
-                $(countLabelId).text(rows.length + ' fila' + (rows.length !== 1 ? 's' : ''));
+                // Contador global
+                $(countLabelId).text(totalRows + ' fila' + (totalRows !== 1 ? 's' : ''));
 
                 // Body
-                if (!rows.length) {
-                    const colspan = 6 + fechasHeader.length * 2 + 1;
-                    $(tbodyId).html('<tr><td colspan="' + colspan + '"><div class="sil-empty"><div class="sil-empty-icon">∅</div>No hay solicitudes para mostrar.</div></td></tr>');
+                if (!totalRows) {
+                    $(tbodyId).html('<tr><td colspan="' + colspanTotal + '"><div class="sil-empty"><div class="sil-empty-icon">∅</div>No hay solicitudes para mostrar.</div></td></tr>');
                     $(tfootId).html('');
+                    renderPager(pagerId, 0, 0, pageSize, function () { });
                     return;
                 }
 
-                // Calcular totales por fecha
+                // Calcular totales por fecha sobre el set COMPLETO (no la página actual)
                 const totales = fechasHeader.map(function () { return { tr: 0, to: 0, tieneCupoDisponible: false }; });
                 rows.forEach(function (r) {
                     (r.CantidadFechas || []).forEach(function (d, idx) {
@@ -214,18 +218,22 @@
                     });
                 });
 
+                // Slice de la página actual
+                const startIdx = (page - 1) * pageSize;
+                const pageRows = rows.slice(startIdx, startIdx + pageSize);
+
                 let bodyHtml = '';
                 let lastGrano = null;
-                rows.forEach(function (r) {
+                pageRows.forEach(function (r) {
                     // Separador visual por cambio de Grano
                     if (lastGrano !== null && lastGrano !== r.NombreGrano) {
-                        bodyHtml += '<tr class="sil-row-grupo"><td colspan="' + (6 + fechasHeader.length * 2 + 1) + '"></td></tr>';
+                        bodyHtml += '<tr class="sil-row-grupo"><td colspan="' + colspanTotal + '"></td></tr>';
                     }
                     lastGrano = r.NombreGrano;
 
                     bodyHtml += '<tr data-id="' + (r.Id || 0) + '">' +
-                        renderCeldaTexto(r.NombreGrano, 'tl') +
-                        renderCeldaTexto(r.NombreVendedor, 'tl') +
+                        renderCeldaTexto(r.NombreGrano || '—', 'tl') +
+                        renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
                         renderCeldaTexto(r.NombreComprador || '—', 'tl') +
                         renderCeldaTexto(abreviarZona(r.NombreDestino), '') +
                         renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
@@ -242,17 +250,22 @@
                 });
                 $(tbodyId).html(bodyHtml);
 
-                // Footer con totales
+                // Footer con totales del set completo
                 let footHtml = '<tr class="sil-tr-total">' +
                     '<td colspan="6" class="tl">Total Diario</td>';
                 totales.forEach(function (t) {
                     const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
-                    const mostrarToRojo = t.to === 0 && t.tieneCupoDisponible;
                     footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
-                    footHtml += '<td>' + (t.to > 0 ? t.to : (mostrarToRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
+                    // TO queda en 0 simple hasta que se complete la explicación correspondiente.
+                    footHtml += '<td><span class="sil-zero">0</span></td>';
                 });
                 footHtml += '<td></td></tr>';
                 $(tfootId).html(footHtml);
+
+                // Paginador
+                renderPager(pagerId, totalRows, page, pageSize, function (newPage) {
+                    renderTabla(Object.assign({}, opts, { currentPage: newPage }));
+                });
 
                 // Click en "ver" → placeholder (próximamente Pantalla 2)
                 $(tbodyId).off('click', '.btn-ver').on('click', '.btn-ver', function () {
@@ -266,21 +279,69 @@
                 });
             }
 
+            // ----- Paginador -----
+            function renderPager(pagerId, totalRows, currentPage, pageSize, onPageChange) {
+                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+                const $p = $(pagerId);
+                if (!$p.length) return;
+
+                if (totalRows === 0) {
+                    $p.html('<span class="sil-pager-info">Sin resultados</span>');
+                    return;
+                }
+
+                const desde = (page - 1) * pageSize + 1;
+                const hasta = Math.min(page * pageSize, totalRows);
+
+                let html = '<span class="sil-pager-info">Mostrando ' + desde + '–' + hasta + ' de ' + totalRows + '</span>';
+
+                html += '<button type="button" data-pg="prev"' + (page === 1 ? ' disabled' : '') + '>&lsaquo;</button>';
+
+                // Rango de páginas a mostrar: si hay muchas, ventana de 5 alrededor de la actual.
+                const windowSize = 5;
+                let start = Math.max(1, page - Math.floor(windowSize / 2));
+                let end = Math.min(totalPages, start + windowSize - 1);
+                start = Math.max(1, end - windowSize + 1);
+
+                for (let i = start; i <= end; i++) {
+                    html += '<button type="button" data-pg="' + i + '"' + (i === page ? ' class="sil-pager-active"' : '') + '>' + i + '</button>';
+                }
+
+                html += '<button type="button" data-pg="next"' + (page === totalPages ? ' disabled' : '') + '>&rsaquo;</button>';
+
+                $p.html(html);
+                $p.off('click', 'button').on('click', 'button', function () {
+                    if ($(this).is(':disabled')) return;
+                    const v = $(this).data('pg');
+                    let np = page;
+                    if (v === 'prev') np = page - 1;
+                    else if (v === 'next') np = page + 1;
+                    else np = parseInt(v, 10);
+                    if (np !== page) onPageChange(np);
+                });
+            }
+
             // ----- Helpers de celda -----
             function renderCeldaTexto(valor, alignClass) {
                 return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
             }
 
             function renderCeldaFecha(d) {
+                // TR: el controller deposita aquí Cantidad (CONTRACTUAL) o CantidadFuturo
+                // (FUTURO) según la tabla a la que pertenece la fila. El render es
+                // genérico: si hay valor se muestra, si no y hay cupo disponible
+                // se pinta el chip rojo, si no, el 0 gris.
                 let trCell = '<td>';
                 if (d.Cantidad > 0) trCell += d.Cantidad;
                 else if (d.TieneCupoDisponible) trCell += '<span class="sil-cell-red">0</span>';
                 else trCell += '<span class="sil-zero">0</span>';
                 trCell += '</td>';
 
+                // TO: queda en 0 simple hasta que se complete la explicación
+                // correspondiente. Mismo criterio de color que TR.
                 let toCell = '<td>';
-                if (d.CantidadFuturo > 0) toCell += d.CantidadFuturo;
-                else if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
+                if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
                 else toCell += '<span class="sil-zero">0</span>';
                 toCell += '</td>';
 

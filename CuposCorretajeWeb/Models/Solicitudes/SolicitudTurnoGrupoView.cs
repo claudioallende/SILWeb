@@ -7,8 +7,10 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 {
   /// <summary>
   /// Fila de la grilla de solicitudes de turno (Pantalla 1).
-  /// Agrupa todas las solicitudes del mismo (grano, vendedor, comprador, destino)
-  /// para la ventana de días solicitada.
+  /// Agrupa todas las solicitudes del mismo (grano, vendedor) para la ventana
+  /// de días solicitada. Comprador y destino pueden venir null (solicitudes
+  /// sólo con solicitante); cuando vienen, se exponen en la fila pero no
+  /// participan de la clave de agrupación.
   /// </summary>
   public class SolicitudTurnoGrupoView
   {
