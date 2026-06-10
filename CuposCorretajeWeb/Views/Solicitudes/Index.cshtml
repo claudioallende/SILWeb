@@ -19,8 +19,7 @@
         <div>
             <h1>Solicitudes de Turno</h1>
             <p>@(string.IsNullOrEmpty(Model.Subtitulo)
-                ? $"Solicitudes pendientes de asignación — Centro {Model.Centro} · {Model.FechaReferencia:dd/MM/yyyy}"
-                : Model.Subtitulo)</p>
+                ? "Solicitudes pendientes de asignación — Centro "+Model.Centro +" · "+ Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
         </div>
     </div>
 
