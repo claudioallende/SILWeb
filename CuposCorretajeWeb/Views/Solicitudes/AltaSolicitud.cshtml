@@ -430,9 +430,14 @@
 
             // Click en la fila (no s&oacute;lo en el checkbox) → toggle. Las filas
             // deshabilitadas (sin solicitudes) ignoran el click.
+            //
+            // Importante: si el target del click es el checkbox, dejamos que el
+            // browser maneje el toggle nativo (no lo re-toggleamos desde ac&aacute;,
+            // sino el efecto neto ser&iacute;a "se tilda y se destilda" en el mismo click).
             $('#tablaDias').on('click', '.sil-day-row', function (e) {
                 if (!esEditable) return;
                 if ($(this).hasClass('sil-day-row-disabled')) return;
+                if ($(e.target).is('input.chkDia')) return; // click directo en el check
                 var $chk = $(this).find('.chkDia');
                 $chk.prop('checked', !$chk.prop('checked')).trigger('change');
             });

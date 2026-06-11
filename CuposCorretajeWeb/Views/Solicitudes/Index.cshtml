@@ -323,10 +323,19 @@
                         data: JSON.stringify(payload)
                     })
                     .done(function (r) {
-                        HideLoader();
                         if (r && r.success && r.redirectUrl) {
-                            window.location = r.redirectUrl;
+                            // NO ocultamos el loader ac&aacute;: queremos que
+                            // persista visible durante la navegaci&oacute;n al
+                            // GET de AltaSolicitud (que hace una llamada a SILData
+                            // y tarda m&aacute;s). El nuevo page renderiza el
+                            // loader con la clase d-none en el HTML, as&iacute; que
+                            // desaparece solo al cargar.
+                            //
+                            // Delay m&iacute;nimo para que el loader sea perceptible
+                            // aunque el POST responda muy r&aacute;pido.
+                            setTimeout(function () { window.location = r.redirectUrl; }, 250);
                         } else {
+                            HideLoader();
                             Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
                         }
                     })
