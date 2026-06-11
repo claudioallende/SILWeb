@@ -1,17 +1,17 @@
-﻿@using CuposCorretajeWeb.Models.Solicitudes
+@using CuposCorretajeWeb.Models.Solicitudes
 @using Newtonsoft.Json;
 @model SolicitudViewModel
 @{
     ViewBag.Title = "Detalle de Solicitud";
 
-    // Em-dash usado para indicar valor vac00edo. Lo centralizamos en una variable
-    // para que el car00e1cter se mantenga consistente (y para que el `Html.Raw` no
+    // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
+    // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
     // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
     // del encoding del .cshtml.
     const string GUION = "&mdash;";
 
     // SafeStr como Func (no local function) para que compile en el Razor
-    // cl00e1sico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
+    // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
     Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
 
     var esEditable = Model != null && Model.EsEditable;
@@ -50,8 +50,8 @@
             }
         </div>
 
-        <!-- Bot&oacute;n "Volver d00eda grilla" -->
-        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver d00eda grilla</a>
+        <!-- Bot&oacute;n "Volver a grilla" -->
+        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
 
         <!-- Cabecera resumen -->
         <div class="sil-summary">
@@ -88,7 +88,7 @@
 
         <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
         <div class="sil-split">
-            <!-- ===== PANEL IZQUIERDO 2014 D&Iacute;AS ===== -->
+            <!-- ===== PANEL IZQUIERDO — D&Iacute;AS ===== -->
             <div class="sil-panel">
                 <div class="sil-panel-hd ph-navy">
                     <span>Solicitudes por d&iacute;a &mdash; 7 d&iacute;as</span>
@@ -168,38 +168,42 @@
                 </div>
             </div>
 
-            <!-- ===== PANEL DERECHO 2014 CUPOS ===== -->
+            <!-- ===== PANEL DERECHO — CUPOS ===== -->
             <div class="sil-panel">
                 <div class="sil-panel-hd ph-teal" id="cuposPanelHd">
                     Cupos compatibles &mdash; seleccion&aacute; d&iacute;as para ver
                 </div>
                 <div class="sil-panel-body">
+                    <!-- Estado vacío: sin d&iacute;as seleccionados -->
                     <div class="sil-cupos-empty" id="cuposEmpty">
                         <div class="sil-cupos-empty-icon">&#128197;</div>
                         <div class="sil-cupos-empty-text">
                             Seleccion&aacute; uno o m&aacute;s d&iacute;as en el panel izquierdo para visualizar los cupos compatibles para esas fechas.
                         </div>
                     </div>
-                    <div class="sil-cupos-placeholder" id="cuposPlaceholder" style="display:none;">
-                        <p class="text-muted" style="margin-bottom: 8px;">
-                            <i class="fa-solid fa-circle-info"></i>
-                            Pr&oacute;ximamente: motor de matching.
-                        </p>
-                        <p class="text-muted" style="font-size: 11.5px;">
-                            Al hacer clic en una fila de la izquierda se actualizar&aacute;n los cupos compatibles
-                            para los d&iacute;as seleccionados.
-                        </p>
+
+                    <!-- Listado de cupos: se llena por JS cuando hay d&iacute;as seleccionados -->
+                    <div class="sil-cupos-listado" id="cuposListado" style="display:none;">
+                        <!-- generado din&aacute;micamente -->
+                    </div>
+
+                    <!-- Sin resultados: hay d&iacute;as seleccionados pero ning&uacute;n cupo -->
+                    <div class="sil-cupos-no-results" id="cuposNoResults" style="display:none;">
+                        <div class="sil-cupos-empty-icon">&#128269;</div>
+                        <div class="sil-cupos-empty-text">
+                            No se encontraron cupos compatibles para los d&iacute;as seleccionados.
+                        </div>
+                    </div>
+
+                    <!-- Acciones: s&oacute;lo se muestran cuando hay cupos para asignar -->
+                    <div class="sil-cupos-actions" id="cuposActions" style="display:none;">
+                        <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
+                        <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
+                            Confirmar asignaci&oacute;n seleccionada
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Botonera inferior del panel derecho (Cancelar / Confirmar) -->
-        <div class="sil-actions sil-actions-bottom" style="margin-top: 12px;">
-            <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
-            <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
-                Confirmar asignaci&oacute;n seleccionada
-            </button>
         </div>
     </div>
 </div>
@@ -264,16 +268,16 @@
                 var $box = $('#diasResumen');
                 if (r.count === 0) {
                     $box.removeClass('sil-resumen-box-active')
-                        .html('Ning00fan d00eda seleccionado. Seleccion00e1 uno o m00e1s d00edas para ver los cupos compatibles.');
+                        .html('Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.');
                 } else {
                     var fechas = [];
                     $('.chkDia:checked').each(function () {
                         var k = $(this).closest('tr').data('fecha');
-                        // Formato dd/MM d00eda partir del yyyy-MM-dd
+                        // Formato dd/MM a partir del yyyy-MM-dd
                         var parts = k.split('-');
                         fechas.push(parts[2] + '/' + parts[1]);
                     });
-                    var label = r.count === 1 ? 'd00eda seleccionado' : 'd00edas seleccionados';
+                    var label = r.count === 1 ? 'd&iacute;a seleccionado' : 'd&iacute;as seleccionados';
                     $box.addClass('sil-resumen-box-active')
                         .html('<strong>' + r.count + ' ' + label + ':</strong> ' +
                               fechas.join(', ') +
@@ -281,34 +285,138 @@
                 }
             }
 
+            // Mock de cupos por d&iacute;a (replica del mockup). Se reemplaza por la
+            // llamada real al motor de matching cuando est&eacute; disponible.
+            //   - match: 'dir' (directo), 'par' (parcial), 'cond' (con observaciones)
+            //   - obs: si true, muestra caja de "Verificar condiciones antes de asignar"
+            // La key es la fecha en yyyy-MM-dd (alineada con data-fecha de las filas).
+            var cuposDB = {
+                '2026-06-11': [
+                    { id: '#3872', match: 'dir', vendedor: 'AGRIC. GAN. J. POSSE',     comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '3 TR', obs: false },
+                    { id: '#3845', match: 'par', vendedor: 'A.C.A. PROD. AGRIC.',      comprador: '— no informado',  destino: 'ROSARIO', disp: '1 TR', obs: false }
+                ],
+                '2026-06-12': [
+                    { id: '#3888', match: 'dir', vendedor: 'COOP. AG. IRIGOYEN',        comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '2 TR', obs: false }
+                ],
+                '2026-06-13': [
+                    { id: '#3901', match: 'dir', vendedor: 'COOP. AG. MONTE MA&Iacute;Z', comprador: 'BUNGE ARG. S.A.', destino: 'ROSARIO', disp: '5 TR', obs: false },
+                    { id: '#3910', match: 'cond', vendedor: 'BOUQUET LTDA.',             comprador: 'BUNGE ARG. S.A.', destino: 'ROSARIO', disp: '2 TR', obs: true  },
+                    { id: '#3912', match: 'par', vendedor: 'A.C.A. CDC',                 comprador: '— no informado', destino: 'ROSARIO', disp: '3 TR', obs: false }
+                ],
+                '2026-06-14': [
+                    { id: '#3920', match: 'dir', vendedor: 'AGRIC. GAN. J. POSSE',      comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '3 TR', obs: false }
+                ],
+                '2026-06-15': [],
+                '2026-06-16': [],
+                '2026-06-17': [
+                    { id: '#3955', match: 'par', vendedor: 'LEHMA LTDA.',               comprador: '— no informado',  destino: 'ROSARIO', disp: '1 TR', obs: false }
+                ]
+            };
+
+            // Construye el HTML de un cupo card.
+            function cupoCardHtml(c) {
+                var isCond = c.match === 'cond';
+                var isPar  = c.match === 'par';
+                var badgeClass = isCond ? 'sil-badge-obs' : (isPar ? 'sil-badge-par' : 'sil-badge-dir');
+                var badgeLabel = isCond ? 'Con observaciones' : (isPar ? 'Match parcial' : 'Match directo');
+                var hdFill    = isCond ? '#fff0f0' : (isPar ? '#fffbea' : '#eafaf1');
+                var borderCol = isCond ? 'var(--sil-red-border)' : (isPar ? 'var(--sil-amber-border)' : 'var(--sil-green-border)');
+                var compradorNa = (c.comprador || '').charAt(0) === '—' ? ' sil-cupo-comprador-na' : '';
+                var obsHtml = c.obs
+                    ? '<div class="sil-cupo-obs"><strong>Obs.:</strong> Verificar condiciones antes de asignar.</div>'
+                    : '';
+                var fechaDisplay = c.fecha && c.fecha.length === 10 ? c.fecha.substring(8, 10) + '/' + c.fecha.substring(5, 7) : '';
+                return '' +
+                    '<div class="sil-cupo-card" style="border-color:' + borderCol + ';">' +
+                    '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
+                    '    <input type="checkbox" class="sil-cupo-chk" />' +
+                    '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+                    '    <span class="sil-cupo-id">Cupo ' + c.id + ' &middot; ' + fechaDisplay + '</span>' +
+                    '  </div>' +
+                    '  <div class="sil-cupo-card-body">' +
+                    '    <div class="sil-cupo-field"><span>Vendedor</span><span>' + c.vendedor + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + compradorNa.trim() + '">' + c.comprador + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Destino</span><span>' + c.destino + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + c.disp + '</span></div>' +
+                    obsHtml +
+                    '  </div>' +
+                    '</div>';
+            }
+
             // Pinta el panel de cupos seg&uacute;n haya o no d&iacute;as seleccionados.
-            //   - Sin selecci00f3n&oacute;n: empty state con icono de calendario.
-            //   - Con selecci&oacute;n: placeholder "Pr&oacute;ximamente: motor de matching".
+            //   - Sin selecci&oacute;n: empty state con icono de calendario.
+            //   - Con selecci&oacute;n y cupos: cards seccionados por tipo de match.
+            //   - Con selecci&oacute;n sin cupos: mensaje "no se encontraron cupos".
             function pintarPanelCupos(r) {
                 var $hd = $('#cuposPanelHd');
                 var $empty = $('#cuposEmpty');
-                var $ph = $('#cuposPlaceholder');
+                var $listado = $('#cuposListado');
+                var $noResults = $('#cuposNoResults');
+                var $actions = $('#cuposActions');
+
                 if (r.count === 0) {
-                    // Acentos como escapes Unicode (00e1 = 00e1, 00ed = 00ed, 00f3 = 00f3) para que
-                    // el navegador los interprete como UTF-8 aunque el response
-                    // venga con otro encoding.
-                    $hd.text('Cupos compatibles 2014 selecci00f3n d00edas para ver');
+                    $hd.text('Cupos compatibles — seleccioná días para ver');
                     $empty.show();
-                    $ph.hide();
-                } else {
-                    $hd.text('Cupos compatibles 2014 ' + r.count + ' encontrado(s)');
-                    $empty.hide();
-                    $ph.show();
+                    $listado.hide().empty();
+                    $noResults.hide();
+                    $actions.hide();
+                    return;
                 }
+
+                // Recolectar todos los cupos de los d&iacute;as seleccionados.
+                var allCupos = [];
+                $('.chkDia:checked').each(function () {
+                    var k = $(this).closest('tr').data('fecha');
+                    var lista = cuposDB[k] || [];
+                    for (var i = 0; i < lista.length; i++) {
+                        allCupos.push($.extend({}, lista[i], { fecha: k }));
+                    }
+                });
+
+                if (allCupos.length === 0) {
+                    $hd.text('Cupos compatibles — 0 encontrado(s)');
+                    $empty.hide();
+                    $listado.hide().empty();
+                    $noResults.show();
+                    $actions.hide();
+                    return;
+                }
+
+                $hd.text('Cupos compatibles — ' + allCupos.length + ' encontrado' + (allCupos.length !== 1 ? 's' : ''));
+
+                var dirs  = allCupos.filter(function (c) { return c.match === 'dir';  });
+                var pars  = allCupos.filter(function (c) { return c.match === 'par';  });
+                var conds = allCupos.filter(function (c) { return c.match === 'cond'; });
+
+                var html = '';
+                if (dirs.length) {
+                    html += '<div class="sil-cupo-section-title sil-cupo-section-dir">&#9679; Match directo (' + dirs.length + ')</div>';
+                    for (var j = 0; j < dirs.length; j++) html += cupoCardHtml(dirs[j]);
+                }
+                if (pars.length) {
+                    html += '<div class="sil-cupo-section-title sil-cupo-section-par">&#9679; Match parcial (' + pars.length + ')</div>';
+                    for (var k = 0; k < pars.length; k++) html += cupoCardHtml(pars[k]);
+                }
+                if (conds.length) {
+                    html += '<div class="sil-cupo-section-title sil-cupo-section-cond">&#9679; Con observaciones (' + conds.length + ')</div>';
+                    for (var l = 0; l < conds.length; l++) html += cupoCardHtml(conds[l]);
+                }
+
+                $listado.html(html).show();
+                $empty.hide();
+                $noResults.hide();
+                $actions.show();
+
+                // Confirmar arranca deshabilitado hasta que tilden un cupo.
+                $('#btnConfirmarAsignacion').prop('disabled', true);
             }
 
-            // Recalcula resumen + panel de cupos. Lo disparamos despu&eacute;s de
+            // Recalcula resumen + panel de cupos. Se dispara despu&eacute;s de
             // cada toggle para mantener la UI consistente.
             function recalcularTodo() {
                 var r = resumenSeleccion();
                 pintarResumen(r);
                 pintarPanelCupos(r);
-                $('#btnConfirmarAsignacion').prop('disabled', r.count === 0 || !esEditable);
             }
 
             // Estado inicial de cada fila.
@@ -317,13 +425,12 @@
 
             // Modo readonly: deshabilita todos los controles editables del panel principal.
             if (!esEditable) {
-                $('#tablaDias input, .sil-actions-block button, #btnConfirmarAsignacion')
+                $('#tablaDias input, .sil-actions-block button, #btnConfirmarAsignacion, .sil-cupo-chk')
                     .prop('disabled', true);
             }
 
             // Click en la fila (no s&oacute;lo en el checkbox) → toggle. Las filas
-            // deshabilitadas (sin solicitudes) ignoran el click. El checkbox se
-            // actualiza autom&aacute;ticamente para mantener la coherencia visual.
+            // deshabilitadas (sin solicitudes) ignoran el click.
             $('#tablaDias').on('click', '.sil-day-row', function (e) {
                 if (!esEditable) return;
                 if ($(this).hasClass('sil-day-row-disabled')) return;
@@ -336,13 +443,17 @@
                 recalcularTodo();
             });
 
+            // Tildar/des-tildar un cupo habilita o no el bot&oacute;n Confirmar.
+            // El bind vive fuera de pintarPanelCupos para no re-engancharse en
+            // cada repintado del listado.
+            $('#cuposListado').on('change', '.sil-cupo-chk', function () {
+                var cnt = $('#cuposListado .sil-cupo-chk:checked').length;
+                $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
+            });
+
             // ---- Botonera ----
 
-            // POST gen&eacute;rico con loader. Muestra el spinner antes de salir y
-            // lo oculta al terminar (&eacute;xito o fallo). El redirect del success
-            // hace que el HideLoader del `done` d00eda veces no corra, as&iacute; que
-            // `always` garantiza que el loader se cierre pase lo que pase.
-            // (ShowLoader/HideLoader est&aacute;n definidos en _Layout.cshtml.)
+            // POST gen&eacute;rico con loader.
             function postJSON(url, data) {
                 ShowLoader();
                 return $.ajax({
@@ -371,10 +482,10 @@
                 }
                 Swal.fire({
                     icon: 'warning',
-                    title: '00bfRechazar solicitud completa?',
-                    text: 'Esta acci00f3n00f3n rechaza la solicitud para todos los d00edas00edas.',
+                    title: '&iquest;Rechazar solicitud completa?',
+                    text: 'Esta acci&oacute;n rechaza la solicitud para todos los d&iacute;as.',
                     showCancelButton: true,
-                    confirmButtonText: 'S00ed, rechazar',
+                    confirmButtonText: 'S&iacute;, rechazar',
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
@@ -389,7 +500,7 @@
 
             // "+ Crear nuevo cupo" (placeholder)
             $('#btnCrearCupo').on('click', function () {
-                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Pr00f3ximamente: alta manual de cupo compatible.' });
+                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Pr&oacute;ximamente: alta manual de cupo compatible.' });
             });
 
             // "Confirmar asignaci&oacute;n seleccionada"
@@ -397,16 +508,27 @@
                 var fechas = {};
                 $('.chkDia:checked').each(function () {
                     var $tr = $(this).closest('tr');
-                    var key = $tr.data('fecha');
-                    fechas[key] = trDeFila($tr);
+                    fechas[$tr.data('fecha')] = trDeFila($tr);
+                });
+                // Cupos seleccionados: lo mandamos como array de IDs (sin el #).
+                var cuposSeleccionados = [];
+                $('#cuposListado .sil-cupo-chk:checked').each(function () {
+                    var $card = $(this).closest('.sil-cupo-card');
+                    var rawId = $card.find('.sil-cupo-id').text().match(/#\d+/);
+                    if (rawId) cuposSeleccionados.push(rawId[0]);
                 });
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci00f3n00f3n', text: 'Tild00e1 al menos un d00eda de la tabla de la izquierda.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un d&iacute;a de la tabla de la izquierda.' });
+                    return;
+                }
+                if (cuposSeleccionados.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un cupo del panel derecho.' });
                     return;
                 }
                 postJSON('/Solicitudes/ConfirmarAsignacionSeleccionada', {
                     idSolicitud: idSolicitud,
-                    cupoCompatibleId: null,
+                    cupoCompatibleId: cuposSeleccionados[0],   // placeholder: el primero
+                    cupos: cuposSeleccionados,
                     fechas: fechas
                 })
                     .done(manejarRespuesta)

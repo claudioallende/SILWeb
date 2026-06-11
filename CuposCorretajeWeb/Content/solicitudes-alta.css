@@ -453,3 +453,155 @@
     justify-content: flex-end;
     align-items: center;
 }
+
+/* =========================================================
+   Cupos compatibles — cards, secciones, listado
+   Replica el render del mockup. Se usa en el panel derecho
+   cuando hay d&iacute;as seleccionados.
+   ========================================================= */
+
+/* ---- listado de cupos (panel derecho) ---- */
+.sil-cupos-listado {
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+/* ---- t&iacute;tulo de secci&oacute;n (Match directo / parcial / con obs.) ---- */
+.sil-cupo-section-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin: 0 0 6px;
+    padding: 2px 0;
+}
+
+.sil-cupo-section-title.sil-cupo-section-dir {
+    color: var(--sil-green);
+}
+
+.sil-cupo-section-title.sil-cupo-section-par {
+    color: var(--sil-amber);
+    margin-top: 10px;
+}
+
+.sil-cupo-section-title.sil-cupo-section-cond {
+    color: var(--sil-red);
+    margin-top: 10px;
+}
+
+/* ---- card de un cupo ---- */
+.sil-cupo-card {
+    border: 1px solid var(--sil-border);
+    border-radius: 7px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background: var(--sil-surface);
+}
+
+.sil-cupo-card:last-child {
+    margin-bottom: 0;
+}
+
+/* ---- header del card (con checkbox, badge, id) ---- */
+.sil-cupo-card-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 11px;
+    border-bottom: 1px solid var(--sil-border);
+}
+
+.sil-cupo-chk {
+    accent-color: var(--sil-teal);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sil-cupo-id {
+    font-size: 11px;
+    color: var(--sil-text-secondary);
+    margin-left: auto;
+    font-family: var(--sil-mono);
+}
+
+/* ---- body del card con los campos ---- */
+.sil-cupo-card-body {
+    padding: 5px 11px 9px;
+}
+
+.sil-cupo-field {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 2px 0;
+    color: var(--sil-text-secondary);
+}
+
+.sil-cupo-field > span:last-child {
+    font-weight: 500;
+    color: var(--sil-text-primary);
+    text-align: right;
+    max-width: 60%;
+    word-break: break-word;
+}
+
+.sil-cupo-comprador-na {
+    color: var(--sil-amber) !important;
+    font-style: italic;
+}
+
+/* ---- caja de observaci&oacute;n inline dentro del card ---- */
+.sil-cupo-obs {
+    background: var(--sil-amber-light);
+    border-left: 3px solid var(--sil-amber-border);
+    border-radius: 0 4px 4px 0;
+    padding: 5px 8px;
+    font-size: 10.5px;
+    color: #7d4e00;
+    margin-top: 5px;
+}
+
+.sil-cupo-obs strong {
+    font-weight: 600;
+}
+
+/* ---- estado "no se encontraron cupos" (hay d&iacute;as pero 0 cupos) ---- */
+.sil-cupos-no-results {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+}
+
+/* ---- acciones del panel cupos (Cancelar / Confirmar) ---- */
+.sil-cupos-actions {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--sil-border-light);
+    display: flex;
+    gap: 7px;
+    justify-content: flex-end;
+}
+
+/* ---- badges extra para los cards de cupos ---- */
+.sil-badge-dir {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-par {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-obs {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+}
