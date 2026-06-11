@@ -20,7 +20,7 @@
     var estadoLabel = (ViewBag.EstadoLabel as string) ?? "Pendiente";
     var modoTexto = esEditable ? "Modo edici&oacute;n" : "Modo s&oacute;lo lectura";
     var errorMessage = ViewBag.ErrorMessage as string;
-    var observacion = Model?.Observacion;
+    var observacion = Model.Observacion;
 
     // Para los 7 d&iacute;as hardcodeados, los valores TR/TO no vienen en el VM legacy
     // (s&oacute;lo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
@@ -43,37 +43,36 @@
         <!-- Banner de modo + estado + (opcional) error -->
         <div class="sil-mode-banner @(string.IsNullOrEmpty(errorMessage) ? "" : "sil-mode-banner-error")">
             <span class="sil-badge sil-badge-@estadoBadge">@estadoLabel</span>
-            <span class="sil-mode-banner-text">@modoTexto</span>
+            <span class="sil-mode-banner-text">@Html.Raw(modoTexto)</span>
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <span class="sil-mode-banner-text">@GUION @errorMessage</span>
             }
         </div>
 
-        <!-- Bot&oacute;n "Volver a grilla" -->
         <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
 
         <!-- Cabecera resumen -->
         <div class="sil-summary">
             <div class="sil-summary-cell">
                 <small>Solicitante</small>
-                <div>@SafeStr(Model?.Solicitante)</div>
+                <div>@SafeStr(Model.Solicitante)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Grano</small>
-                <div>@SafeStr(Model?.NombreGrano)</div>
+                <div>@SafeStr(Model.NombreGrano)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Comprador</small>
-                <div>@SafeStr(Model?.Comprador)</div>
+                <div>@SafeStr(Model.Comprador)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Puerto</small>
-                <div>@SafeStr(Model?.NombreDestino)</div>
+                <div>@SafeStr(Model.NombreDestino)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Zona</small>
-                <div>@SafeStr(Model?.CodigoCentro)</div>
+                <div>@SafeStr(Model.CodigoCentro)</div>
             </div>
         </div>
 
@@ -268,7 +267,7 @@
                 var $box = $('#diasResumen');
                 if (r.count === 0) {
                     $box.removeClass('sil-resumen-box-active')
-                        .html('Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.');
+                        .html('Ningún día seleccionado. Seleccioná uno o más días para ver los cupos compatibles.');
                 } else {
                     var fechas = [];
                     $('.chkDia:checked').each(function () {
@@ -482,10 +481,10 @@
                 }
                 Swal.fire({
                     icon: 'warning',
-                    title: '&iquest;Rechazar solicitud completa?',
-                    text: 'Esta acci&oacute;n rechaza la solicitud para todos los d&iacute;as.',
+                    title: 'Rechazar solicitud completa?',
+                    text: 'Esta acción rechaza la solicitud para todos los días.',
                     showCancelButton: true,
-                    confirmButtonText: 'S&iacute;, rechazar',
+                    confirmButtonText: 'Rechazar',
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
@@ -500,7 +499,7 @@
 
             // "+ Crear nuevo cupo" (placeholder)
             $('#btnCrearCupo').on('click', function () {
-                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Pr&oacute;ximamente: alta manual de cupo compatible.' });
+              Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Próximamente: alta manual de cupo compatible.' });
             });
 
             // "Confirmar asignaci&oacute;n seleccionada"
@@ -518,11 +517,11 @@
                     if (rawId) cuposSeleccionados.push(rawId[0]);
                 });
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un d&iacute;a de la tabla de la izquierda.' });
+                  Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tidle al menos un día de la tabla de la izquierda.' });
                     return;
                 }
                 if (cuposSeleccionados.length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un cupo del panel derecho.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tidle al menos un día de la tabla de la izquierda.' });
                     return;
                 }
                 postJSON('/Solicitudes/ConfirmarAsignacionSeleccionada', {
