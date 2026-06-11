@@ -152,7 +152,9 @@ namespace CuposCorretajeWeb.Controllers
         {
           string nombre = o.Text;
           int idx = nombre.IndexOf(" - ", StringComparison.Ordinal);
-          return idx >= 0 ? nombre[(idx + 3)..] : nombre;
+          // Usamos Substring (no range indexer `nombre[(idx + 3)..]`) porque
+          // eso es C# 8 y este proyecto compila con C# 5/6 en .NET Framework 4.6.1.
+          return idx >= 0 ? nombre.Substring(idx + 3) : nombre;
         });
 
         List<SelectListItem> zonaDistinct = cuposDisponible

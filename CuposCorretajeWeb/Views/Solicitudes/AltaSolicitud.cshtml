@@ -10,7 +10,9 @@
     // del encoding del .cshtml.
     const string GUION = "&mdash;";
 
-    string SafeStr(string s) { return string.IsNullOrWhiteSpace(s) ? GUION : s; }
+    // SafeStr como Func (no local function) para que compile en el Razor
+    // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
+    Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
 
     var esEditable = Model != null && Model.EsEditable;
     var readClass = esEditable ? "" : "sil-readonly";
