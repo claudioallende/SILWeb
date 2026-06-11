@@ -314,12 +314,19 @@
                         Fechas: fechas
                     };
 
+                    // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
+                    var showLoaderAt = Date.now();
                     ShowLoader();
                     $.ajax({
                         url: '/Solicitudes/AltaSolicitud',
                         method: 'POST',
                         contentType: 'application/json',
                         dataType: 'json',
+                        // global:false evita que se disparen los handlers
+                        // ajaxStart/ajaxStop/ajaxError de $(document) y oculten
+                        // el loader apenas el POST responde. Manejo el loader
+                        // manualmente para que persista durante la navegaci&oacute;n.
+                        global: false,
                         data: JSON.stringify(payload)
                     })
                     .done(function (r) {
@@ -332,8 +339,13 @@
                             // desaparece solo al cargar.
                             //
                             // Delay m&iacute;nimo para que el loader sea perceptible
-                            // aunque el POST responda muy r&aacute;pido.
-                            setTimeout(function () { window.location = r.redirectUrl; }, 250);
+                            // aunque el POST responda muy r&aacute;pido. Adicionalmente
+                            // compensamos el tiempo ya transcurrido para que el
+                            // loader quede visible al menos ~400ms en total.
+                            var elapsed = Date.now() - showLoaderAt;
+                            var minVisible = 400;
+                            var wait = Math.max(250, minVisible - elapsed);
+                            setTimeout(function () { window.location = r.redirectUrl; }, wait);
                         } else {
                             HideLoader();
                             Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
