@@ -94,12 +94,6 @@ namespace CuposCorretajeWeb.Controllers
         return RedirectToAction("Index");
       }
 
-      // Forzar UTF-8 en la respuesta para que tildes y caracteres especiales
-      // (Selección, días, Próximamente, etc.) se pinten correctamente.
-      Response.ContentEncoding = System.Text.Encoding.UTF8;
-      Response.Charset = "utf-8";
-      Response.ContentType = "text/html; charset=utf-8";
-
       // ViewBag de modo + estado (la vista los usa para banner y readonly).
       ViewBag.Modo = solicitud.EsEditable ? "editable" : "readonly";
       ViewBag.EstadoBadge = solicitud.EstadoBadge ?? "pending";
@@ -152,8 +146,6 @@ namespace CuposCorretajeWeb.Controllers
         {
           string nombre = o.Text;
           int idx = nombre.IndexOf(" - ", StringComparison.Ordinal);
-          // Usamos Substring (no range indexer `nombre[(idx + 3)..]`) porque
-          // eso es C# 8 y este proyecto compila con C# 5/6 en .NET Framework 4.6.1.
           return idx >= 0 ? nombre.Substring(idx + 3) : nombre;
         });
 
@@ -171,14 +163,8 @@ namespace CuposCorretajeWeb.Controllers
 
         ViewBag.Compradores = compradoresDistinct;
         ViewBag.CompradorMap = JsonConvert.SerializeObject(compradorMap);
-
         ViewBag.ZonaPortuaria = zonaDistinct;
 
-        // Forzar UTF-8 en la respuesta para que tildes y caracteres especiales
-        // (Selección, días, Próximamente, etc.) se pinten correctamente.
-        Response.ContentEncoding = System.Text.Encoding.UTF8;
-        Response.Charset = "utf-8";
-        Response.ContentType = "text/html; charset=utf-8";
         return View(solicitud);
       }
       catch (Exception ex)
@@ -192,9 +178,6 @@ namespace CuposCorretajeWeb.Controllers
         ViewBag.CompradorMap = "{}";
         ViewBag.ZonaPortuaria = new List<SelectListItem>();
 
-        Response.ContentEncoding = System.Text.Encoding.UTF8;
-        Response.Charset = "utf-8";
-        Response.ContentType = "text/html; charset=utf-8";
         return View(solicitud);
       }
     }
