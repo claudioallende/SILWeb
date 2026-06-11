@@ -4,6 +4,14 @@
 @{
     ViewBag.Title = "Detalle de Solicitud";
 
+    // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
+    // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
+    // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
+    // del encoding del .cshtml.
+    const string GUION = "&mdash;";
+
+    string SafeStr(string s) { return string.IsNullOrWhiteSpace(s) ? GUION : s; }
+
     var esEditable = Model != null && Model.EsEditable;
     var readClass = esEditable ? "" : "sil-readonly";
     var estadoBadge = (ViewBag.EstadoBadge as string) ?? "pending";
@@ -36,34 +44,34 @@
             <span class="sil-mode-banner-text">@modoTexto</span>
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <span class="sil-mode-banner-text">— @errorMessage</span>
+                <span class="sil-mode-banner-text">@GUION @errorMessage</span>
             }
         </div>
 
         <!-- Botón "Volver a grilla" -->
-        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">← Volver a grilla</a>
+        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
 
         <!-- Cabecera resumen -->
         <div class="sil-summary">
             <div class="sil-summary-cell">
                 <small>Solicitante</small>
-                <div>@(Model?.Solicitante ?? "—")</div>
+                <div>@SafeStr(Model?.Solicitante)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Grano</small>
-                <div>@(Model?.NombreGrano ?? "—")</div>
+                <div>@SafeStr(Model?.NombreGrano)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Comprador</small>
-                <div>@(Model?.Comprador ?? "—")</div>
+                <div>@SafeStr(Model?.Comprador)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Puerto</small>
-                <div>@(Model?.NombreDestino ?? "—")</div>
+                <div>@SafeStr(Model?.NombreDestino)</div>
             </div>
             <div class="sil-summary-cell">
                 <small>Zona</small>
-                <div>@(Model?.CodigoCentro ?? "—")</div>
+                <div>@SafeStr(Model?.CodigoCentro)</div>
             </div>
         </div>
 
@@ -81,7 +89,7 @@
             <!-- Panel izquierdo -->
             <div class="col-7">
                 <div class="sil-section-title">
-                    Solicitudes por día — 7 días
+                    Solicitudes por día @GUION 7 días
                     <span class="sil-section-subtitle" id="lblCantidadSeleccion">0 día(s) seleccionado(s)</span>
                 </div>
                 <div class="sil-tbl-wrap">
@@ -125,7 +133,7 @@
                     </table>
                 </div>
                 <p class="text-muted" id="lblDiasSeleccionados" style="margin-top: 8px; font-size: 11.5px;">
-                    0 día(s) seleccionado(s) · Total: 0 TR
+                    0 día(s) seleccionado(s) @GUION Total: 0 TR
                 </p>
 
                 <!-- Acciones debajo de la tabla -->
@@ -142,7 +150,7 @@
             <!-- Panel derecho: Cupos compatibles (placeholder) -->
             <div class="col-5">
                 <div class="sil-section-title sil-section-title-success">
-                    Cupos compatibles — <span id="lblCantidadCupos">0</span> encontrado(s)
+                    Cupos compatibles @GUION <span id="lblCantidadCupos">0</span> encontrado(s)
                 </div>
                 <div class="sil-cupos-panel">
                     <p class="text-muted" style="margin-bottom: 8px;">
@@ -210,7 +218,7 @@
                     var tr = parseInt($(this).closest('tr').find('td').eq(2).text(), 10) || 0;
                     total += tr;
                 });
-                $('#lblDiasSeleccionados').text(cnt + ' día(s) seleccionado(s) · Total: ' + total + ' TR');
+                $('#lblDiasSeleccionados').text(cnt + ' día(s) seleccionado(s) - Total: ' + total + ' TR');
                 $('#lblCantidadSeleccion').text(cnt + ' día(s) seleccionado(s)');
                 $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
                 // placeholder: cantidad de cupos = cantidad de días seleccionados.
@@ -235,14 +243,20 @@
 
             // ---- Botonera ----
 
-            // POST genérico con manejo de success/error.
+            // POST genérico con loader. Muestra el spinner antes de salir y
+            // lo oculta al terminar (éxito o fallo). El redirect del success
+            // hace que el HideLoader del `done` a veces no corra, así que
+            // `always` garantiza que el loader se cierre pase lo que pase.
+            // (ShowLoader/HideLoader están definidos en _Layout.cshtml.)
             function postJSON(url, data) {
+                ShowLoader();
                 return $.ajax({
                     url: url,
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data)
-                });
+                })
+                    .always(function () { HideLoader(); });
             }
 
             function manejarRespuesta(resp) {
@@ -250,7 +264,7 @@
                     Swal.fire({ icon: 'success', title: 'Listo', text: resp.message, timer: 1500, showConfirmButton: false })
                         .then(function () { window.location = resp.redirectUrl || '/Solicitudes/Index'; });
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.message) || '—' });
+                    Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.message) || '&mdash;' });
                 }
             }
 
@@ -280,7 +294,7 @@
 
             // "+ Crear nuevo cupo" (placeholder)
             $('#btnCrearCupo').on('click', function () {
-                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Próximamente: alta manual de cupo.' });
+                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Próximamente: alta manual de cupo compatible.' });
             });
 
             // "Confirmar asignación seleccionada"
@@ -293,7 +307,7 @@
                     fechas[key] = tr;
                 });
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día de la tabla de la izquierda.' });
                     return;
                 }
                 postJSON('/Solicitudes/ConfirmarAsignacionSeleccionada', {

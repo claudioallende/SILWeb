@@ -94,6 +94,12 @@ namespace CuposCorretajeWeb.Controllers
         return RedirectToAction("Index");
       }
 
+      // Forzar UTF-8 en la respuesta para que tildes y caracteres especiales
+      // (Selección, días, Próximamente, etc.) se pinten correctamente.
+      Response.ContentEncoding = System.Text.Encoding.UTF8;
+      Response.Charset = "utf-8";
+      Response.ContentType = "text/html; charset=utf-8";
+
       // ViewBag de modo + estado (la vista los usa para banner y readonly).
       ViewBag.Modo = solicitud.EsEditable ? "editable" : "readonly";
       ViewBag.EstadoBadge = solicitud.EstadoBadge ?? "pending";
@@ -125,29 +131,38 @@ namespace CuposCorretajeWeb.Controllers
         cuposDisponible = await repo.RequestSILDataPostAndDeserializeAsync<ICollection<CuposDisponibleViewModel>>("CuposDisponibles", "Disponibles", filterCuposDisponible);
 
         List<SelectListItem> compradoresDistinct = cuposDisponible
-            .GroupBy(x => new { x.CuentaComprador, x.NombreComprador })
-            .Select(g => new SelectListItem
+            .Where(x => x.CuentaComprador != 0)
+            .GroupBy(x => x.CuentaComprador)
+            .Select(g =>
             {
-              Value = g.Key.CuentaComprador.ToString(),
-              Text = $"{g.Key.CuentaComprador} - {g.Key.NombreComprador}"
+              // Tomar el primer NombreComprador no vacío del grupo como nombre "canónico".
+              string nombre = g.Select(x => x.NombreComprador).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                            ?? g.First().NombreComprador
+                            ?? string.Empty;
+              return new SelectListItem
+              {
+                Value = g.Key.ToString(),
+                Text = $"{g.Key} - {nombre}"
+              };
             })
             .OrderBy(o => o.Value)
             .ToList();
 
-        var compradorMap = cuposDisponible
-            .GroupBy(x => new { x.CuentaComprador, x.NombreComprador })
-            .ToDictionary(
-                g => g.Key.CuentaComprador.ToString(),
-                g => g.Key.NombreComprador.ToString()
-            );
+        var compradorMap = compradoresDistinct.ToDictionary(o => o.Value, o =>
+        {
+          string nombre = o.Text;
+          int idx = nombre.IndexOf(" - ", StringComparison.Ordinal);
+          return idx >= 0 ? nombre[(idx + 3)..] : nombre;
+        });
 
         List<SelectListItem> zonaDistinct = cuposDisponible
-            .Where(x => x.ZonaGeografica != null && x.ZonaGeograficaId != 0)
-            .GroupBy(x => new { x.ZonaGeografica, x.ZonaGeograficaId })
+            .Where(x => x.ZonaGeograficaId != 0 && !string.IsNullOrWhiteSpace(x.ZonaGeografica))
+            .GroupBy(x => x.ZonaGeograficaId)
             .Select(g => new SelectListItem
             {
-              Value = g.Key.ZonaGeograficaId.ToString(),
-              Text = g.Key.ZonaGeografica
+              Value = g.Key.ToString(),
+              // Tomar el primer nombre no vacío del grupo.
+              Text = g.Select(x => x.ZonaGeografica).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? g.First().ZonaGeografica
             })
             .OrderBy(o => o.Text)
             .ToList();
@@ -156,17 +171,28 @@ namespace CuposCorretajeWeb.Controllers
         ViewBag.CompradorMap = JsonConvert.SerializeObject(compradorMap);
 
         ViewBag.ZonaPortuaria = zonaDistinct;
+
+        // Forzar UTF-8 en la respuesta para que tildes y caracteres especiales
+        // (Selección, días, Próximamente, etc.) se pinten correctamente.
+        Response.ContentEncoding = System.Text.Encoding.UTF8;
+        Response.Charset = "utf-8";
+        Response.ContentType = "text/html; charset=utf-8";
         return View(solicitud);
       }
       catch (Exception ex)
       {
         // No rompemos la página: devolvemos la vista con dropdowns vacíos y
-        // un mensaje de error para mostrar en el banner.
+        // un mensaje genérico para mostrar en el banner. El detalle técnico
+        // queda en el log para no exponerlo al usuario final.
         Trace.TraceError("AltaSolicitud GET error: " + ex);
-        ViewBag.ErrorMessage = "No se pudieron cargar los compradores/zonas disponibles. " + ex.Message;
+        ViewBag.ErrorMessage = "No se pudieron cargar los compradores/zonas disponibles. Reintentá o contactá al administrador.";
         ViewBag.Compradores = new List<SelectListItem>();
         ViewBag.CompradorMap = "{}";
         ViewBag.ZonaPortuaria = new List<SelectListItem>();
+
+        Response.ContentEncoding = System.Text.Encoding.UTF8;
+        Response.Charset = "utf-8";
+        Response.ContentType = "text/html; charset=utf-8";
         return View(solicitud);
       }
     }
