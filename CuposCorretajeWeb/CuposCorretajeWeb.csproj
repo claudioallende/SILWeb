@@ -298,6 +298,8 @@
     <Compile Include="Models\Solicitudes\ShiftRequestPendingViewModel.cs" />
     <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudActionResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ConfirmarAsignacionRequest.cs" />
     <Compile Include="Models\Solicitudes\SolicitudesIndexResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudViewModel.cs" />

@@ -38,6 +38,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// <summary>Resumen de cupos compatibles para mostrar en la columna "Cupos compatibles".</summary>
     public CupoCompatibleResumenViewModel CuposCompatibles { get; set; } = new CupoCompatibleResumenViewModel();
 
+    /// <summary>Observaciones del solicitante (se muestran en el banner ámbar de Pantalla 2).</summary>
+    public string Observacion { get; set; }
+
     /// <summary>Detalle de cantidad de solicitudes por fecha (TR y TO), alineado con la grilla.</summary>
     public IEnumerable<SolicitudTurnoDetalleGrupoView> CantidadFechas { get; set; }
   }

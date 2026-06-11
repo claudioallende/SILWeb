@@ -3,6 +3,7 @@ using CuposCorretajeWeb.Models.Solicitudes;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
@@ -87,14 +88,30 @@ namespace CuposCorretajeWeb.Controllers
     [HttpGet]
     public async Task<ActionResult> AltaSolicitud()
     {
+      SolicitudViewModel solicitud = TempData["Solicitud"] as SolicitudViewModel;
+      if (solicitud == null)
+      {
+        return RedirectToAction("Index");
+      }
+
+      // ViewBag de modo + estado (la vista los usa para banner y readonly).
+      ViewBag.Modo = solicitud.EsEditable ? "editable" : "readonly";
+      ViewBag.EstadoBadge = solicitud.EstadoBadge ?? "pending";
+      ViewBag.EstadoLabel = solicitud.EstadoLabel ?? "Pendiente";
+      ViewBag.ErrorMessage = null;
+
+      // En modo read-only no se necesitan los dropdowns: se salta la llamada
+      // a SILData y se devuelven listas vacías.
+      if (!solicitud.EsEditable)
+      {
+        ViewBag.Compradores = new List<SelectListItem>();
+        ViewBag.CompradorMap = "{}";
+        ViewBag.ZonaPortuaria = new List<SelectListItem>();
+        return View(solicitud);
+      }
+
       try
       {
-        SolicitudViewModel solicitud = TempData["Solicitud"] as SolicitudViewModel;
-        if (solicitud == null)
-        {
-          return RedirectToAction("Index");
-        }
-
         FilterCuposDisponible filterCuposDisponible = new FilterCuposDisponible
         {
           CuentaVendedor = (long)solicitud.CuentaVendedor,
@@ -143,7 +160,14 @@ namespace CuposCorretajeWeb.Controllers
       }
       catch (Exception ex)
       {
-        throw;
+        // No rompemos la página: devolvemos la vista con dropdowns vacíos y
+        // un mensaje de error para mostrar en el banner.
+        Trace.TraceError("AltaSolicitud GET error: " + ex);
+        ViewBag.ErrorMessage = "No se pudieron cargar los compradores/zonas disponibles. " + ex.Message;
+        ViewBag.Compradores = new List<SelectListItem>();
+        ViewBag.CompradorMap = "{}";
+        ViewBag.ZonaPortuaria = new List<SelectListItem>();
+        return View(solicitud);
       }
     }
 
@@ -158,6 +182,113 @@ namespace CuposCorretajeWeb.Controllers
       catch (Exception ex)
       {
         return Json(new { success = false, message = ex.Message });
+      }
+    }
+
+    /// <summary>
+    /// Confirma una solicitud (cambia su estado a Asignada).
+    /// Pantalla 2 lo llama desde el botón "Confirmar".
+    ///
+    /// TODO: reemplazar el stub por la llamada real a SILData cuando se
+    /// defina el endpoint correspondiente (controller/acción a confirmar
+    /// con backend). Por ahora sólo devuelve success para validar el flujo
+    /// de UI.
+    /// </summary>
+    [HttpPost]
+    public JsonResult ConfirmarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    {
+      try
+      {
+        if (idSolicitud <= 0)
+          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+
+        // TODO: llamada a SILData (ShiftRequest/ConfirmShiftRequestAsync?).
+        Trace.TraceInformation($"[stub] ConfirmarSolicitud id={idSolicitud}");
+
+        return Json(new SolicitudActionResponseViewModel
+        {
+          Success = true,
+          Message = "Solicitud confirmada (stub).",
+          RedirectUrl = Url.Action("Index")
+        });
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceError("ConfirmarSolicitud error: " + ex);
+        return Json(new SolicitudActionResponseViewModel { Success = false, Message = ex.Message });
+      }
+    }
+
+    /// <summary>
+    /// Rechaza una solicitud (cambia su estado a Rechazada).
+    /// Pantalla 2 lo llama desde el botón "Rechazar".
+    ///
+    /// TODO: reemplazar el stub por la llamada real a SILData cuando se
+    /// defina el endpoint correspondiente.
+    /// </summary>
+    [HttpPost]
+    public JsonResult RechazarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    {
+      try
+      {
+        if (idSolicitud <= 0)
+          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+
+        // TODO: llamada a SILData (ShiftRequest/RejectShiftRequestAsync?).
+        Trace.TraceInformation($"[stub] RechazarSolicitud id={idSolicitud}");
+
+        return Json(new SolicitudActionResponseViewModel
+        {
+          Success = true,
+          Message = "Solicitud rechazada (stub).",
+          RedirectUrl = Url.Action("Index")
+        });
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceError("RechazarSolicitud error: " + ex);
+        return Json(new SolicitudActionResponseViewModel { Success = false, Message = ex.Message });
+      }
+    }
+
+    /// <summary>
+    /// Confirma la asignación de los días seleccionados para una solicitud (Pantalla 2,
+    /// botón "Confirmar asignación seleccionada").
+    ///
+    /// Recibe idSolicitud + cupoCompatibleId (null por ahora) + mapa de fechas seleccionadas.
+    /// El cupo compatible es null hoy porque el panel derecho "Cupos Compatibles" es
+    /// placeholder; cuando se enchufe el motor de matching, este campo viajará poblado
+    /// y la llamada a SILData pasará los tres datos.
+    ///
+    /// TODO: reemplazar el stub por la llamada real a SILData (ShiftRequest/ConfirmShiftRequestAsync?).
+    /// Por ahora sólo valida inputs y devuelve success para confirmar el flujo de UI.
+    /// </summary>
+    [HttpPost]
+    public JsonResult ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
+    {
+      try
+      {
+        if (req == null || req.IdSolicitud <= 0)
+          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+        if (req.Fechas == null || req.Fechas.Count == 0)
+          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Seleccione al menos un día." });
+
+        // TODO: llamar a SILData con req.IdSolicitud + req.CupoCompatibleId + req.Fechas.
+        // Por ahora el cupo compatible es null; cuando se enchufe el motor de matching
+        // este endpoint recibirá el id del cupo elegido del panel derecho.
+        Trace.TraceInformation($"[stub] ConfirmarAsignacionSeleccionada id={req.IdSolicitud} cupo={req.CupoCompatibleId} dias=[{string.Join(",", req.Fechas.Keys)}]");
+
+        return Json(new SolicitudActionResponseViewModel
+        {
+          Success = true,
+          Message = $"Asignación confirmada (stub) para {req.Fechas.Count} día(s).",
+          RedirectUrl = Url.Action("Index")
+        });
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceError("ConfirmarAsignacionSeleccionada error: " + ex);
+        return Json(new SolicitudActionResponseViewModel { Success = false, Message = ex.Message });
       }
     }
 
@@ -269,6 +400,10 @@ namespace CuposCorretajeWeb.Controllers
           CodigoCentro = first.CodigoCentro,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
+          // Observaciones: las del primer item del grupo. Si en una iteración
+          // posterior hace falta consolidar observaciones de varios items, se
+          // cambia acá. Por ahora alcanza con una sola para el banner.
+          Observacion = first.Observacion,
           CantidadFechas = detalles.Values
             .OrderBy(d => d.Fecha)
             .ToList()

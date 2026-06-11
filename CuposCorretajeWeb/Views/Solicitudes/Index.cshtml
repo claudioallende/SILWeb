@@ -122,18 +122,27 @@
             });
 
             // ----- Carga inicial -----
+            // Cache local de las filas por tabla, para que el handler .btn-ver
+            // pueda armar el SolicitudViewModel a partir del row original
+            // (no leemos del DOM porque perderíamos tipos numéricos/long).
+            var currentContractuales = [];
+            var currentFuturos = [];
+
             $.ajax({
                 url: "/Solicitudes/GetAllPendingShiftRequests",
                 method: "GET",
                 dataType: "json",
                 success: function (response) {
+                    currentContractuales = response.Contractuales || [];
+                    currentFuturos = response.Futuros || [];
+
                     renderTabla({
                         theadId: '#theadContractual',
                         tbodyId: '#tbodyContractual',
                         tfootId: '#tfootContractual',
                         countLabelId: '#lblContractualCount',
                         pagerId: '#pagerContractual',
-                        rows: response.Contractuales || [],
+                        rows: currentContractuales,
                         fechasHeader: response.FechasHeader || [],
                         pageSize: 10,
                         currentPage: 1
@@ -144,7 +153,7 @@
                         tfootId: '#tfootFuturo',
                         countLabelId: '#lblFuturoCount',
                         pagerId: '#pagerFuturo',
-                        rows: response.Futuros || [],
+                        rows: currentFuturos,
                         fechasHeader: response.FechasHeader || [],
                         pageSize: 10,
                         currentPage: 1
@@ -266,14 +275,64 @@
                     renderTabla(Object.assign({}, opts, { currentPage: newPage }));
                 });
 
-                // Click en "ver" → placeholder (próximamente Pantalla 2)
+                // Click en "ver" → arma SolicitudViewModel desde la fila cacheada
+                // y hace POST a AltaSolicitud (TempData + redirect al GET).
                 $(tbodyId).off('click', '.btn-ver').on('click', '.btn-ver', function () {
-                    const id = $(this).data('id');
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Detalle de solicitud',
-                        text: 'Próximamente: Pantalla 2 (Detalle con selección de días). Id=' + id,
-                        confirmButtonColor: '#1a3a6b'
+                    const $tr = $(this).closest('tr');
+                    const id = $tr.data('id');
+                    const row = currentContractuales.concat(currentFuturos).find(function (r) { return r.Id === id; });
+                    if (!row) {
+                        Swal.fire({ icon: 'error', title: 'No se encontró la fila' });
+                        return;
+                    }
+                    // Diccionario de cantidades por fecha (yyyy-MM-dd).
+                    const fechas = (row.CantidadFechas || []).reduce(function (acc, d) {
+                        acc[d.Fecha] = d.Cantidad || 0;
+                        return acc;
+                    }, {});
+
+                    const payload = {
+                        IdSolicitud: row.Id,
+                        CodigoCentro: row.CodigoCentro || '',
+                        CodigoGrano: row.CodigoGrano,
+                        NombreGrano: row.NombreGrano || '',
+                        CuentaVendedor: row.CuentaVendedor,
+                        Solicitante: row.NombreVendedor || '',
+                        CuentaComprador: row.CuentaComprador,
+                        Comprador: row.NombreComprador || '',
+                        NombreComprador: row.NombreComprador || '',
+                        CuentaDestino: row.CuentaDestino,
+                        NombreDestino: row.NombreDestino || '',
+                        // La grilla no expone zona real todavía; mandamos el
+                        // codigoCentro como aproximación para que el dropdown
+                        // arranque con un valor. Cuando la API devuelva
+                        // nombreZona/ZonaId reales, se cambia acá.
+                        Zona: row.CodigoCentro || '',
+                        Observacion: row.Observacion || '',
+                        EstadoBadge: row.EstadoBadge || 'pending',
+                        EstadoLabel: row.EstadoLabel || 'Pendiente',
+                        Fechas: fechas
+                    };
+
+                    ShowLoader();
+                    $.ajax({
+                        url: '/Solicitudes/AltaSolicitud',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: JSON.stringify(payload)
+                    })
+                    .done(function (r) {
+                        HideLoader();
+                        if (r && r.success && r.redirectUrl) {
+                            window.location = r.redirectUrl;
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
+                        }
+                    })
+                    .fail(function (xhr) {
+                        HideLoader();
+                        Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
                     });
                 });
             }
