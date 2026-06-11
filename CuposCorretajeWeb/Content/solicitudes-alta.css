@@ -20,10 +20,12 @@
     --sil-green-light: #d4edda;
     --sil-green-border: #82c896;
     --sil-border: #dde3ec;
+    --sil-border-light: #edf0f5;
     --sil-text-primary: #1a2340;
     --sil-text-secondary: #5a6680;
     --sil-text-tertiary: #9aa3b5;
     --sil-surface: #ffffff;
+    --sil-mono: 'DM Mono', 'Consolas', 'Courier New', monospace;
 }
 
 /* ---- banner de modo en el header del card ---- */
@@ -139,30 +141,6 @@
     border-color: var(--sil-red-border);
 }
 
-/* ---- tabla de selección de días (panel izquierdo) ---- */
-.sil-fecha-tabla {
-    font-size: 12px;
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.sil-fecha-tabla th {
-    background: var(--sil-navy);
-    color: #fff;
-    padding: 6px 9px;
-    text-align: center;
-    font-weight: 500;
-}
-
-.sil-fecha-tabla td {
-    padding: 6px 9px;
-    border-bottom: 1px solid #edf0f5;
-    text-align: center;
-    color: var(--sil-text-primary);
-}
-
-.sil-fecha-tabla .chkFechaSolicitud { transform: scale(1.3); }
-
 /* ---- error inline en el banner ---- */
 .sil-mode-banner-error {
     background: var(--sil-red-light);
@@ -172,34 +150,30 @@
 
 /* =========================================================
    v2 — Layout del mockup real
-   Cabecera resumen, tabla 7 días, panel cupos, botonera nueva
+   Cabecera resumen, split 50/50, tabla 7 días, panel cupos
    ========================================================= */
 
 /* ---- cabecera resumen (Solicitante / Grano / Comprador / Puerto / Zona) ---- */
 .sil-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
     padding: 12px 16px;
-    background: #f8f9fc;
+    background: #f0f4fa;
     border: 1px solid var(--sil-border);
-    border-radius: 6px;
+    border-radius: 8px;
     margin: 12px 0;
 }
 
 .sil-summary-cell {
-    flex: 1 1 140px;
-    min-width: 140px;
+    min-width: 0;
 }
 
 .sil-summary-cell small {
     display: block;
-    text-transform: uppercase;
-    font-size: 10.5px;
-    letter-spacing: .3px;
-    color: var(--sil-text-tertiary);
+    color: var(--sil-text-secondary);
     margin-bottom: 2px;
-    font-weight: 500;
+    font-size: 11.5px;
 }
 
 .sil-summary-cell div {
@@ -209,34 +183,226 @@
     word-break: break-word;
 }
 
-/* ---- sub-ítem del título de sección ---- */
-.sil-section-subtitle {
+/* ---- split 50/50 (panel días + panel cupos) ---- */
+.sil-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 8px;
+}
+
+@media (max-width: 1100px) {
+    .sil-split { grid-template-columns: 1fr; }
+    .sil-summary { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---- panel genérico (borde + radio, header coloreado) ---- */
+.sil-panel {
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sil-surface);
+}
+
+.sil-panel-hd {
+    padding: 9px 13px;
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sil-panel-hd .sil-panel-hd-sub {
+    font-size: 11px;
     font-weight: 400;
+    opacity: .85;
+}
+
+.sil-panel-hd.ph-navy { background: var(--sil-navy); }
+.sil-panel-hd.ph-teal { background: var(--sil-teal); }
+
+.sil-panel-body {
+    padding: 12px 14px;
+}
+
+/* ---- instruction box (panel izquierdo, arriba de la tabla) ---- */
+.sil-instruction-box {
     font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sil-instruction-icon {
+    background: var(--sil-navy);
+    color: #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-style: italic;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-family: var(--sil-mono);
+}
+
+/* ---- card contenedor de la tabla de días ---- */
+.sil-tbl-card {
+    border: 1px solid var(--sil-border);
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+/* ---- tabla de días (panel izquierdo) ---- */
+.sil-day-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: auto;
+}
+
+.sil-day-tbl thead th {
+    background: var(--sil-navy);
+    color: #fff;
+    padding: 7px 10px;
+    font-weight: 500;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sil-day-tbl tbody tr.sil-day-row {
+    cursor: pointer;
+    transition: background .12s;
+}
+
+.sil-day-tbl tbody tr.sil-day-row:hover td {
+    background: #e8f0fe;
+}
+
+.sil-day-tbl tbody tr.sil-day-row.sil-day-row-selected td {
+    background: #dce8fc;
+}
+
+.sil-day-tbl tbody tr.sil-day-row.sil-day-row-selected td:first-child {
+    border-left: 3px solid var(--sil-navy);
+}
+
+.sil-day-tbl tbody tr.sil-day-row-disabled {
+    cursor: default;
     color: var(--sil-text-tertiary);
-    margin-left: 8px;
+    background: #fafafa;
 }
 
-/* ---- variante "success" para section-title (header del panel cupos) ---- */
-.sil-section-title-success {
-    border-left: 3px solid var(--sil-teal);
+.sil-day-tbl tbody tr.sil-day-row-disabled:hover td {
+    background: #fafafa !important;
+}
+
+.sil-day-tbl tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--sil-border-light);
+    text-align: center;
+    font-size: 12px;
+    color: var(--sil-text-primary);
+}
+
+.sil-day-tbl tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.sil-day-tbl .sil-day-fecha {
+    text-align: left;
+    font-weight: 500;
+    font-family: var(--sil-mono);
+    font-size: 12px;
     padding-left: 10px;
-    color: var(--sil-teal);
 }
 
-/* ---- badge "Sin solicitudes" (estado vacío) ---- */
-.sil-badge-empty {
-    background: #eef0f5;
-    color: #7a8499;
-    border-color: #dde3ec;
+.sil-day-tbl .sil-day-diasem {
+    color: var(--sil-text-tertiary);
+    font-size: 10.5px;
+    margin-left: 4px;
+    font-family: var(--sil-font, inherit);
+}
+
+.sil-day-tbl .sil-day-chk {
+    accent-color: var(--sil-navy);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* ---- badge de estado por día (3 variantes, pill más pequeño) ---- */
+.sil-badge-dia {
+    display: inline-block;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+.sil-badge-dia-ok {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-dia-pend {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-dia-none {
+    background: #f1f3f5;
+    color: var(--sil-text-tertiary);
+    border-color: var(--sil-border);
+}
+
+/* ---- resumen de selección (debajo de la tabla) ---- */
+.sil-resumen-box {
+    margin-top: 10px;
+    padding: 9px 11px;
+    background: #f0f4fa;
+    border: 1px solid var(--sil-border);
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-resumen-box.sil-resumen-box-active {
+    background: #eef3fc;
+    color: var(--sil-navy);
+}
+
+/* ---- label superior de acciones globales ---- */
+.sil-action-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sil-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 2px;
 }
 
 /* ---- acciones en bloque vertical (debajo de la tabla) ---- */
 .sil-actions-block {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 14px;
+    gap: 6px;
+    margin-top: 10px;
+    border-top: 1px solid var(--sil-border-light);
+    padding-top: 10px;
 }
 
 .sil-btn-block {
@@ -246,8 +412,30 @@
     font-size: 12.5px;
 }
 
-/* ---- panel derecho "Cupos compatibles" (placeholder) ---- */
-.sil-cupos-panel {
+/* ---- panel derecho "Cupos compatibles": empty state + placeholder ---- */
+.sil-cupos-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sil-cupos-empty-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.sil-cupos-empty-text {
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+.sil-cupos-placeholder {
     border: 1px dashed var(--sil-teal);
     border-radius: 6px;
     padding: 16px;

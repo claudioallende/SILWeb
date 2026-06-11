@@ -1,29 +1,29 @@
-@using CuposCorretajeWeb.Models.Solicitudes
+﻿@using CuposCorretajeWeb.Models.Solicitudes
 @using Newtonsoft.Json;
 @model SolicitudViewModel
 @{
     ViewBag.Title = "Detalle de Solicitud";
 
-    // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
-    // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
+    // Em-dash usado para indicar valor vac00edo. Lo centralizamos en una variable
+    // para que el car00e1cter se mantenga consistente (y para que el `Html.Raw` no
     // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
     // del encoding del .cshtml.
     const string GUION = "&mdash;";
 
     // SafeStr como Func (no local function) para que compile en el Razor
-    // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
+    // cl00e1sico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
     Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
 
     var esEditable = Model != null && Model.EsEditable;
     var readClass = esEditable ? "" : "sil-readonly";
     var estadoBadge = (ViewBag.EstadoBadge as string) ?? "pending";
     var estadoLabel = (ViewBag.EstadoLabel as string) ?? "Pendiente";
-    var modoTexto = esEditable ? "Modo edición" : "Modo sólo lectura";
+    var modoTexto = esEditable ? "Modo edici&oacute;n" : "Modo s&oacute;lo lectura";
     var errorMessage = ViewBag.ErrorMessage as string;
     var observacion = Model?.Observacion;
 
-    // Para los 7 días hardcodeados, los valores TR/TO no vienen en el VM legacy
-    // (sólo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
+    // Para los 7 d&iacute;as hardcodeados, los valores TR/TO no vienen en el VM legacy
+    // (s&oacute;lo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
     // Cuando se enchufe el motor de matching, se reemplaza por un listado real.
 }
 
@@ -35,7 +35,7 @@
     <div class="sil-page-hd">
         <div>
             <h1>Detalle de Solicitud</h1>
-            <p class="text-muted">Selección de días y cupos compatibles</p>
+            <p class="text-muted">Selecci&oacute;n de d&iacute;as y cupos compatibles</p>
         </div>
     </div>
 
@@ -50,8 +50,8 @@
             }
         </div>
 
-        <!-- Botón "Volver a grilla" -->
-        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
+        <!-- Bot&oacute;n "Volver d00eda grilla" -->
+        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver d00eda grilla</a>
 
         <!-- Cabecera resumen -->
         <div class="sil-summary">
@@ -77,7 +77,7 @@
             </div>
         </div>
 
-        <!-- Banner de Observaciones (ámbar, sólo si hay contenido) -->
+        <!-- Banner de Observaciones (&aacute;mbar, s&oacute;lo si hay contenido) -->
         @if (!string.IsNullOrWhiteSpace(observacion))
         {
             <div class="sil-annotation" style="border-left-color: var(--sil-amber-border); background: var(--sil-amber-light); color: var(--sil-amber);">
@@ -86,91 +86,120 @@
             </div>
         }
 
-        <!-- Layout 2 paneles -->
-        <div class="row" style="margin-top: 8px;">
-            <!-- Panel izquierdo -->
-            <div class="col-7">
-                <div class="sil-section-title">
-                    Solicitudes por día @GUION 7 días
-                    <span class="sil-section-subtitle" id="lblCantidadSeleccion">0 día(s) seleccionado(s)</span>
+        <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
+        <div class="sil-split">
+            <!-- ===== PANEL IZQUIERDO 2014 D&Iacute;AS ===== -->
+            <div class="sil-panel">
+                <div class="sil-panel-hd ph-navy">
+                    <span>Solicitudes por d&iacute;a &mdash; 7 d&iacute;as</span>
+                    <span class="sil-panel-hd-sub">Seleccion&aacute; los d&iacute;as sobre los que quer&eacute;s operar</span>
                 </div>
-                <div class="sil-tbl-wrap">
-                    <table class="sil-tbl" id="tablaDias">
-                        <thead>
-                            <tr>
-                                <th style="width:36px;"></th>
-                                <th>Fecha</th>
-                                <th style="width:90px;">Sol. TR</th>
-                                <th style="width:90px;">Sol. TO</th>
-                                <th style="width:130px;">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int dia = 0; dia < 7; dia++)
-                            {
-                                var fecha = DateTime.Now.AddDays(dia).Date;
-                                var fechaKey = fecha.ToString("yyyy-MM-dd");
-                                var fechaDisplay = fecha.ToString("dd/MM");
-                                var diaSemana = fecha.ToString("ddd");
-                                var dict = (Model != null) ? Model.Fechas : null;
-                                var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
-                                // TO no se persiste en el VM legacy: queda en 0 por ahora.
-                                var toFuturas = 0;
-                                <tr data-fecha="@fechaKey">
-                                    <td style="text-align:center;">
-                                        <input type="checkbox" class="chkDia" @(esEditable ? "" : "disabled=\"disabled\"") />
-                                    </td>
-                                    <td>
-                                        <strong>@fechaDisplay</strong>
-                                        <small class="text-muted">@diaSemana</small>
-                                    </td>
-                                    <td style="text-align:center;">@tr</td>
-                                    <td style="text-align:center;">@toFuturas</td>
-                                    <td style="text-align:center;">
-                                        <span class="sil-badge sil-badge-empty" data-estado="vacio">Sin solicitudes</span>
-                                    </td>
+                <div class="sil-panel-body">
+
+                    <!-- instrucci&oacute;n -->
+                    <div class="sil-instruction-box">
+                        <span class="sil-instruction-icon">i</span>
+                        Hac&eacute; clic en una fila para seleccionar o deseleccionar el d&iacute;a. El panel derecho actualiza los cupos compatibles.
+                    </div>
+
+                    <!-- tabla de d&iacute;as -->
+                    <div class="sil-tbl-card">
+                        <table class="sil-day-tbl" id="tablaDias">
+                            <thead>
+                                <tr>
+                                    <th style="width:32px;"></th>
+                                    <th style="text-align:left; padding-left:10px;">Fecha</th>
+                                    <th style="text-align:center;">Sol. TR</th>
+                                    <th style="text-align:center;">Sol. TO</th>
+                                    <th style="text-align:center;">Estado</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <p class="text-muted" id="lblDiasSeleccionados" style="margin-top: 8px; font-size: 11.5px;">
-                    0 día(s) seleccionado(s) @GUION Total: 0 TR
-                </p>
+                            </thead>
+                            <tbody>
+                                @for (int dia = 0; dia < 7; dia++)
+                                {
+                                    var fecha = DateTime.Now.AddDays(dia).Date;
+                                    var fechaKey = fecha.ToString("yyyy-MM-dd");
+                                    var fechaDisplay = fecha.ToString("dd/MM");
+                                    var diaSemana = fecha.ToString("ddd");
+                                    var dict = (Model != null) ? Model.Fechas : null;
+                                    var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
+                                    // TO no se persiste en el VM legacy: queda en 0 por ahora.
+                                    var toFuturas = 0;
+                                    var sinSolicitudes = (tr == 0 && toFuturas == 0);
+                                    <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
+                                        <td>
+                                            @if (!sinSolicitudes)
+                                            {
+                                                <input type="checkbox" class="sil-day-chk chkDia" @(esEditable ? "" : "disabled=\"disabled\"") />
+                                            }
+                                        </td>
+                                        <td class="sil-day-fecha">
+                                            <strong>@fechaDisplay</strong>
+                                            <span class="sil-day-diasem">@diaSemana</span>
+                                        </td>
+                                        <td style="text-align:center;">@tr</td>
+                                        <td style="text-align:center;">@toFuturas</td>
+                                        <td style="text-align:center;">
+                                            <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
+                                                @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
 
-                <!-- Acciones debajo de la tabla -->
-                <div class="sil-actions-block">
-                    <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
-                        Rechazar solicitud completa
-                    </button>
-                    <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
-                        + Crear nuevo cupo
-                    </button>
+                    <!-- resumen selecci&oacute;n -->
+                    <div class="sil-resumen-box" id="diasResumen">
+                        Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.
+                    </div>
+
+                    <!-- acciones globales -->
+                    <div class="sil-actions-block">
+                        <div class="sil-action-label">Acciones sobre la solicitud</div>
+                        <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
+                            Rechazar solicitud completa
+                        </button>
+                        <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
+                            + Crear nuevo cupo
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Panel derecho: Cupos compatibles (placeholder) -->
-            <div class="col-5">
-                <div class="sil-section-title sil-section-title-success">
-                    Cupos compatibles @GUION <span id="lblCantidadCupos">0</span> encontrado(s)
+            <!-- ===== PANEL DERECHO 2014 CUPOS ===== -->
+            <div class="sil-panel">
+                <div class="sil-panel-hd ph-teal" id="cuposPanelHd">
+                    Cupos compatibles &mdash; seleccion&aacute; d&iacute;as para ver
                 </div>
-                <div class="sil-cupos-panel">
-                    <p class="text-muted" style="margin-bottom: 8px;">
-                        <i class="fa-solid fa-circle-info"></i>
-                        Próximamente: motor de matching.
-                    </p>
-                    <p class="text-muted" style="font-size: 11.5px;">
-                        Al hacer clic en una fila de la izquierda se actualizarán los cupos compatibles
-                        para los días seleccionados.
-                    </p>
-                </div>
-                <div class="sil-actions sil-actions-bottom">
-                    <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
-                    <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
-                        Confirmar asignación seleccionada
-                    </button>
+                <div class="sil-panel-body">
+                    <div class="sil-cupos-empty" id="cuposEmpty">
+                        <div class="sil-cupos-empty-icon">&#128197;</div>
+                        <div class="sil-cupos-empty-text">
+                            Seleccion&aacute; uno o m&aacute;s d&iacute;as en el panel izquierdo para visualizar los cupos compatibles para esas fechas.
+                        </div>
+                    </div>
+                    <div class="sil-cupos-placeholder" id="cuposPlaceholder" style="display:none;">
+                        <p class="text-muted" style="margin-bottom: 8px;">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Pr&oacute;ximamente: motor de matching.
+                        </p>
+                        <p class="text-muted" style="font-size: 11.5px;">
+                            Al hacer clic en una fila de la izquierda se actualizar&aacute;n los cupos compatibles
+                            para los d&iacute;as seleccionados.
+                        </p>
+                    </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Botonera inferior del panel derecho (Cancelar / Confirmar) -->
+        <div class="sil-actions sil-actions-bottom" style="margin-top: 12px;">
+            <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
+            <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
+                Confirmar asignaci&oacute;n seleccionada
+            </button>
         </div>
     </div>
 </div>
@@ -183,73 +212,137 @@
 
             // ---- Helpers ----
 
-            // Calcula el estado del badge de una fila en función de los valores
-            // TR/TO y del estado del checkbox. Tres valores posibles:
-            //   - "Seleccionado" (asig/verde) → si el operador tildó el checkbox
-            //   - "Pendiente"   (pending/ámbar) → si hay TR>0 o TO>0 y NO está tildado
-            //   - "Sin solicitudes" (empty/gris) → si TR==0 && TO==0
-            function actualizarEstadoFila($tr) {
-                var $chk = $tr.find('.chkDia');
-                var tr = parseInt($tr.find('td').eq(2).text(), 10) || 0;
-                var toFuturas = parseInt($tr.find('td').eq(3).text(), 10) || 0;
-                var $badge = $tr.find('td').eq(4).find('.sil-badge');
-
-                if ($chk.is(':checked')) {
-                    $badge.removeClass('sil-badge-pending sil-badge-empty')
-                          .addClass('sil-badge-asig')
-                          .text('Seleccionado')
-                          .attr('data-estado', 'seleccionado');
-                } else if (tr > 0 || toFuturas > 0) {
-                    $badge.removeClass('sil-badge-asig sil-badge-empty')
-                          .addClass('sil-badge-pending')
-                          .text('Pendiente')
-                          .attr('data-estado', 'pendiente');
-                } else {
-                    $badge.removeClass('sil-badge-asig sil-badge-pending')
-                          .addClass('sil-badge-empty')
-                          .text('Sin solicitudes')
-                          .attr('data-estado', 'vacio');
-                }
+            // Lee el TR (columna 2) de la fila como n&uacute;mero entero.
+            function trDeFila($tr) {
+                return parseInt($tr.find('td').eq(2).text(), 10) || 0;
             }
 
-            function recalcularResumenSeleccion() {
+            // Lee el TO (columna 3) de la fila como n&uacute;mero entero.
+            function toDeFila($tr) {
+                return parseInt($tr.find('td').eq(3).text(), 10) || 0;
+            }
+
+            // Devuelve la cantidad de d&iacute;as chequeados y el total de TR sumando
+            // s&oacute;lo los d&iacute;as chequeados.
+            function resumenSeleccion() {
                 var $checked = $('.chkDia:checked');
                 var cnt = $checked.length;
                 var total = 0;
-                $checked.each(function () {
-                    var tr = parseInt($(this).closest('tr').find('td').eq(2).text(), 10) || 0;
-                    total += tr;
-                });
-                $('#lblDiasSeleccionados').text(cnt + ' día(s) seleccionado(s) - Total: ' + total + ' TR');
-                $('#lblCantidadSeleccion').text(cnt + ' día(s) seleccionado(s)');
-                $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
-                // placeholder: cantidad de cupos = cantidad de días seleccionados.
-                $('#lblCantidadCupos').text(cnt);
+                $checked.each(function () { total += trDeFila($(this).closest('tr')); });
+                return { count: cnt, total: total };
             }
 
-            // Estado inicial de cada fila + resumen.
+            // Cambia el badge de estado de una fila y actualiza la "selected" class.
+            //   - "Seleccionado" (ok/verde)  → si el checkbox est&aacute; tildado
+            //   - "Pendiente"   (pend/&aacute;mbar) → si hay TR>0 o TO>0 y NO est&aacute; tildado
+            //   - "Sin solicitudes" (none/gris) → si TR==0 y TO==0 (fila deshabilitada)
+            function actualizarEstadoFila($tr) {
+                if ($tr.hasClass('sil-day-row-disabled')) return; // filas deshabilitadas no cambian
+                var $chk = $tr.find('.chkDia');
+                var tr = trDeFila($tr);
+                var toFuturas = toDeFila($tr);
+                var $badge = $tr.find('.sil-badge-dia');
+
+                if ($chk.is(':checked')) {
+                    $tr.addClass('sil-day-row-selected');
+                    $badge.removeClass('sil-badge-dia-pend sil-badge-dia-none')
+                          .addClass('sil-badge-dia-ok')
+                          .text('Seleccionado')
+                          .attr('data-estado', 'seleccionado');
+                } else {
+                    $tr.removeClass('sil-day-row-selected');
+                    $badge.removeClass('sil-badge-dia-ok sil-badge-dia-none')
+                          .addClass('sil-badge-dia-pend')
+                          .text('Pendiente')
+                          .attr('data-estado', 'pendiente');
+                }
+            }
+
+            // Pinta el resumen de selecci&oacute;n (caja debajo de la tabla) en sus
+            // dos variantes: vac&iacute;o y con d&iacute;as seleccionados.
+            function pintarResumen(r) {
+                var $box = $('#diasResumen');
+                if (r.count === 0) {
+                    $box.removeClass('sil-resumen-box-active')
+                        .html('Ning00fan d00eda seleccionado. Seleccion00e1 uno o m00e1s d00edas para ver los cupos compatibles.');
+                } else {
+                    var fechas = [];
+                    $('.chkDia:checked').each(function () {
+                        var k = $(this).closest('tr').data('fecha');
+                        // Formato dd/MM d00eda partir del yyyy-MM-dd
+                        var parts = k.split('-');
+                        fechas.push(parts[2] + '/' + parts[1]);
+                    });
+                    var label = r.count === 1 ? 'd00eda seleccionado' : 'd00edas seleccionados';
+                    $box.addClass('sil-resumen-box-active')
+                        .html('<strong>' + r.count + ' ' + label + ':</strong> ' +
+                              fechas.join(', ') +
+                              ' &nbsp;&middot;&nbsp; Total: <strong>' + r.total + ' TR</strong>');
+                }
+            }
+
+            // Pinta el panel de cupos seg&uacute;n haya o no d&iacute;as seleccionados.
+            //   - Sin selecci00f3n&oacute;n: empty state con icono de calendario.
+            //   - Con selecci&oacute;n: placeholder "Pr&oacute;ximamente: motor de matching".
+            function pintarPanelCupos(r) {
+                var $hd = $('#cuposPanelHd');
+                var $empty = $('#cuposEmpty');
+                var $ph = $('#cuposPlaceholder');
+                if (r.count === 0) {
+                    // Acentos como escapes Unicode (00e1 = 00e1, 00ed = 00ed, 00f3 = 00f3) para que
+                    // el navegador los interprete como UTF-8 aunque el response
+                    // venga con otro encoding.
+                    $hd.text('Cupos compatibles 2014 selecci00f3n d00edas para ver');
+                    $empty.show();
+                    $ph.hide();
+                } else {
+                    $hd.text('Cupos compatibles 2014 ' + r.count + ' encontrado(s)');
+                    $empty.hide();
+                    $ph.show();
+                }
+            }
+
+            // Recalcula resumen + panel de cupos. Lo disparamos despu&eacute;s de
+            // cada toggle para mantener la UI consistente.
+            function recalcularTodo() {
+                var r = resumenSeleccion();
+                pintarResumen(r);
+                pintarPanelCupos(r);
+                $('#btnConfirmarAsignacion').prop('disabled', r.count === 0 || !esEditable);
+            }
+
+            // Estado inicial de cada fila.
             $('#tablaDias tbody tr').each(function () { actualizarEstadoFila($(this)); });
-            recalcularResumenSeleccion();
+            recalcularTodo();
 
             // Modo readonly: deshabilita todos los controles editables del panel principal.
             if (!esEditable) {
-                $('#tablaDias input, #tablaDias button, .sil-actions-block button, #btnConfirmarAsignacion')
+                $('#tablaDias input, .sil-actions-block button, #btnConfirmarAsignacion')
                     .prop('disabled', true);
             }
 
-            // Click en checkbox de fila → recalcular estado + resumen.
+            // Click en la fila (no s&oacute;lo en el checkbox) → toggle. Las filas
+            // deshabilitadas (sin solicitudes) ignoran el click. El checkbox se
+            // actualiza autom&aacute;ticamente para mantener la coherencia visual.
+            $('#tablaDias').on('click', '.sil-day-row', function (e) {
+                if (!esEditable) return;
+                if ($(this).hasClass('sil-day-row-disabled')) return;
+                var $chk = $(this).find('.chkDia');
+                $chk.prop('checked', !$chk.prop('checked')).trigger('change');
+            });
+
             $('#tablaDias').on('change', '.chkDia', function () {
                 actualizarEstadoFila($(this).closest('tr'));
-                recalcularResumenSeleccion();
+                recalcularTodo();
             });
 
             // ---- Botonera ----
 
-            // POST genérico con loader. Muestra el spinner antes de salir y
-            // lo oculta al terminar (éxito o fallo). El redirect del success
-            // hace que el HideLoader del `done` a veces no corra, así que
+            // POST gen&eacute;rico con loader. Muestra el spinner antes de salir y
+            // lo oculta al terminar (&eacute;xito o fallo). El redirect del success
+            // hace que el HideLoader del `done` d00eda veces no corra, as&iacute; que
             // `always` garantiza que el loader se cierre pase lo que pase.
-            // (ShowLoader/HideLoader están definidos en _Layout.cshtml.)
+            // (ShowLoader/HideLoader est&aacute;n definidos en _Layout.cshtml.)
             function postJSON(url, data) {
                 ShowLoader();
                 return $.ajax({
@@ -278,10 +371,10 @@
                 }
                 Swal.fire({
                     icon: 'warning',
-                    title: '¿Rechazar solicitud completa?',
-                    text: 'Esta acción rechaza la solicitud para todos los días.',
+                    title: '00bfRechazar solicitud completa?',
+                    text: 'Esta acci00f3n00f3n rechaza la solicitud para todos los d00edas00edas.',
                     showCancelButton: true,
-                    confirmButtonText: 'Sí, rechazar',
+                    confirmButtonText: 'S00ed, rechazar',
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
@@ -296,20 +389,19 @@
 
             // "+ Crear nuevo cupo" (placeholder)
             $('#btnCrearCupo').on('click', function () {
-                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Próximamente: alta manual de cupo compatible.' });
+                Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Pr00f3ximamente: alta manual de cupo compatible.' });
             });
 
-            // "Confirmar asignación seleccionada"
+            // "Confirmar asignaci&oacute;n seleccionada"
             $('#btnConfirmarAsignacion').on('click', function () {
                 var fechas = {};
                 $('.chkDia:checked').each(function () {
                     var $tr = $(this).closest('tr');
                     var key = $tr.data('fecha');
-                    var tr = parseInt($tr.find('td').eq(2).text(), 10) || 0;
-                    fechas[key] = tr;
+                    fechas[key] = trDeFila($tr);
                 });
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día de la tabla de la izquierda.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selecci00f3n00f3n', text: 'Tild00e1 al menos un d00eda de la tabla de la izquierda.' });
                     return;
                 }
                 postJSON('/Solicitudes/ConfirmarAsignacionSeleccionada', {
