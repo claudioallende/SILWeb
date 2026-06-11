@@ -47,6 +47,22 @@ namespace CuposCorretajeWeb.Controllers
           await repo.RequestSILDataPostAndDeserializeAsync<IEnumerable<ShiftRequestPendingViewModel>>(
             "ShiftRequest", "GetAllPendingShiftRequestAsync", filterSolicitud) ?? new List<ShiftRequestPendingViewModel>();
 
+        // Traza diagnóstica: el operador reportó que las solicitudes sin
+        // Comprador/Destino no aparecen en la grilla. Registramos cuántos
+        // llegaron en cada categoría para saber si el filtrado está del
+        // lado de la API o del cliente. Si los conteos "sin" son > 0
+        // pero la grilla no los muestra, el problema es del render.
+        int totalRecibidos = rawList.Count();
+        int sinComprador = rawList.Count(x => !x.CuentaComprador.HasValue || x.CuentaComprador.Value == 0);
+        int sinDestino = rawList.Count(x => !x.CuentaDestino.HasValue || x.CuentaDestino.Value == 0);
+        int sinCompradorYDestino = rawList.Count(x =>
+          (!x.CuentaComprador.HasValue || x.CuentaComprador.Value == 0) &&
+          (!x.CuentaDestino.HasValue || x.CuentaDestino.Value == 0));
+        Trace.TraceInformation(
+          $"[Solicitudes] API devolvio {totalRecibidos} solicitudes. " +
+          $"Sin Comprador: {sinComprador}. Sin Destino: {sinDestino}. " +
+          $"Sin Comprador y Sin Destino: {sinCompradorYDestino}.");
+
         // 1) Construir la ventana de fechas (7 días a partir de hoy).
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);

@@ -136,6 +136,26 @@
                     currentContractuales = response.Contractuales || [];
                     currentFuturos = response.Futuros || [];
 
+                    // Traza diagnóstica: el operador reportó que las solicitudes
+                    // sin Comprador/Destino no aparecen en la grilla. Logueamos
+                    // cuántas llegaron en cada categoría y cuántas se van a
+                    // renderizar, para distinguir si el problema es del API o
+                    // del render.
+                    var todas = currentContractuales.concat(currentFuturos);
+                    var sinComp = todas.filter(function (r) { return !r.CuentaComprador; }).length;
+                    var sinDest = todas.filter(function (r) { return !r.CuentaDestino; }).length;
+                    var sinAmbos = todas.filter(function (r) { return !r.CuentaComprador && !r.CuentaDestino; }).length;
+                    console.log('[Solicitudes] Recibidas:', todas.length,
+                        '| Sin Comprador:', sinComp,
+                        '| Sin Destino:', sinDest,
+                        '| Sin ambos:', sinAmbos);
+                    if (sinComp || sinDest) {
+                        console.log('[Solicitudes] Filas sin Comprador/Destino (muestra):',
+                            todas.filter(function (r) { return !r.CuentaComprador || !r.CuentaDestino; })
+                                 .slice(0, 5)
+                                 .map(function (r) { return { id: r.Id, grano: r.NombreGrano, vendedor: r.NombreVendedor, comprador: r.NombreComprador, destino: r.NombreDestino, cantFechas: (r.CantidadFechas || []).map(function (d) { return d.Fecha + '=' + d.Cantidad; }) }; }));
+                    }
+
                     renderTabla({
                         theadId: '#theadContractual',
                         tbodyId: '#tbodyContractual',
@@ -257,6 +277,7 @@
                     bodyHtml += '</tr>';
                 });
                 $(tbodyId).html(bodyHtml);
+                console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
 
                 // Footer con totales del set completo
                 let footHtml = '<tr class="sil-tr-total">' +
