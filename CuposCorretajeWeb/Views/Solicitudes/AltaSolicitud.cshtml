@@ -8,7 +8,7 @@
     // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
     // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
     // del encoding del .cshtml.
-    const string GUION = "&mdash;";
+    const string GUION = "-";
 
     // SafeStr como Func (no local function) para que compile en el Razor
     // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
