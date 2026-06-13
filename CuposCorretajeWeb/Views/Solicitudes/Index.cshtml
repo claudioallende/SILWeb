@@ -136,11 +136,6 @@
                     currentContractuales = response.Contractuales || [];
                     currentFuturos = response.Futuros || [];
 
-                    // Traza diagnóstica: el operador reportó que las solicitudes
-                    // sin Comprador/Destino no aparecen en la grilla. Logueamos
-                    // cuántas llegaron en cada categoría y cuántas se van a
-                    // renderizar, para distinguir si el problema es del API o
-                    // del render.
                     var todas = currentContractuales.concat(currentFuturos);
                     var sinComp = todas.filter(function (r) { return !r.CuentaComprador; }).length;
                     var sinDest = todas.filter(function (r) { return !r.CuentaDestino; }).length;
@@ -343,26 +338,11 @@
                         method: 'POST',
                         contentType: 'application/json',
                         dataType: 'json',
-                        // global:false evita que se disparen los handlers
-                        // ajaxStart/ajaxStop/ajaxError de $(document) y oculten
-                        // el loader apenas el POST responde. Manejo el loader
-                        // manualmente para que persista durante la navegaci&oacute;n.
                         global: false,
                         data: JSON.stringify(payload)
                     })
                     .done(function (r) {
                         if (r && r.success && r.redirectUrl) {
-                            // NO ocultamos el loader ac&aacute;: queremos que
-                            // persista visible durante la navegaci&oacute;n al
-                            // GET de AltaSolicitud (que hace una llamada a SILData
-                            // y tarda m&aacute;s). El nuevo page renderiza el
-                            // loader con la clase d-none en el HTML, as&iacute; que
-                            // desaparece solo al cargar.
-                            //
-                            // Delay m&iacute;nimo para que el loader sea perceptible
-                            // aunque el POST responda muy r&aacute;pido. Adicionalmente
-                            // compensamos el tiempo ya transcurrido para que el
-                            // loader quede visible al menos ~400ms en total.
                             var elapsed = Date.now() - showLoaderAt;
                             var minVisible = 400;
                             var wait = Math.max(250, minVisible - elapsed);

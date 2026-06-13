@@ -47,11 +47,6 @@ namespace CuposCorretajeWeb.Controllers
           await repo.RequestSILDataPostAndDeserializeAsync<IEnumerable<ShiftRequestPendingViewModel>>(
             "ShiftRequest", "GetAllPendingShiftRequestAsync", filterSolicitud) ?? new List<ShiftRequestPendingViewModel>();
 
-        // Traza diagnóstica: el operador reportó que las solicitudes sin
-        // Comprador/Destino no aparecen en la grilla. Registramos cuántos
-        // llegaron en cada categoría para saber si el filtrado está del
-        // lado de la API o del cliente. Si los conteos "sin" son > 0
-        // pero la grilla no los muestra, el problema es del render.
         int totalRecibidos = rawList.Count();
         int sinComprador = rawList.Count(x => !x.CuentaComprador.HasValue || x.CuentaComprador.Value == 0);
         int sinDestino = rawList.Count(x => !x.CuentaDestino.HasValue || x.CuentaDestino.Value == 0);
