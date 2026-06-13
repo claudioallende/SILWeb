@@ -494,7 +494,7 @@
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
                     if (!res.isConfirmed) return;
-                    postJSON('/Solicitudes/RechazarSolicitud', idSolicitud)
+                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', idSolicitud)
                         .done(manejarRespuesta)
                         .fail(function (xhr) {
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
@@ -529,7 +529,7 @@
                     Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tidle al menos un día de la tabla de la izquierda.' });
                     return;
                 }
-                postJSON('/Solicitudes/ConfirmarAsignacionSeleccionada', {
+                postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
                     idSolicitud: idSolicitud,
                     cupoCompatibleId: cuposSeleccionados[0],   // placeholder: el primero
                     cupos: cuposSeleccionados,

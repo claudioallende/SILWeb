@@ -129,7 +129,7 @@
             var currentFuturos = [];
 
             $.ajax({
-                url: "/Solicitudes/GetAllPendingShiftRequests",
+                url: '@Url.Action("GetAllPendingShiftRequests", "Solicitudes")',
                 method: "GET",
                 dataType: "json",
                 success: function (response) {
@@ -334,7 +334,7 @@
                     var showLoaderAt = Date.now();
                     ShowLoader();
                     $.ajax({
-                        url: '/Solicitudes/AltaSolicitud',
+                        url: '@Url.Action("AltaSolicitud", "Solicitudes")',
                         method: 'POST',
                         contentType: 'application/json',
                         dataType: 'json',
