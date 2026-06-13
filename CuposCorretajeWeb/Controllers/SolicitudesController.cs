@@ -413,8 +413,6 @@ namespace CuposCorretajeWeb.Controllers
           NombreGrano = g.Key.NombreGrano,
           CuentaVendedor = g.Key.CuentaVendedor,
           NombreVendedor = g.Key.NombreVendedor,
-          // Comprador y destino participan de la key, así que se leen de g.Key.
-          // (Si vienen null en la API, vienen null acá también.)
           CuentaComprador = g.Key.CuentaComprador,
           NombreComprador = g.Key.NombreComprador,
           CuentaDestino = g.Key.CuentaDestino,
