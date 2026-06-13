@@ -337,6 +337,12 @@
     <Content Include="Content\loading.css" />
     <Content Include="Content\open-iconic-bootstrap.min.css" />
     <Content Include="Content\skeleton.css" />
+    <Content Include="Content\solicitudes-alta.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\solicitudes-index.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Content\table_header_fixed.css" />
     <Content Include="Content\tokenfield-typeahead.min.css" />
     <Content Include="favicon.ico" />
