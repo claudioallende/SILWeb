@@ -17,6 +17,16 @@ namespace CuposCorretajeWeb.Models.Data
 {
   public abstract class Util : IDisposable
   {
+    // .NET Framework 4.6.1 no habilita TLS 1.2 por defecto en
+    // ServicePointManager.SecurityProtocol. Sin esto, los endpoints HTTPS
+    // modernos (Azure App Service, por ejemplo) rechazan la conexión con
+    // "Could not create SSL/TLS secure channel". Localhost no lo nota porque
+    // su cert negocia con versiones viejas, pero el sitio de test no.
+    static Util()
+    {
+      ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+    }
+
     public abstract string GetWebSerive { get; internal set; }
     public abstract string GetWebServiceSILData { get; internal set; }
 
