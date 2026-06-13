@@ -44,6 +44,27 @@
 
 .sil-mode-banner .sil-mode-banner-text { font-weight: 500; }
 
+/* ---- callout usado por DLG 2/3/4 dentro de Swal ----
+   Estilo ámbar consistente con el banner de observaciones del solicitante
+   que se ve en la cabecera de la página. Lo centralizamos acá (en lugar
+   de inline en el cshtml) porque varios modales lo comparten. */
+.sil-obs-callout {
+    text-align: left;
+    background: var(--sil-amber-light);
+    border-left: 3px solid var(--sil-amber-border);
+    color: var(--sil-amber);
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    margin-bottom: 4px;
+}
+.sil-obs-callout-empty {
+    background: #f6f7fa;
+    border-left-color: var(--sil-border);
+    color: var(--sil-text-secondary);
+}
+
 /* ---- botones (mismo patrón que Pantalla 1) ---- */
 .sil-btn {
     padding: 7px 14px;

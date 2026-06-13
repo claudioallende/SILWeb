@@ -213,6 +213,25 @@
             var esEditable = @((esEditable ? "true" : "false"));
             var idSolicitud = @(Model != null ? Model.IdSolicitud : 0);
 
+            // Strings del servidor que el modal DLG 2 necesita mostrar dentro de
+            // un Swal.fire({ html: ... }). Los serializamos con Json.Encode para
+            // que queden listos como literales JS (manejo correcto de comillas,
+            // acentos y caracteres de control). Ver también escHtml() abajo.
+            var solicitudObservacion = @Html.Raw(Json.Encode(observacion ?? ""));
+            var solicitanteNombre    = @Html.Raw(Json.Encode(Model != null ? (Model.Solicitante ?? "") : ""));
+
+            // Estado de cupos seleccionados por el operador. Lo declaramos
+            // arriba (no cerca del change handler) porque pintarPanelCupos
+            // lo resetea en su re-pintado, y esa función se invoca desde
+            // recalcularTodo() durante el init. Con `var` funciona igual
+            // por hoisting, pero queda más prolijo tenerlo junto a los
+            // otros estados al tope del IIFE.
+            //   cupoId -> { obs: bool, match: 'dir'|'par'|'cond' }
+            // Consumido por:
+            //   - DLG 2: detectar cupos con obs=true antes del POST.
+            //   - DLG 4: armar el payload batch con metadatos por cupo.
+            var selectedCupos = {};
+
             // ---- Helpers ----
 
             // Lee el TR (columna 2) de la fila como n&uacute;mero entero.
@@ -233,6 +252,20 @@
                 var total = 0;
                 $checked.each(function () { total += trDeFila($(this).closest('tr')); });
                 return { count: cnt, total: total };
+            }
+
+            // Escape HTML m&iacute;nimo para meter strings que vienen del servidor
+            // (observaci&oacute;n, nombre del solicitante, etc.) dentro del `html:`
+            // de un Swal.fire. No es un sanitizador completo, alcanza para este
+            // caso porque el origen es texto libre en la DB.
+            function escHtml(s) {
+                if (s === null || s === undefined) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
             }
 
             // Cambia el badge de estado de una fila y actualiza la "selected" class.
@@ -326,7 +359,9 @@
                     : '';
                 var fechaDisplay = c.fecha && c.fecha.length === 10 ? c.fecha.substring(8, 10) + '/' + c.fecha.substring(5, 7) : '';
                 return '' +
-                    '<div class="sil-cupo-card" style="border-color:' + borderCol + ';">' +
+                    // data-cupo-id / data-obs / data-match: los consume el click handler
+                    // de Confirmar para DLG 2 (detectar cupos con obs) sin parsear texto.
+                    '<div class="sil-cupo-card" data-cupo-id="' + c.id + '" data-obs="' + (c.obs ? '1' : '0') + '" data-match="' + c.match + '" style="border-color:' + borderCol + ';">' +
                     '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
                     '    <input type="checkbox" class="sil-cupo-chk" />' +
                     '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
@@ -407,6 +442,11 @@
                 $actions.show();
 
                 // Confirmar arranca deshabilitado hasta que tilden un cupo.
+                // Tambi&eacute;n reseteamos el estado de cupos seleccionados: al
+                // repintar el listado los checkboxes se recrean y perder&iacute;amos
+                // la referencia a los anteriores. Mejor pedirle al operador que
+                // vuelva a tildar.
+                selectedCupos = {};
                 $('#btnConfirmarAsignacion').prop('disabled', true);
             }
 
@@ -450,8 +490,25 @@
             // Tildar/des-tildar un cupo habilita o no el bot&oacute;n Confirmar.
             // El bind vive fuera de pintarPanelCupos para no re-engancharse en
             // cada repintado del listado.
+            //
+            // El estado `selectedCupos` (declarado m&aacute;s arriba junto a los
+            // otros estados) se completa con el cupo completo (id + obs + match),
+            // no s&oacute;lo el ID. Lo necesitamos para:
+            //   - DLG 2: detectar si alg&uacute;n seleccionado tiene obs=true y
+            //     disparar la confirmaci&oacute;n expl&iacute;cita antes del POST.
+            //   - DLG 4: armar el payload batch con metadatos por cupo.
             $('#cuposListado').on('change', '.sil-cupo-chk', function () {
-                var cnt = $('#cuposListado .sil-cupo-chk:checked').length;
+                var $card = $(this).closest('.sil-cupo-card');
+                var id = $card.data('cupo-id');
+                if ($(this).is(':checked')) {
+                    selectedCupos[id] = {
+                        obs: $card.data('obs') == '1' || $card.data('obs') === true,
+                        match: $card.data('match')
+                    };
+                } else {
+                    delete selectedCupos[id];
+                }
+                var cnt = Object.keys(selectedCupos).length;
                 $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
             });
 
@@ -508,37 +565,97 @@
             });
 
             // "Confirmar asignaci&oacute;n seleccionada"
+            //
+            // Flujo:
+            //   1) Valida que haya al menos un d&iacute;a y un cupo seleccionados.
+            //   2) DLG 2: si alg&uacute;n cupo seleccionado tiene obs=true, muestra
+            //      un Swal de advertencia con la observaci&oacute;n del solicitante
+            //      y los cupos afectados. Si el operador confirma, sigue; si
+            //      cancela, aborta (no se hace POST y los checkboxes quedan
+            //      como estaban).
+            //   3) POST a ConfirmarAsignacionSeleccionada con el array de cupos.
             $('#btnConfirmarAsignacion').on('click', function () {
                 var fechas = {};
                 $('.chkDia:checked').each(function () {
                     var $tr = $(this).closest('tr');
                     fechas[$tr.data('fecha')] = trDeFila($tr);
                 });
-                // Cupos seleccionados: lo mandamos como array de IDs (sin el #).
-                var cuposSeleccionados = [];
-                $('#cuposListado .sil-cupo-chk:checked').each(function () {
-                    var $card = $(this).closest('.sil-cupo-card');
-                    var rawId = $card.find('.sil-cupo-id').text().match(/#\d+/);
-                    if (rawId) cuposSeleccionados.push(rawId[0]);
-                });
+
                 if (Object.keys(fechas).length === 0) {
-                  Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tidle al menos un día de la tabla de la izquierda.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un d&iacute;a de la tabla de la izquierda.' });
                     return;
                 }
-                if (cuposSeleccionados.length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tidle al menos un día de la tabla de la izquierda.' });
+                if (Object.keys(selectedCupos).length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un cupo de la derecha.' });
                     return;
                 }
-                postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
-                    idSolicitud: idSolicitud,
-                    cupoCompatibleId: cuposSeleccionados[0],   // placeholder: el primero
-                    cupos: cuposSeleccionados,
-                    fechas: fechas
-                })
-                    .done(manejarRespuesta)
-                    .fail(function (xhr) {
-                        Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+
+                // Cupos que disparan DLG 2 (tienen obs=true). Se matchean por id
+                // contra el state object, no contra el DOM, para no re-leer el
+                // HTML en cada click.
+                var cuposConObs = Object.keys(selectedCupos).filter(function (id) {
+                    return selectedCupos[id].obs;
+                });
+
+                function doPost() {
+                    // Array de IDs (sin '#') para el payload batch. Cuando
+                    // SILData defina el endpoint de Accept real, este array
+                    // se mapea contra `cupoId` de SolicitudTurno.
+                    var cuposIds = Object.keys(selectedCupos);
+                    postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
+                        idSolicitud: idSolicitud,
+                        cupoCompatibleId: cuposIds[0],   // legacy: el primero
+                        cupos: cuposIds,
+                        fechas: fechas
+                    })
+                        .done(manejarRespuesta)
+                        .fail(function (xhr) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+                        });
+                }
+
+                // DLG 2: confirmaci&oacute;n expl&iacute;cita cuando hay cupos con
+                // observaciones. Backend no cambia: el modal es s&oacute;lo una
+                // capa de seguridad UX.
+                if (cuposConObs.length > 0) {
+                    var cuposListTxt = cuposConObs
+                        .map(function (id) { return 'Cupo <strong>#' + id + '</strong>'; })
+                        .join(', ');
+
+                    var obsTxt = (solicitudObservacion || '').toString();
+                    var obsHtml = obsTxt
+                        ? '<div class="sil-obs-callout"><strong>Observaciones del solicitante:</strong><br/>&laquo;' + escHtml(obsTxt) + '&raquo;</div>'
+                        : '<div class="sil-obs-callout sil-obs-callout-empty">La solicitud no tiene observaciones textuales, pero el/los cupo(s) seleccionado(s) requieren verificaci&oacute;n.</div>';
+
+                    var vendedorTxt = solicitanteNombre
+                        ? 'Solicitante: <strong>' + escHtml(solicitanteNombre) + '</strong>'
+                        : '';
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'La solicitud contiene condiciones especiales',
+                        html: obsHtml +
+                            '<p style="text-align:left;font-size:12px;line-height:1.45;margin:10px 0 6px;">' +
+                            'Verific&aacute; que el/los cupo(s) seleccionado(s) (<strong>' + cuposListTxt + '</strong>) ' +
+                            'satisfacen estas condiciones antes de confirmar la asignaci&oacute;n.</p>' +
+                            (vendedorTxt ? '<p style="text-align:left;font-size:11px;color:#9aa3b5;margin:0;">' + vendedorTxt + '</p>' : ''),
+                        showCancelButton: true,
+                        confirmButtonText: 'S&iacute;, confirmar asignaci&oacute;n',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#a93226',
+                        cancelButtonColor: '#5a6680',
+                        customClass: {
+                            confirmButton: 'sil-btn sil-btn-danger',
+                            cancelButton: 'sil-btn'
+                        }
+                    }).then(function (res) {
+                        if (res.isConfirmed) doPost();
                     });
+                    return;
+                }
+
+                // Sin observaciones: POST directo.
+                doPost();
             });
 
             // "Cancelar" del panel derecho
