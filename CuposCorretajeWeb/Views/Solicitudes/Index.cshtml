@@ -8,7 +8,7 @@
     }
 }
 
-@section Styles{
+@section Styles {
     <link rel="stylesheet" href="~/Content/solicitudes-index.css" />
 }
 
@@ -19,453 +19,579 @@
         <div>
             <h1>Solicitudes de Turno</h1>
             <p>@(string.IsNullOrEmpty(Model.Subtitulo)
-                ? "Solicitudes pendientes de asignación — Centro "+Model.Centro +" · "+ Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
+                                                ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " +
+                                                Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
+            </div>
         </div>
-    </div>
 
-    <!-- ===== Toolbar ===== -->
-    <div class="sil-toolbar">
-        <button type="button" class="sil-btn" id="btnFiltro">
-            <i class="fa-solid fa-magnifying-glass"></i>&nbsp; Filtro
-        </button>
-    </div>
-
-    <!-- ===== Leyenda ===== -->
-    <div class="sil-legend">
-        <span><span class="sil-dot" style="background:#e74c3c;"></span>Cupos disponibles sin asignar</span>
-        <span><span class="sil-dot" style="background:#27ae60;"></span>Sin pendientes</span>
-        <span class="sil-badge sil-badge-dir">Match directo</span>
-        <span class="sil-badge sil-badge-par">Match parcial</span>
-        <span class="sil-badge sil-badge-obs">Con observaciones</span>
-        <span class="sil-badge sil-badge-pending">Pendiente</span>
-        <span class="sil-badge sil-badge-asig">Asignada</span>
-        <span class="sil-badge sil-badge-rech">Rechazada</span>
-    </div>
-
-    <!-- ===== Tabla CONTRACTUAL ===== -->
-    <div class="sil-section-title">
-        Solicitudes CONTRACTUAL
-        <span class="sil-section-subtitle" id="lblContractualCount">—</span>
-    </div>
-    <div class="sil-tbl-wrap">
-        <div class="sil-tbl-scroller">
-            <table id="tablaSolicitudes" class="sil-tbl">
-                <thead id="theadContractual">
-                    <!-- Se completa con JS al cargar la respuesta del endpoint -->
-                </thead>
-                <tbody id="tbodyContractual">
-                    <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
-                </tbody>
-                <tfoot id="tfootContractual"></tfoot>
-            </table>
+        <!-- ===== Toolbar ===== -->
+        <div class="sil-toolbar">
+            <!-- Los filtros ahora viven en la cabecera de cada columna (Grano,
+                 Solicitante, Comprador, Zona) y se aplican en tiempo real al
+                 tipear. El botón Filtro se sacó porque era redundante. -->
         </div>
-        <div class="sil-pager" id="pagerContractual"></div>
-    </div>
 
-    <!-- ===== Tabla FUTURO ===== -->
-    <div class="sil-section-title">
-        Solicitudes FUTURO
-        <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
-    </div>
-    <div class="sil-tbl-wrap">
-        <div class="sil-tbl-scroller">
-            <table id="tablaSolicitudesFuturo" class="sil-tbl">
-                <thead id="theadFuturo"></thead>
-                <tbody id="tbodyFuturo">
-                    <tr><td colspan="@(6 + Model.CantidadDias * 2 + 1)"><div class="sil-empty"><div class="sil-empty-icon">…</div>Cargando solicitudes…</div></td></tr>
-                </tbody>
-                <tfoot id="tfootFuturo"></tfoot>
-            </table>
+        <!-- ===== Leyenda ===== -->
+        <div class="sil-legend">
+            <span><span class="sil-dot" style="background:#e74c3c;"></span>Cupos disponibles sin asignar</span>
+            <span><span class="sil-dot" style="background:#27ae60;"></span>Sin pendientes</span>
+            <span class="sil-badge sil-badge-dir">Match directo</span>
+            <span class="sil-badge sil-badge-par">Match parcial</span>
+            <span class="sil-badge sil-badge-obs">Con observaciones</span>
+            <span class="sil-badge sil-badge-pending">Pendiente</span>
+            <span class="sil-badge sil-badge-asig">Asignada</span>
+            <span class="sil-badge sil-badge-rech">Rechazada</span>
         </div>
-        <div class="sil-pager" id="pagerFuturo"></div>
+
+        <!-- ===== Tabla CONTRACTUAL ===== -->
+        <div class="sil-section-title">
+            Solicitudes CONTRACTUAL
+            <span class="sil-section-subtitle" id="lblContractualCount">—</span>
+        </div>
+        <div class="sil-tbl-wrap">
+            <div class="sil-tbl-scroller">
+                <table id="tablaSolicitudes" class="sil-tbl">
+                    <thead id="theadContractual">
+                        <!-- Se completa con JS al cargar la respuesta del endpoint -->
+                    </thead>
+                    <tbody id="tbodyContractual">
+                        <tr>
+                            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+                                <div class="sil-empty">
+                                    <div class="sil-empty-icon">…</div>Cargando solicitudes…
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="tfootContractual"></tfoot>
+                </table>
+            </div>
+            <div class="sil-pager" id="pagerContractual"></div>
+        </div>
+
+        <!-- ===== Tabla FUTURO ===== -->
+        <div class="sil-section-title">
+            Solicitudes FUTURO
+            <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
+        </div>
+        <div class="sil-tbl-wrap">
+            <div class="sil-tbl-scroller">
+                <table id="tablaSolicitudesFuturo" class="sil-tbl">
+                    <thead id="theadFuturo"></thead>
+                    <tbody id="tbodyFuturo">
+                        <tr>
+                            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+                                <div class="sil-empty">
+                                    <div class="sil-empty-icon">…</div>Cargando solicitudes…
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="tfootFuturo"></tfoot>
+                </table>
+            </div>
+            <div class="sil-pager" id="pagerFuturo"></div>
+        </div>
+
+        <!-- ===== Anotación / ayuda contextual ===== -->
+        <div class="sil-annotation">
+            <strong>Pantalla 1 — Grilla de solicitudes de turno.</strong>
+            El operador visualiza todas las solicitudes pendientes de los centros que tiene asignados.
+            La columna <em>Cupos compatibles</em> muestra el resultado del motor de matching en tiempo real.
+            Los días marcados en rojo indican cupos disponibles aún sin asignar a solicitudes pendientes.
+            Al hacer clic en <em>ver</em> se navega al detalle de la solicitud.
+        </div>
+
     </div>
 
-    <!-- ===== Anotación / ayuda contextual ===== -->
-    <div class="sil-annotation">
-        <strong>Pantalla 1 — Grilla de solicitudes de turno.</strong>
-        El operador visualiza todas las solicitudes pendientes de los centros que tiene asignados.
-        La columna <em>Cupos compatibles</em> muestra el resultado del motor de matching en tiempo real.
-        Los días marcados en rojo indican cupos disponibles aún sin asignar a solicitudes pendientes.
-        Al hacer clic en <em>ver</em> se navega al detalle de la solicitud.
-    </div>
+    @section Scripts {
+        <script type="text/javascript">
+            $(document).ready(function () {
+                ShowLoader();
 
-</div>
+                // Loader global
+                $(document).ajaxStart(function () { ShowLoader(); });
+                $(document).ajaxStop(function () { HideLoader(); });
+                $(document).ajaxError(function () { HideLoader(); });
 
-@section Scripts {
-    <script type="text/javascript">
-        $(document).ready(function () {
-            ShowLoader();
+                // ----- Constantes de render -----
+                const COL_GRANO = 0;
+                const COL_SOLICITANTE = 1;
+                const COL_COMPRADOR = 2;
+                const COL_ZONA = 3;
+                const COL_ESTADO = 4;
+                const COL_CUPOS = 5;
+                // COL 6 .. 6 + 2*N - 1 : fechas (TR/TO)
+                const COL_ACCION = 6 + @(Model.CantidadDias) * 2;
 
-            // Loader global
-            $(document).ajaxStart(function () { ShowLoader(); });
-            $(document).ajaxStop(function () { HideLoader(); });
-            $(document).ajaxError(function () { HideLoader(); });
+                // ----- Estado de filtros por columna -----
+                // Los inputs de la cabecera de cada tabla actualizan estos valores
+                // en tiempo real y re-renderizan ambas tablas. Se preservan entre
+                // recargas del backend (al volver de Pantalla 2, etc.).
+                var state = {
+                    filters: { grano: '', solicitante: '', comprador: '', zona: '' },
+                    fechasHeader: []
+                };
 
-            // ----- Constantes de render -----
-            const COL_GRANO = 0;
-            const COL_SOLICITANTE = 1;
-            const COL_COMPRADOR = 2;
-            const COL_ZONA = 3;
-            const COL_ESTADO = 4;
-            const COL_CUPOS = 5;
-            // COL 6 .. 6 + 2*N - 1 : fechas (TR/TO)
-            const COL_ACCION = 6 + @(Model.CantidadDias) * 2;
-
-            // ----- Handlers de la toolbar -----
-            $('#btnFiltro').on('click', function () {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Filtro',
-                    text: 'Pantalla de filtros — próximamente.',
-                    confirmButtonColor: '#1a3a6b'
-                });
-            });
-
-            // ----- Carga inicial -----
-            // Cache local de las filas por tabla, para que el handler .btn-ver
-            // pueda armar el SolicitudViewModel a partir del row original
-            // (no leemos del DOM porque perderíamos tipos numéricos/long).
-            var currentContractuales = [];
-            var currentFuturos = [];
-
-            $.ajax({
-                url: '@Url.Action("GetAllPendingShiftRequests", "Solicitudes")',
-                method: "GET",
-                dataType: "json",
-                success: function (response) {
-                    currentContractuales = response.Contractuales || [];
-                    currentFuturos = response.Futuros || [];
-
-                    var todas = currentContractuales.concat(currentFuturos);
-                    var sinComp = todas.filter(function (r) { return !r.CuentaComprador; }).length;
-                    var sinDest = todas.filter(function (r) { return !r.CuentaDestino; }).length;
-                    var sinAmbos = todas.filter(function (r) { return !r.CuentaComprador && !r.CuentaDestino; }).length;
-                    console.log('[Solicitudes] Recibidas:', todas.length,
-                        '| Sin Comprador:', sinComp,
-                        '| Sin Destino:', sinDest,
-                        '| Sin ambos:', sinAmbos);
-                    if (sinComp || sinDest) {
-                        console.log('[Solicitudes] Filas sin Comprador/Destino (muestra):',
-                            todas.filter(function (r) { return !r.CuentaComprador || !r.CuentaDestino; })
-                                 .slice(0, 5)
-                                 .map(function (r) { return { id: r.Id, grano: r.NombreGrano, vendedor: r.NombreVendedor, comprador: r.NombreComprador, destino: r.NombreDestino, cantFechas: (r.CantidadFechas || []).map(function (d) { return d.Fecha + '=' + d.Cantidad; }) }; }));
-                    }
-
-                    renderTabla({
-                        theadId: '#theadContractual',
-                        tbodyId: '#tbodyContractual',
-                        tfootId: '#tfootContractual',
-                        countLabelId: '#lblContractualCount',
-                        pagerId: '#pagerContractual',
-                        rows: currentContractuales,
-                        fechasHeader: response.FechasHeader || [],
-                        pageSize: 10,
-                        currentPage: 1
-                    });
-                    renderTabla({
-                        theadId: '#theadFuturo',
-                        tbodyId: '#tbodyFuturo',
-                        tfootId: '#tfootFuturo',
-                        countLabelId: '#lblFuturoCount',
-                        pagerId: '#pagerFuturo',
-                        rows: currentFuturos,
-                        fechasHeader: response.FechasHeader || [],
-                        pageSize: 10,
-                        currentPage: 1
-                    });
-                },
-                error: function (xhr, status, error) {
-                    console.error("Error al obtener los datos:", error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'No se pudieron cargar las solicitudes pendientes.',
-                        confirmButtonColor: '#1a3a6b'
-                    });
-                    ['#tbodyContractual', '#tbodyFuturo'].forEach(function (id) {
-                        $(id).html('<tr><td colspan="' + (@(Model.CantidadDias) * 2 + 7) + '"><div class="sil-empty"><div class="sil-empty-icon">⚠</div>Error al cargar los datos.</div></td></tr>');
-                    });
-                },
-                complete: function () { HideLoader(); }
-            });
-
-            // ----- Función reutilizable de render de tabla -----
-            function renderTabla(opts) {
-                const { theadId, tbodyId, tfootId, countLabelId, pagerId, rows, fechasHeader, pageSize, currentPage } = opts;
-
-                const colspanTotal = 6 + fechasHeader.length * 2 + 1;
-                const totalRows = rows.length;
-                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-                const page = Math.min(Math.max(1, currentPage || 1), totalPages);
-
-                // Header: 2 filas (siempre el mismo)
-                let headHtml = '<tr>' +
-                    '<th class="tl" rowspan="2">Grano</th>' +
-                    '<th class="tl" rowspan="2">Solicitante</th>' +
-                    '<th class="tl" rowspan="2">Comprador</th>' +
-                    '<th rowspan="2">Zona</th>' +
-                    '<th rowspan="2">Estado</th>' +
-                    '<th rowspan="2">Cupos compatibles</th>';
-                fechasHeader.forEach(function (f) {
-                    headHtml += '<th colspan="2">' + f + '</th>';
-                });
-                headHtml += '<th rowspan="2"></th></tr>';
-
-                headHtml += '<tr>';
-                fechasHeader.forEach(function () {
-                    headHtml += '<th>TR</th><th>TO</th>';
-                });
-                headHtml += '</tr>';
-                $(theadId).html(headHtml);
-
-                // Contador global
-                $(countLabelId).text(totalRows + ' fila' + (totalRows !== 1 ? 's' : ''));
-
-                // Body
-                if (!totalRows) {
-                    $(tbodyId).html('<tr><td colspan="' + colspanTotal + '"><div class="sil-empty"><div class="sil-empty-icon">∅</div>No hay solicitudes para mostrar.</div></td></tr>');
-                    $(tfootId).html('');
-                    renderPager(pagerId, 0, 0, pageSize, function () { });
-                    return;
+                function hasActiveFilter() {
+                    var f = state.filters;
+                    return !!(f.grano || f.solicitante || f.comprador || f.zona);
                 }
 
-                // Calcular totales por fecha sobre el set COMPLETO (no la página actual)
-                const totales = fechasHeader.map(function () { return { tr: 0, to: 0, tieneCupoDisponible: false }; });
-                rows.forEach(function (r) {
-                    (r.CantidadFechas || []).forEach(function (d, idx) {
-                        if (idx < totales.length) {
-                            totales[idx].tr += d.Cantidad || 0;
-                            totales[idx].to += d.CantidadFuturo || 0;
-                            if (d.TieneCupoDisponible) totales[idx].tieneCupoDisponible = true;
-                        }
+                function applyFilters(rows) {
+                    var f = state.filters;
+                    var g = (f.grano || '').toLowerCase();
+                    var s = (f.solicitante || '').toLowerCase();
+                    var c = (f.comprador || '').toLowerCase();
+                    var z = (f.zona || '').toLowerCase();
+                    if (!g && !s && !c && !z) return rows;
+                    return rows.filter(function (r) {
+                        if (g && (r.NombreGrano || '').toLowerCase().indexOf(g) === -1) return false;
+                        if (s && (r.NombreVendedor || '').toLowerCase().indexOf(s) === -1) return false;
+                        if (c && (r.NombreComprador || '').toLowerCase().indexOf(c) === -1) return false;
+                        if (z && (r.CodigoCentro || '').toLowerCase().indexOf(z) === -1) return false;
+                        return true;
                     });
-                });
+                }
 
-                // Slice de la página actual
-                const startIdx = (page - 1) * pageSize;
-                const pageRows = rows.slice(startIdx, startIdx + pageSize);
-
-                let bodyHtml = '';
-                let lastGrano = null;
-                pageRows.forEach(function (r) {
-                    // Separador visual por cambio de Grano
-                    if (lastGrano !== null && lastGrano !== r.NombreGrano) {
-                        bodyHtml += '<tr class="sil-row-grupo"><td colspan="' + colspanTotal + '"></td></tr>';
+                function renderBothBodies() {
+                    if (state.fechasHeader.length === 0) return;
+                    if (currentContractuales.length > 0) {
+                        renderTabla({
+                            theadId: '#theadContractual',
+                            tbodyId: '#tbodyContractual',
+                            tfootId: '#tfootContractual',
+                            countLabelId: '#lblContractualCount',
+                            pagerId: '#pagerContractual',
+                            rows: currentContractuales,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1,
+                            skipHeader: true
+                        });
                     }
-                    lastGrano = r.NombreGrano;
+                    if (currentFuturos.length > 0) {
+                        renderTabla({
+                            theadId: '#theadFuturo',
+                            tbodyId: '#tbodyFuturo',
+                            tfootId: '#tfootFuturo',
+                            countLabelId: '#lblFuturoCount',
+                            pagerId: '#pagerFuturo',
+                            rows: currentFuturos,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1,
+                            skipHeader: true
+                        });
+                    }
+                }
 
-                    bodyHtml += '<tr data-id="' + (r.Id || 0) + '">' +
-                        renderCeldaTexto(r.NombreGrano || '—', 'tl') +
-                        renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
-                        renderCeldaTexto(r.NombreComprador || '—', 'tl') +
-                        renderCeldaTexto(r.CodigoCentro || '—', '') +
-                        renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
-                        renderCeldaCupos(r.CuposCompatibles);
+                // (El botón Filtro de la toolbar se sacó: los filtros ahora
+                // viven en la cabecera de cada columna y se aplican en
+                // tiempo real al tipear.)
 
-                    // Celdas TR/TO por fecha
-                    (r.CantidadFechas || []).forEach(function (d) {
-                        bodyHtml += renderCeldaFecha(d);
-                    });
+                // ----- Carga inicial -----
+                // Cache local de las filas por tabla, para que el handler .btn-ver
+                // pueda armar el SolicitudViewModel a partir del row original
+                // (no leemos del DOM porque perderíamos tipos numéricos/long).
+                var currentContractuales = [];
+                var currentFuturos = [];
 
-                    // Acción
-                    bodyHtml += '<td><button type="button" class="sil-icon-btn btn-ver" data-id="' + (r.Id || 0) + '" title="Ver detalle">&#9776; ver</button></td>';
-                    bodyHtml += '</tr>';
+                $.ajax({
+                    url: '@Url.Action("GetAllPendingShiftRequests", "Solicitudes")',
+                    method: "GET",
+                    dataType: "json",
+                    success: function (response) {
+                        currentContractuales = response.Contractuales || [];
+                        currentFuturos = response.Futuros || [];
+                        // Persistimos fechasHeader en state para que el re-render
+                        // por filtro pueda usarlas sin tener que volver a pegarle
+                        // al backend.
+                        state.fechasHeader = response.FechasHeader || [];
+
+                        var todas = currentContractuales.concat(currentFuturos);
+                        var sinComp = todas.filter(function (r) { return !r.CuentaComprador; }).length;
+                        var sinDest = todas.filter(function (r) { return !r.CuentaDestino; }).length;
+                        var sinAmbos = todas.filter(function (r) { return !r.CuentaComprador && !r.CuentaDestino; }).length;
+                        console.log('[Solicitudes] Recibidas:', todas.length,
+                            '| Sin Comprador:', sinComp,
+                            '| Sin Destino:', sinDest,
+                            '| Sin ambos:', sinAmbos);
+                        if (sinComp || sinDest) {
+                            console.log('[Solicitudes] Filas sin Comprador/Destino (muestra):',
+                                todas.filter(function (r) { return !r.CuentaComprador || !r.CuentaDestino; })
+                                    .slice(0, 5)
+                                    .map(function (r) { return { id: r.Id, grano: r.NombreGrano, vendedor: r.NombreVendedor, comprador: r.NombreComprador, destino: r.NombreDestino, cantFechas: (r.CantidadFechas || []).map(function (d) { return d.Fecha + '=' + d.Cantidad; }) }; }));
+                        }
+
+                        renderTabla({
+                            theadId: '#theadContractual',
+                            tbodyId: '#tbodyContractual',
+                            tfootId: '#tfootContractual',
+                            countLabelId: '#lblContractualCount',
+                            pagerId: '#pagerContractual',
+                            rows: currentContractuales,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1
+                        });
+                        renderTabla({
+                            theadId: '#theadFuturo',
+                            tbodyId: '#tbodyFuturo',
+                            tfootId: '#tfootFuturo',
+                            countLabelId: '#lblFuturoCount',
+                            pagerId: '#pagerFuturo',
+                            rows: currentFuturos,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error al obtener los datos:", error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudieron cargar las solicitudes pendientes.',
+                            confirmButtonColor: '#1a3a6b'
+                        });
+                        ['#tbodyContractual', '#tbodyFuturo'].forEach(function (id) {
+                            $(id).html('<tr><td colspan="' + (@(Model.CantidadDias) * 2 + 7) + '"><div class="sil-empty"><div class="sil-empty-icon">⚠</div>Error al cargar los datos.</div></td></tr>');
+                        });
+                    },
+                    complete: function () { HideLoader(); }
                 });
-                $(tbodyId).html(bodyHtml);
-                console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
 
-                // Footer con totales del set completo
-                let footHtml = '<tr class="sil-tr-total">' +
-                    '<td colspan="6" class="tl">Total Diario</td>';
-                totales.forEach(function (t) {
-                    const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
-                    footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
-                    // TO queda en 0 simple hasta que se complete la explicación correspondiente.
-                    footHtml += '<td><span class="sil-zero">0</span></td>';
-                });
-                footHtml += '<td></td></tr>';
-                $(tfootId).html(footHtml);
-
-                // Paginador
-                renderPager(pagerId, totalRows, page, pageSize, function (newPage) {
-                    renderTabla(Object.assign({}, opts, { currentPage: newPage }));
+                // ----- Filtros por columna: event delegation -----
+                // Usamos delegación en document para que el handler sobreviva a
+                // re-renders de la cabecera (la fila sil-tr-filter se recrea
+                // cuando se llama renderTabla sin skipHeader, p.ej. al volver
+                // de Pantalla 2).
+                $(document).on('input', '.sil-th-filter', function () {
+                    var $input = $(this);
+                    var filter = $input.data('filter');
+                    if (!filter) return;
+                    state.filters[filter] = $input.val();
+                    // Re-render sólo el body para no perder el foco del input.
+                    renderBothBodies();
                 });
 
-                // Click en "ver" → arma SolicitudViewModel desde la fila cacheada
-                // y hace POST a AltaSolicitud (TempData + redirect al GET).
-                $(tbodyId).off('click', '.btn-ver').on('click', '.btn-ver', function () {
-                    const $tr = $(this).closest('tr');
-                    const id = $tr.data('id');
-                    const row = currentContractuales.concat(currentFuturos).find(function (r) { return r.Id === id; });
-                    if (!row) {
-                        Swal.fire({ icon: 'error', title: 'No se encontró la fila' });
+                // ----- Función reutilizable de render de tabla -----
+                function renderTabla(opts) {
+                    const { theadId, tbodyId, tfootId, countLabelId, pagerId, rows, fechasHeader, pageSize, currentPage, skipHeader } = opts;
+
+                    const colspanTotal = 6 + fechasHeader.length * 2 + 1;
+
+                    // Aplicar filtros al set antes de paginar. El total original
+                    // (sin filtrar) lo guardamos para mostrar el indicador
+                    // "(filtrado de N)" en el contador.
+                    const filteredRows = applyFilters(rows);
+                    const originalTotal = rows.length;
+                    const totalRows = filteredRows.length;
+                    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                    const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+
+                    // Header: 3 filas. La fila 3 (sil-tr-filter) lleva los
+                    // inputs de filtro por columna. Se renderiza una sola vez
+                    // (cuando skipHeader es false); en re-renders por tipeo
+                    // pasamos skipHeader:true para no perder el foco.
+                    if (!skipHeader) {
+                        let headHtml = '<tr class="sil-tr-hdr">' +
+                            '<th class="tl" rowspan="3">Grano</th>' +
+                            '<th class="tl" rowspan="3">Solicitante</th>' +
+                            '<th class="tl" rowspan="3">Comprador</th>' +
+                            '<th rowspan="3">Zona</th>' +
+                            '<th rowspan="3">Estado</th>' +
+                            '<th rowspan="3">Cupos compatibles</th>';
+                        fechasHeader.forEach(function (f) {
+                            headHtml += '<th colspan="2">' + f + '</th>';
+                        });
+                        headHtml += '<th rowspan="3"></th></tr>';
+
+                        headHtml += '<tr class="sil-tr-subhdr">';
+                        fechasHeader.forEach(function () {
+                            headHtml += '<th>TS</th><th>TO</th>';
+                        });
+                        headHtml += '</tr>';
+
+                        // Fila de filtros: inputs tipeables para Grano, Solicitante,
+                        // Comprador y Zona. El resto de las celdas queda vacío
+                        // (no hay filtro para Estado / Cupos / fechas / acción).
+                        // El value se lee de state.filters para que el filtro
+                        // activo se preserve entre recargas del backend.
+                        headHtml += '<tr class="sil-tr-filter">' +
+                            '<th><input type="text" class="sil-th-filter" data-filter="grano" placeholder="Filtrar..." value="' + escapeHtml(state.filters.grano) + '" aria-label="Filtrar por Grano" autocomplete="off" /></th>' +
+                            '<th><input type="text" class="sil-th-filter" data-filter="solicitante" placeholder="Filtrar..." value="' + escapeHtml(state.filters.solicitante) + '" aria-label="Filtrar por Solicitante" autocomplete="off" /></th>' +
+                            '<th><input type="text" class="sil-th-filter" data-filter="comprador" placeholder="Filtrar..." value="' + escapeHtml(state.filters.comprador) + '" aria-label="Filtrar por Comprador" autocomplete="off" /></th>' +
+                            '<th><input type="text" class="sil-th-filter" data-filter="zona" placeholder="Filtrar..." value="' + escapeHtml(state.filters.zona) + '" aria-label="Filtrar por Zona" autocomplete="off" /></th>' +
+                            '<th></th><th></th>';
+                        fechasHeader.forEach(function () {
+                            headHtml += '<th colspan="2"></th>';
+                        });
+                        headHtml += '<th></th></tr>';
+
+                        $(theadId).html(headHtml);
+                    }
+
+                    // Contador global: si hay filtros activos, muestra
+                    // "N filas (filtrado de M)" para que el operador sepa
+                    // cuántas se ocultaron.
+                    var contadorText = totalRows + ' fila' + (totalRows !== 1 ? 's' : '');
+                    if (hasActiveFilter() && totalRows !== originalTotal) {
+                        contadorText += ' <span class="sil-filter-active-indicator">(filtrado de ' + originalTotal + ')</span>';
+                    }
+                    $(countLabelId).html(contadorText);
+
+                    // Body
+                    if (!totalRows) {
+                        var emptyMsg = hasActiveFilter()
+                            ? '<div class="sil-empty"><div class="sil-empty-icon">∅</div>Ninguna solicitud coincide con los filtros aplicados.</div>'
+                            : '<div class="sil-empty"><div class="sil-empty-icon">∅</div>No hay solicitudes para mostrar.</div>';
+                        $(tbodyId).html('<tr><td colspan="' + colspanTotal + '">' + emptyMsg + '</td></tr>');
+                        $(tfootId).html('');
+                        renderPager(pagerId, 0, 0, pageSize, function () { });
                         return;
                     }
-                    // Diccionario de cantidades por fecha (yyyy-MM-dd).
-                    const fechas = (row.CantidadFechas || []).reduce(function (acc, d) {
-                        acc[d.Fecha] = d.Cantidad || 0;
-                        return acc;
-                    }, {});
 
-                    const payload = {
-                        IdSolicitud: row.Id,
-                        CodigoCentro: row.CodigoCentro || '',
-                        CodigoGrano: row.CodigoGrano,
-                        NombreGrano: row.NombreGrano || '',
-                        CuentaVendedor: row.CuentaVendedor,
-                        Solicitante: row.NombreVendedor || '',
-                        CuentaComprador: row.CuentaComprador,
-                        Comprador: row.NombreComprador || '',
-                        NombreComprador: row.NombreComprador || '',
-                        CuentaDestino: row.CuentaDestino,
-                        NombreDestino: row.NombreDestino || '',
-                        // La grilla no expone zona real todavía; mandamos el
-                        // codigoCentro como aproximación para que el dropdown
-                        // arranque con un valor. Cuando la API devuelva
-                        // nombreZona/ZonaId reales, se cambia acá.
-                        Zona: row.CodigoCentro || '',
-                        Observacion: row.Observacion || '',
-                        EstadoBadge: row.EstadoBadge || 'pending',
-                        EstadoLabel: row.EstadoLabel || 'Pendiente',
-                        Fechas: fechas
-                    };
-
-                    // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
-                    var showLoaderAt = Date.now();
-                    ShowLoader();
-                    $.ajax({
-                        url: '@Url.Action("AltaSolicitud", "Solicitudes")',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        dataType: 'json',
-                        global: false,
-                        data: JSON.stringify(payload)
-                    })
-                    .done(function (r) {
-                        if (r && r.success && r.redirectUrl) {
-                            var elapsed = Date.now() - showLoaderAt;
-                            var minVisible = 400;
-                            var wait = Math.max(250, minVisible - elapsed);
-                            setTimeout(function () { window.location = r.redirectUrl; }, wait);
-                        } else {
-                            HideLoader();
-                            Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
-                        }
-                    })
-                    .fail(function (xhr) {
-                        HideLoader();
-                        Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+                    // Calcular totales por fecha sobre el set FILTRADO COMPLETO
+                    // (no la página actual) para que el footer muestre la suma
+                    // de lo que efectivamente coincide con el filtro.
+                    const totales = fechasHeader.map(function () { return { tr: 0, to: 0, tieneCupoDisponible: false }; });
+                    filteredRows.forEach(function (r) {
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            if (idx < totales.length) {
+                                totales[idx].tr += d.Cantidad || 0;
+                                totales[idx].to += d.CantidadFuturo || 0;
+                                if (d.TieneCupoDisponible) totales[idx].tieneCupoDisponible = true;
+                            }
+                        });
                     });
-                });
-            }
 
-            // ----- Paginador -----
-            function renderPager(pagerId, totalRows, currentPage, pageSize, onPageChange) {
-                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-                const page = Math.min(Math.max(1, currentPage || 1), totalPages);
-                const $p = $(pagerId);
-                if (!$p.length) return;
+                    // Slice de la página actual
+                    const startIdx = (page - 1) * pageSize;
+                    const pageRows = filteredRows.slice(startIdx, startIdx + pageSize);
 
-                if (totalRows === 0) {
-                    $p.html('<span class="sil-pager-info">Sin resultados</span>');
-                    return;
+                    let bodyHtml = '';
+                    let lastGrano = null;
+                    pageRows.forEach(function (r) {
+                        // Separador visual por cambio de Grano
+                        if (lastGrano !== null && lastGrano !== r.NombreGrano) {
+                            bodyHtml += '<tr class="sil-row-grupo"><td colspan="' + colspanTotal + '"></td></tr>';
+                        }
+                        lastGrano = r.NombreGrano;
+
+                        bodyHtml += '<tr data-id="' + (r.Id || 0) + '">' +
+                            renderCeldaTexto(r.NombreGrano || '—', 'tl') +
+                            renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
+                            renderCeldaTexto(r.NombreComprador || '—', 'tl') +
+                            renderCeldaTexto(r.CodigoCentro || '—', '') +
+                            renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
+                            renderCeldaCupos(r.CuposCompatibles);
+
+                        // Celdas TR/TO por fecha
+                        (r.CantidadFechas || []).forEach(function (d) {
+                            bodyHtml += renderCeldaFecha(d);
+                        });
+
+                        // Acción
+                        bodyHtml += '<td><button type="button" class="sil-icon-btn btn-ver" data-id="' + (r.Id || 0) + '" title="Ver detalle">&#9776; ver</button></td>';
+                        bodyHtml += '</tr>';
+                    });
+                    $(tbodyId).html(bodyHtml);
+                    console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
+
+                    // Footer con totales del set completo
+                    let footHtml = '<tr class="sil-tr-total">' +
+                        '<td colspan="6" class="tl">Total Diario</td>';
+                    totales.forEach(function (t) {
+                        const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
+                        footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
+                        // TO queda en 0 simple hasta que se complete la explicación correspondiente.
+                        footHtml += '<td><span class="sil-zero">0</span></td>';
+                    });
+                    footHtml += '<td></td></tr>';
+                    $(tfootId).html(footHtml);
+
+                    // Paginador
+                    renderPager(pagerId, totalRows, page, pageSize, function (newPage) {
+                        renderTabla(Object.assign({}, opts, { currentPage: newPage }));
+                    });
+
+                    // Click en "ver" → arma SolicitudViewModel desde la fila cacheada
+                    // y hace POST a AltaSolicitud (TempData + redirect al GET).
+                    $(tbodyId).off('click', '.btn-ver').on('click', '.btn-ver', function () {
+                        const $tr = $(this).closest('tr');
+                        const id = $tr.data('id');
+                        const row = currentContractuales.concat(currentFuturos).find(function (r) { return r.Id === id; });
+                        if (!row) {
+                            Swal.fire({ icon: 'error', title: 'No se encontró la fila' });
+                            return;
+                        }
+                        // Diccionario de cantidades por fecha (yyyy-MM-dd).
+                        const fechas = (row.CantidadFechas || []).reduce(function (acc, d) {
+                            acc[d.Fecha] = d.Cantidad || 0;
+                            return acc;
+                        }, {});
+
+                        const payload = {
+                            IdSolicitud: row.Id,
+                            CodigoCentro: row.CodigoCentro || '',
+                            CodigoGrano: row.CodigoGrano,
+                            NombreGrano: row.NombreGrano || '',
+                            CuentaVendedor: row.CuentaVendedor,
+                            Solicitante: row.NombreVendedor || '',
+                            CuentaComprador: row.CuentaComprador,
+                            Comprador: row.NombreComprador || '',
+                            NombreComprador: row.NombreComprador || '',
+                            CuentaDestino: row.CuentaDestino,
+                            NombreDestino: row.NombreDestino || '',
+                            // La grilla no expone zona real todavía; mandamos el
+                            // codigoCentro como aproximación para que el dropdown
+                            // arranque con un valor. Cuando la API devuelva
+                            // nombreZona/ZonaId reales, se cambia acá.
+                            Zona: row.CodigoCentro || '',
+                            Observacion: row.Observacion || '',
+                            EstadoBadge: row.EstadoBadge || 'pending',
+                            EstadoLabel: row.EstadoLabel || 'Pendiente',
+                            Fechas: fechas
+                        };
+
+                        // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
+                        var showLoaderAt = Date.now();
+                        ShowLoader();
+                        $.ajax({
+                            url: '@Url.Action("AltaSolicitud", "Solicitudes")',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            global: false,
+                            data: JSON.stringify(payload)
+                        })
+                            .done(function (r) {
+                                if (r && r.success && r.redirectUrl) {
+                                    var elapsed = Date.now() - showLoaderAt;
+                                    var minVisible = 400;
+                                    var wait = Math.max(250, minVisible - elapsed);
+                                    setTimeout(function () { window.location = r.redirectUrl; }, wait);
+                                } else {
+                                    HideLoader();
+                                    Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
+                                }
+                            })
+                            .fail(function (xhr) {
+                                HideLoader();
+                                Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+                            });
+                    });
                 }
 
-                const desde = (page - 1) * pageSize + 1;
-                const hasta = Math.min(page * pageSize, totalRows);
+                // ----- Paginador -----
+                function renderPager(pagerId, totalRows, currentPage, pageSize, onPageChange) {
+                    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                    const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+                    const $p = $(pagerId);
+                    if (!$p.length) return;
 
-                let html = '<span class="sil-pager-info">Mostrando ' + desde + '–' + hasta + ' de ' + totalRows + '</span>';
+                    if (totalRows === 0) {
+                        $p.html('<span class="sil-pager-info">Sin resultados</span>');
+                        return;
+                    }
 
-                html += '<button type="button" data-pg="prev"' + (page === 1 ? ' disabled' : '') + '>&lsaquo;</button>';
+                    const desde = (page - 1) * pageSize + 1;
+                    const hasta = Math.min(page * pageSize, totalRows);
 
-                // Rango de páginas a mostrar: si hay muchas, ventana de 5 alrededor de la actual.
-                const windowSize = 5;
-                let start = Math.max(1, page - Math.floor(windowSize / 2));
-                let end = Math.min(totalPages, start + windowSize - 1);
-                start = Math.max(1, end - windowSize + 1);
+                    let html = '<span class="sil-pager-info">Mostrando ' + desde + '–' + hasta + ' de ' + totalRows + '</span>';
 
-                for (let i = start; i <= end; i++) {
-                    html += '<button type="button" data-pg="' + i + '"' + (i === page ? ' class="sil-pager-active"' : '') + '>' + i + '</button>';
+                    html += '<button type="button" data-pg="prev"' + (page === 1 ? ' disabled' : '') + '>&lsaquo;</button>';
+
+                    // Rango de páginas a mostrar: si hay muchas, ventana de 5 alrededor de la actual.
+                    const windowSize = 5;
+                    let start = Math.max(1, page - Math.floor(windowSize / 2));
+                    let end = Math.min(totalPages, start + windowSize - 1);
+                    start = Math.max(1, end - windowSize + 1);
+
+                    for (let i = start; i <= end; i++) {
+                        html += '<button type="button" data-pg="' + i + '"' + (i === page ? ' class="sil-pager-active"' : '') + '>' + i + '</button>';
+                    }
+
+                    html += '<button type="button" data-pg="next"' + (page === totalPages ? ' disabled' : '') + '>&rsaquo;</button>';
+
+                    $p.html(html);
+                    $p.off('click', 'button').on('click', 'button', function () {
+                        if ($(this).is(':disabled')) return;
+                        const v = $(this).data('pg');
+                        let np = page;
+                        if (v === 'prev') np = page - 1;
+                        else if (v === 'next') np = page + 1;
+                        else np = parseInt(v, 10);
+                        if (np !== page) onPageChange(np);
+                    });
                 }
 
-                html += '<button type="button" data-pg="next"' + (page === totalPages ? ' disabled' : '') + '>&rsaquo;</button>';
-
-                $p.html(html);
-                $p.off('click', 'button').on('click', 'button', function () {
-                    if ($(this).is(':disabled')) return;
-                    const v = $(this).data('pg');
-                    let np = page;
-                    if (v === 'prev') np = page - 1;
-                    else if (v === 'next') np = page + 1;
-                    else np = parseInt(v, 10);
-                    if (np !== page) onPageChange(np);
-                });
-            }
-
-            // ----- Helpers de celda -----
-            function renderCeldaTexto(valor, alignClass) {
-                return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
-            }
-
-            function renderCeldaFecha(d) {
-                // TR: el controller deposita aquí Cantidad (CONTRACTUAL) o CantidadFuturo
-                // (FUTURO) según la tabla a la que pertenece la fila. El render es
-                // genérico: si hay valor se muestra, si no y hay cupo disponible
-                // se pinta el chip rojo, si no, el 0 gris.
-                let trCell = '<td>';
-                if (d.Cantidad > 0) trCell += d.Cantidad;
-                else if (d.TieneCupoDisponible) trCell += '<span class="sil-cell-red">0</span>';
-                else trCell += '<span class="sil-zero">0</span>';
-                trCell += '</td>';
-
-                // TO: queda en 0 simple hasta que se complete la explicación
-                // correspondiente. Mismo criterio de color que TR.
-                let toCell = '<td>';
-                if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
-                else toCell += '<span class="sil-zero">0</span>';
-                toCell += '</td>';
-
-                return trCell + toCell;
-            }
-
-            function renderCeldaEstado(cls, label) {
-                return '<td><span class="sil-badge sil-badge-' + cls + '">' + escapeHtml(label || 'Pendiente') + '</span></td>';
-            }
-
-            function renderCeldaCupos(cc) {
-                if (!cc) return '<td><span class="sil-zero">—</span></td>';
-
-                if (cc.CupoAsignadoId) {
-                    return '<td><span style="font-size:11px;color:#155724;font-weight:500;">Cupo #' + cc.CupoAsignadoId + ' asignado</span></td>';
+                // ----- Helpers de celda -----
+                function renderCeldaTexto(valor, alignClass) {
+                    return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
                 }
 
-                if (cc.TextoResumen === 'Rechazo manual') {
-                    return '<td><span style="font-size:11px;color:#a93226;">Rechazo manual</span></td>';
+                function renderCeldaFecha(d) {
+                    // TR: el controller deposita aquí Cantidad (CONTRACTUAL) o CantidadFuturo
+                    // (FUTURO) según la tabla a la que pertenece la fila. El render es
+                    // genérico: si hay valor se muestra, si no y hay cupo disponible
+                    // se pinta el chip rojo, si no, el 0 gris.
+                    let trCell = '<td>';
+                    if (d.Cantidad > 0) trCell += d.Cantidad;
+                    else if (d.TieneCupoDisponible) trCell += '<span class="sil-cell-red">0</span>';
+                    else trCell += '<span class="sil-zero">0</span>';
+                    trCell += '</td>';
+
+                    // TO: queda en 0 simple hasta que se complete la explicación
+                    // correspondiente. Mismo criterio de color que TR.
+                    let toCell = '<td>';
+                    if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
+                    else toCell += '<span class="sil-zero">0</span>';
+                    toCell += '</td>';
+
+                    return trCell + toCell;
                 }
 
-                if (cc.TextoResumen === 'Sin coincidencia') {
-                    return '<td><span style="font-size:11px;color:#9aa3b5;">Sin coincidencia</span></td>';
+                function renderCeldaEstado(cls, label) {
+                    return '<td><span class="sil-badge sil-badge-' + cls + '">' + escapeHtml(label || 'Pendiente') + '</span></td>';
                 }
 
-                // Para casos con directos/parciales/observaciones
-                let html = '';
-                if (cc.Directos > 0) html += '<span class="sil-badge sil-badge-dir" style="margin-right:3px;">' + cc.Directos + ' directo' + (cc.Directos !== 1 ? 's' : '') + '</span>';
-                if (cc.Parciales > 0) html += '<span class="sil-badge sil-badge-par" style="margin-right:3px;">' + cc.Parciales + ' parcial' + (cc.Parciales !== 1 ? 'es' : '') + '</span>';
-                if (cc.Observaciones > 0) html += '<span class="sil-badge sil-badge-obs">' + cc.Observaciones + ' obs.</span>';
+                function renderCeldaCupos(cc) {
+                    if (!cc) return '<td><span class="sil-zero">—</span></td>';
 
-                if (!html) html = '<span style="font-size:11px;color:#9aa3b5;">' + escapeHtml(cc.TextoResumen || '—') + '</span>';
-                return '<td>' + html + '</td>';
-            }
+                    if (cc.CupoAsignadoId) {
+                        return '<td><span style="font-size:11px;color:#155724;font-weight:500;">Cupo #' + cc.CupoAsignadoId + ' asignado</span></td>';
+                    }
 
-            function escapeHtml(s) {
-                if (s === null || s === undefined) return '';
-                return String(s)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            }
-        });
-    </script>
-}
+                    if (cc.TextoResumen === 'Rechazo manual') {
+                        return '<td><span style="font-size:11px;color:#a93226;">Rechazo manual</span></td>';
+                    }
+
+                    if (cc.TextoResumen === 'Sin coincidencia') {
+                        return '<td><span style="font-size:11px;color:#9aa3b5;">Sin coincidencia</span></td>';
+                    }
+
+                    // Para casos con directos/parciales/observaciones
+                    let html = '';
+                    if (cc.Directos > 0) html += '<span class="sil-badge sil-badge-dir" style="margin-right:3px;">' + cc.Directos + ' directo' + (cc.Directos !== 1 ? 's' : '') + '</span>';
+                    if (cc.Parciales > 0) html += '<span class="sil-badge sil-badge-par" style="margin-right:3px;">' + cc.Parciales + ' parcial' + (cc.Parciales !== 1 ? 'es' : '') + '</span>';
+                    if (cc.Observaciones > 0) html += '<span class="sil-badge sil-badge-obs">' + cc.Observaciones + ' obs.</span>';
+
+                    if (!html) html = '<span style="font-size:11px;color:#9aa3b5;">' + escapeHtml(cc.TextoResumen || '—') + '</span>';
+                    return '<td>' + html + '</td>';
+                }
+
+                function escapeHtml(s) {
+                    if (s === null || s === undefined) return '';
+                    return String(s)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+            });
+        </script>
+    }

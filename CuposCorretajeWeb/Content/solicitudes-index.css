@@ -196,7 +196,7 @@
     min-width: 1400px;
 }
 
-.sil-tbl thead tr:first-child th {
+.sil-tbl thead tr.sil-tr-hdr th {
     background: var(--sil-navy);
     color: #fff;
     position: sticky;
@@ -204,13 +204,57 @@
     z-index: 3;
 }
 
-.sil-tbl thead tr:last-child th {
+.sil-tbl thead tr.sil-tr-subhdr th {
     background: var(--sil-navy-light);
     color: rgba(255,255,255,.92);
     font-size: 11px;
     position: sticky;
     top: 32px; /* alto aprox. de la primera fila del thead */
     z-index: 2;
+}
+
+/* ---- Fila 3: filtros por columna (Grano, Solicitante, Comprador, Zona) ---- */
+.sil-tbl thead tr.sil-tr-filter th {
+    background: #f0f4fa;
+    padding: 4px 5px;
+    position: sticky;
+    top: 60px; /* debajo de la primera y segunda fila del thead */
+    z-index: 1;
+    border-bottom: 1px solid var(--sil-border);
+}
+
+.sil-th-filter {
+    display: block;
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--sil-text-primary);
+    background: #fff;
+    border: 1px solid var(--sil-border);
+    border-radius: 3px;
+    box-sizing: border-box;
+    font-family: inherit;
+    line-height: 1.2;
+}
+
+.sil-th-filter:focus {
+    outline: none;
+    border-color: var(--sil-navy-light);
+    box-shadow: 0 0 0 2px rgba(26, 58, 107, 0.15);
+}
+
+.sil-th-filter::placeholder {
+    color: var(--sil-text-tertiary);
+    font-style: italic;
+    font-size: 10.5px;
+}
+
+/* Indicador de filtro activo en el contador de la tabla */
+.sil-filter-active-indicator {
+    color: var(--sil-navy);
+    font-weight: 600;
+    margin-left: 4px;
 }
 
 .sil-tbl th {
