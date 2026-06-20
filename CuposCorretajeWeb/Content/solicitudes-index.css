@@ -202,6 +202,11 @@
     position: sticky;
     top: 0;
     z-index: 3;
+    /* Cada th de la fila 1 contiene label + input de filtro apilados.
+       vertical-align top para que ambos queden alineados arriba. */
+    vertical-align: top;
+    padding: 7px 6px 5px;
+    white-space: normal;
 }
 
 .sil-tbl thead tr.sil-tr-subhdr th {
@@ -209,24 +214,26 @@
     color: rgba(255,255,255,.92);
     font-size: 11px;
     position: sticky;
-    top: 32px; /* alto aprox. de la primera fila del thead */
+    top: 60px; /* alto aprox. de la primera fila con label+input */
     z-index: 2;
 }
 
-/* ---- Fila 3: filtros por columna (Grano, Solicitante, Comprador, Zona) ---- */
-.sil-tbl thead tr.sil-tr-filter th {
-    background: #f0f4fa;
-    padding: 4px 5px;
-    position: sticky;
-    top: 60px; /* debajo de la primera y segunda fila del thead */
-    z-index: 1;
-    border-bottom: 1px solid var(--sil-border);
+/* ---- Filtro tipeable dentro de la celda-label de la cabecera ---- */
+.sil-th-label {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 4px;
+    text-align: left;
 }
+
+.sil-tbl th.tl .sil-th-label { text-align: left; }
+.sil-tbl th:not(.tl) .sil-th-label { text-align: center; }
 
 .sil-th-filter {
     display: block;
     width: 100%;
-    padding: 4px 6px;
+    padding: 3px 6px;
     font-size: 11px;
     font-weight: normal;
     color: var(--sil-text-primary);
@@ -236,6 +243,7 @@
     box-sizing: border-box;
     font-family: inherit;
     line-height: 1.2;
+    min-width: 90px;
 }
 
 .sil-th-filter:focus {
