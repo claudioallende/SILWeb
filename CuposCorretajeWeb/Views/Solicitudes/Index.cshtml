@@ -1,111 +1,111 @@
 @model CuposCorretajeWeb.Models.Solicitudes.IndexModel
 @{
-    ViewBag.Title = "Solicitudes de Turno";
-    var fechasHeader = new List<string>();
-    for (int i = 0; i < Model.CantidadDias; i++)
-    {
-        fechasHeader.Add(Model.FechaReferencia.AddDays(i).ToString("dd/MM"));
-    }
+  ViewBag.Title = "Solicitudes de Turno";
+  var fechasHeader = new List<string>();
+  for (int i = 0; i < Model.CantidadDias; i++)
+  {
+    fechasHeader.Add(Model.FechaReferencia.AddDays(i).ToString("dd/MM"));
+  }
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/Content/solicitudes-index.css" />
+  <link rel="stylesheet" href="~/Content/solicitudes-index.css" />
 }
 
 <div class="container-fluid">
 
-    <!-- ===== Page header ===== -->
-    <div class="sil-page-hd">
-        <div>
-            <h1>Solicitudes de Turno</h1>
-            <p>@(string.IsNullOrEmpty(Model.Subtitulo)
-                                                                ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " +
-                                                                Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
-            </div>
-        </div>
-
-        <!-- ===== Toolbar ===== -->
-        <div class="sil-toolbar">
-            <!-- Los filtros ahora viven en la cabecera de cada columna (Grano,
-                 Solicitante, Comprador, Zona) y se aplican en tiempo real al
-                 tipear. El botón Filtro se sacó porque era redundante. -->
-        </div>
-
-        <!-- ===== Leyenda ===== -->
-        <div class="sil-legend">
-            <span><span class="sil-dot" style="background:#e74c3c;"></span>Cupos disponibles sin asignar</span>
-            <span><span class="sil-dot" style="background:#27ae60;"></span>Sin pendientes</span>
-            <span class="sil-badge sil-badge-dir">Match directo</span>
-            <span class="sil-badge sil-badge-par">Match parcial</span>
-            <span class="sil-badge sil-badge-obs">Con observaciones</span>
-            <span class="sil-badge sil-badge-pending">Pendiente</span>
-            <span class="sil-badge sil-badge-asig">Asignada</span>
-            <span class="sil-badge sil-badge-rech">Rechazada</span>
-        </div>
-
-        <!-- ===== Tabla CONTRACTUAL ===== -->
-        <div class="sil-section-title">
-            Solicitudes CONTRACTUAL
-            <span class="sil-section-subtitle" id="lblContractualCount">—</span>
-        </div>
-        <div class="sil-tbl-wrap">
-            <div class="sil-tbl-scroller">
-                <table id="tablaSolicitudes" class="sil-tbl">
-                    <thead id="theadContractual">
-                        <!-- Se completa con JS al cargar la respuesta del endpoint -->
-                    </thead>
-                    <tbody id="tbodyContractual">
-                        <tr>
-                            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
-                                <div class="sil-empty">
-                                    <div class="sil-empty-icon">…</div>Cargando solicitudes…
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot id="tfootContractual"></tfoot>
-                </table>
-            </div>
-            <div class="sil-pager" id="pagerContractual"></div>
-        </div>
-
-        <!-- ===== Tabla FUTURO ===== -->
-        <div class="sil-section-title">
-            Solicitudes FUTURO
-            <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
-        </div>
-        <div class="sil-tbl-wrap">
-            <div class="sil-tbl-scroller">
-                <table id="tablaSolicitudesFuturo" class="sil-tbl">
-                    <thead id="theadFuturo"></thead>
-                    <tbody id="tbodyFuturo">
-                        <tr>
-                            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
-                                <div class="sil-empty">
-                                    <div class="sil-empty-icon">…</div>Cargando solicitudes…
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot id="tfootFuturo"></tfoot>
-                </table>
-            </div>
-            <div class="sil-pager" id="pagerFuturo"></div>
-        </div>
-
-        <!-- ===== Anotación / ayuda contextual ===== -->
-        <div class="sil-annotation">
-            <strong>Pantalla 1 — Grilla de solicitudes de turno.</strong>
-            El operador visualiza todas las solicitudes pendientes de los centros que tiene asignados.
-            La columna <em>Cupos compatibles</em> muestra el resultado del motor de matching en tiempo real.
-            Los días marcados en rojo indican cupos disponibles aún sin asignar a solicitudes pendientes.
-            Al hacer clic en <em>ver</em> se navega al detalle de la solicitud.
-        </div>
-
+  <!-- ===== Page header ===== -->
+  <div class="sil-page-hd">
+    <div>
+      <h1>Solicitudes de Turno</h1>
+      <p>
+        @(string.IsNullOrEmpty(Model.Subtitulo) ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " + Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)
+      </p>
     </div>
+  </div>
 
-    @section Scripts {
-        <script type="text/javascript">
+  <!-- ===== Toolbar ===== -->
+  <div class="sil-toolbar">
+    <!-- Los filtros ahora viven en la cabecera de cada columna (Grano,
+         Solicitante, Comprador, Zona) y se aplican en tiempo real al
+         tipear. El botón Filtro se sacó porque era redundante. -->
+  </div>
+
+  <!-- ===== Leyenda ===== -->
+  <div class="sil-legend">
+    <span><span class="sil-dot" style="background:#e74c3c;"></span>Cupos disponibles sin asignar</span>
+    <span><span class="sil-dot" style="background:#27ae60;"></span>Sin pendientes</span>
+    <span class="sil-badge sil-badge-dir">Match directo</span>
+    <span class="sil-badge sil-badge-par">Match parcial</span>
+    <span class="sil-badge sil-badge-obs">Con observaciones</span>
+    <span class="sil-badge sil-badge-pending">Pendiente</span>
+    <span class="sil-badge sil-badge-asig">Asignada</span>
+    <span class="sil-badge sil-badge-rech">Rechazada</span>
+  </div>
+
+  <!-- ===== Tabla CONTRACTUAL ===== -->
+  <div class="sil-section-title">
+    Solicitudes CONTRACTUAL
+    <span class="sil-section-subtitle" id="lblContractualCount">—</span>
+  </div>
+  <div class="sil-tbl-wrap">
+    <div class="sil-tbl-scroller">
+      <table id="tablaSolicitudes" class="sil-tbl">
+        <thead id="theadContractual">
+          <!-- Se completa con JS al cargar la respuesta del endpoint -->
+        </thead>
+        <tbody id="tbodyContractual">
+          <tr>
+            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+              <div class="sil-empty">
+                <div class="sil-empty-icon">…</div>Cargando solicitudes…
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot id="tfootContractual"></tfoot>
+      </table>
+    </div>
+    <div class="sil-pager" id="pagerContractual"></div>
+  </div>
+
+  <!-- ===== Tabla FUTURO ===== -->
+  <div class="sil-section-title">
+    Solicitudes FUTURO
+    <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
+  </div>
+  <div class="sil-tbl-wrap">
+    <div class="sil-tbl-scroller">
+      <table id="tablaSolicitudesFuturo" class="sil-tbl">
+        <thead id="theadFuturo"></thead>
+        <tbody id="tbodyFuturo">
+          <tr>
+            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+              <div class="sil-empty">
+                <div class="sil-empty-icon">…</div>Cargando solicitudes…
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot id="tfootFuturo"></tfoot>
+      </table>
+    </div>
+    <div class="sil-pager" id="pagerFuturo"></div>
+  </div>
+
+  <!-- ===== Anotación / ayuda contextual ===== -->
+  <div class="sil-annotation">
+    <strong>Pantalla 1 — Grilla de solicitudes de turno.</strong>
+    El operador visualiza todas las solicitudes pendientes de los centros que tiene asignados.
+    La columna <em>Cupos compatibles</em> muestra el resultado del motor de matching en tiempo real.
+    Los días marcados en rojo indican cupos disponibles aún sin asignar a solicitudes pendientes.
+    Al hacer clic en <em>ver</em> se navega al detalle de la solicitud.
+  </div>
+
+</div>
+
+@section Scripts {
+  <script type="text/javascript">
             $(document).ready(function () {
                 ShowLoader();
 
@@ -592,5 +592,5 @@
                         .replace(/'/g, '&#39;');
                 }
             });
-        </script>
-    }
+  </script>
+}
