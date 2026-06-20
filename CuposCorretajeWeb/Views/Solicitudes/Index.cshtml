@@ -19,8 +19,8 @@
         <div>
             <h1>Solicitudes de Turno</h1>
             <p>@(string.IsNullOrEmpty(Model.Subtitulo)
-                                                ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " +
-                                                Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
+                                                                ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " +
+                                                                Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)</p>
             </div>
         </div>
 
@@ -291,43 +291,43 @@
                     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
                     const page = Math.min(Math.max(1, currentPage || 1), totalPages);
 
-                    // Header: 2 filas. La primera contiene el label + el input
-                    // de filtro de cada columna filtrable (Grano, Solicitante,
-                    // Comprador, Zona) dentro del MISMO <th> con rowspan=2.
-                    // La segunda fila es la sub-cabecera TR/TO bajo cada fecha.
+                    // Header: 2 filas sin rowspan, alineadas por columna.
+                    //   Fila 1 (sil-tr-hdr): labels de columna + headers de fecha (colspan=2).
+                    //   Fila 2 (sil-tr-filter): inputs de filtro bajo Grano/Sol/Comp/Zona
+                    //                           + sub-headers TR/TO bajo cada fecha
+                    //                           + celdas vacías bajo Estado/Cupos/Acción.
                     //
-                    // No usamos una tercera fila separada para los filtros
-                    // porque los <th rowspan="2"> de la fila 1 ocupan las
-                    // primeras 6 columnas y la última — poner filtros en una
-                    // fila 3 los desalinea y los empuja a la derecha.
+                    // Antes probamos con rowspan=2/3 y los filtros adentro del
+                    // mismo <th> que el label, pero eso dejaba la fila 1 muy
+                    // alta y descolocaba los headers de fecha. Esta estructura
+                    // es la estándar de DataTables y similares: cada filtro
+                    // queda en su propia celda, debajo del label de su columna.
                     if (!skipHeader) {
-                        function thFilterable(cls, label, filterKey) {
-                            return '<th class="' + (cls || '') + '" rowspan="2">' +
-                                '<div class="sil-th-label">' + label + '</div>' +
-                                '<input type="text" class="sil-th-filter" data-filter="' + filterKey + '" placeholder="Filtrar..." value="' + escapeHtml(state.filters[filterKey]) + '" aria-label="Filtrar por ' + label + '" autocomplete="off" />' +
-                            '</th>';
-                        }
-                        function thPlain(cls, label) {
-                            return '<th class="' + (cls || '') + '" rowspan="2">' + label + '</th>';
-                        }
-
+                        // Fila 1: labels + headers de fecha
                         let headHtml = '<tr class="sil-tr-hdr">' +
-                            thFilterable('tl', 'Grano', 'grano') +
-                            thFilterable('tl', 'Solicitante', 'solicitante') +
-                            thFilterable('tl', 'Comprador', 'comprador') +
-                            thFilterable('', 'Zona', 'zona') +
-                            thPlain('', 'Estado') +
-                            thPlain('', 'Cupos compatibles');
+                            '<th class="tl">Grano</th>' +
+                            '<th class="tl">Solicitante</th>' +
+                            '<th class="tl">Comprador</th>' +
+                            '<th>Zona</th>' +
+                            '<th>Estado</th>' +
+                            '<th>Cupos compatibles</th>';
                         fechasHeader.forEach(function (f) {
-                            headHtml += '<th colspan="2">' + f + '</th>';
+                            headHtml += '<th colspan="2" class="sil-th-date">' + f + '</th>';
                         });
-                        headHtml += '<th rowspan="2"></th></tr>';
+                        headHtml += '<th></th></tr>';
 
-                        headHtml += '<tr class="sil-tr-subhdr">';
+                        // Fila 2: filtros (bajo Grano/Sol/Comp/Zona) + TR/TO (bajo fechas)
+                        headHtml += '<tr class="sil-tr-filter">' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="grano" placeholder="Filtrar..." value="' + escapeHtml(state.filters.grano) + '" aria-label="Filtrar por Grano" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="solicitante" placeholder="Filtrar..." value="' + escapeHtml(state.filters.solicitante) + '" aria-label="Filtrar por Solicitante" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="comprador" placeholder="Filtrar..." value="' + escapeHtml(state.filters.comprador) + '" aria-label="Filtrar por Comprador" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="zona" placeholder="Filtrar..." value="' + escapeHtml(state.filters.zona) + '" aria-label="Filtrar por Zona" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"></th>' +
+                            '<th class="sil-th-filter-cell"></th>';
                         fechasHeader.forEach(function () {
-                            headHtml += '<th>TR</th><th>TO</th>';
+                            headHtml += '<th class="sil-th-trto">TS</th><th class="sil-th-trto">TO</th>';
                         });
-                        headHtml += '</tr>';
+                        headHtml += '<th class="sil-th-filter-cell"></th></tr>';
 
                         $(theadId).html(headHtml);
                     }

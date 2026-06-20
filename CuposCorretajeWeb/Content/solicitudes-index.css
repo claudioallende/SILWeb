@@ -202,34 +202,40 @@
     position: sticky;
     top: 0;
     z-index: 3;
-    /* Cada th de la fila 1 contiene label + input de filtro apilados.
-       vertical-align top para que ambos queden alineados arriba. */
-    vertical-align: top;
-    padding: 7px 6px 5px;
-    white-space: normal;
 }
 
-.sil-tbl thead tr.sil-tr-subhdr th {
+.sil-tbl thead tr.sil-tr-filter th {
+    background: #f0f4fa;
+    position: sticky;
+    top: 32px; /* alto aprox. de la fila 1 (label de columna) */
+    z-index: 2;
+    padding: 4px 5px;
+    border-bottom: 1px solid var(--sil-border);
+}
+
+/* Celdas con input de filtro: padding normal, sin fondo especial. */
+.sil-tbl thead tr.sil-tr-filter th.sil-th-filter-cell {
+    background: #fff;
+    padding: 4px 5px;
+    vertical-align: middle;
+}
+
+/* Celdas con sub-header TR/TO: fondo navy-light, fuente chica. */
+.sil-tbl thead tr.sil-tr-filter th.sil-th-trto {
     background: var(--sil-navy-light);
     color: rgba(255,255,255,.92);
     font-size: 11px;
-    position: sticky;
-    top: 60px; /* alto aprox. de la primera fila con label+input */
-    z-index: 2;
-}
-
-/* ---- Filtro tipeable dentro de la celda-label de la cabecera ---- */
-.sil-th-label {
-    font-size: 12px;
+    padding: 5px 4px;
     font-weight: 500;
-    line-height: 1.2;
-    margin-bottom: 4px;
-    text-align: left;
 }
 
-.sil-tbl th.tl .sil-th-label { text-align: left; }
-.sil-tbl th:not(.tl) .sil-th-label { text-align: center; }
+/* Header de fecha (colspan=2) en la fila 1: negrita apenas mayor. */
+.sil-tbl thead tr.sil-tr-hdr th.sil-th-date {
+    font-weight: 500;
+    letter-spacing: .2px;
+}
 
+/* ---- Filtro tipeable ---- */
 .sil-th-filter {
     display: block;
     width: 100%;
