@@ -235,23 +235,25 @@
     letter-spacing: .2px;
 }
 
-/* ---- Divisores verticales entre fechas ----
-   Cada fecha arranca con su celda TR (body) o colspan=2 (thead fila 1) /
-   TR (thead fila 2). Marcamos con sil-td-date / sil-th-date / sil-th-trto
-   para poder estilar cada bloque. El primero de la fila NO lleva divisor
-   (sil-*-first) para que el borde no quede pegado al de "Cupos compatibles".
-   Los siguientes sí: dibujan una línea vertical al inicio de la celda, que
-   funciona como separador entre fechas. */
+/* ---- Divisores verticales entre columnas del bloque de fechas ----
+   Estructura de la fila de fechas (body y thead fila 2):
+     [TR_fecha1] [TO_fecha1] [TR_fecha2] [TO_fecha2] ... [TR_fechaN] [TO_fechaN] [acción]
+   Posiciones en la fila: 7, 8, 9, 10, ..., 6+2N, 7+2N (acción).
+   Queremos una línea vertical entre cada par TR/TO (y entre fechas, que
+   es el mismo divisor visualmente). Para eso ponemos border-left en
+   TODAS las celdas a partir de la posición 8, EXCEPTO la última (acción).
+   En la fila 1 del thead las fechas son colspan=2; los bordes entre fechas
+   se manejan con la clase sil-th-date-first (no en la primera). */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
-.sil-tbl thead tr.sil-tr-filter th.sil-th-trto:not(.sil-th-trto-first),
-.sil-tbl tbody td.sil-td-date:not(.sil-td-date-first) {
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child),
+.sil-tbl tbody td:nth-child(n+8):not(:last-child) {
     border-left: 1px solid var(--sil-border);
 }
 
-/* En el thead el fondo es navy, así que el borde necesita un color claro
-   para que se vea. Sobreescribimos sólo para las celdas del thead. */
+/* En el thead el fondo es navy/gris-claro, así que el borde necesita un
+   color claro para que se vea. Sobreescribimos sólo para esas celdas. */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
-.sil-tbl thead tr.sil-tr-filter th.sil-th-trto:not(.sil-th-trto-first) {
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child) {
     border-left-color: rgba(255, 255, 255, 0.35);
 }
 
