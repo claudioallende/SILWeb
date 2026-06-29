@@ -149,7 +149,7 @@
                         if (g && (r.NombreGrano || '').toLowerCase().indexOf(g) === -1) return false;
                         if (s && (r.NombreVendedor || '').toLowerCase().indexOf(s) === -1) return false;
                         if (c && (r.NombreComprador || '').toLowerCase().indexOf(c) === -1) return false;
-                        if (z && (r.CodigoCentro || '').toLowerCase().indexOf(z) === -1) return false;
+                        if (z && (r.NombreDestino || '').toLowerCase().indexOf(z) === -1) return false;
                         return true;
                     });
                 }
@@ -311,8 +311,13 @@
                             '<th>Zona</th>' +
                             '<th>Estado</th>' +
                             '<th>Cupos compatibles</th>';
-                        fechasHeader.forEach(function (f) {
-                            headHtml += '<th colspan="2" class="sil-th-date">' + f + '</th>';
+                        fechasHeader.forEach(function (f, idx) {
+                            // Primer header de fecha no lleva divisor a la izquierda
+                            // (sería un borde pegado al borde derecho de "Cupos
+                            // compatibles"). El resto sí, para separar visualmente
+                            // cada fecha.
+                            var firstClass = idx === 0 ? ' sil-th-date-first' : '';
+                            headHtml += '<th colspan="2" class="sil-th-date' + firstClass + '">' + f + '</th>';
                         });
                         headHtml += '<th></th></tr>';
 
@@ -324,8 +329,13 @@
                             '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="zona" placeholder="Filtrar..." value="' + escapeHtml(state.filters.zona) + '" aria-label="Filtrar por Zona" autocomplete="off" /></th>' +
                             '<th class="sil-th-filter-cell"></th>' +
                             '<th class="sil-th-filter-cell"></th>';
-                        fechasHeader.forEach(function () {
-                            headHtml += '<th class="sil-th-trto">TS</th><th class="sil-th-trto">TO</th>';
+                        fechasHeader.forEach(function (_, idx) {
+                            // Mismo criterio que la fila 1: el primer TR no lleva
+                            // divisor (lo arrastraría desde el borde derecho de
+                            // "Cupos compatibles"). Los TR de fechas siguientes
+                            // sí, para marcar el límite entre fechas.
+                            var trFirstClass = idx === 0 ? ' sil-th-trto-first' : '';
+                            headHtml += '<th class="sil-th-trto' + trFirstClass + '">TS</th><th class="sil-th-trto">TO</th>';
                         });
                         headHtml += '<th class="sil-th-filter-cell"></th></tr>';
 
@@ -383,13 +393,18 @@
                             renderCeldaTexto(r.NombreGrano || '—', 'tl') +
                             renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
                             renderCeldaTexto(r.NombreComprador || '—', 'tl') +
-                            renderCeldaTexto(r.CodigoCentro || '—', '') +
+                            renderCeldaTexto(r.NombreDestino || '—', '') +
                             renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
                             renderCeldaCupos(r.CuposCompatibles);
 
                         // Celdas TR/TO por fecha
-                        (r.CantidadFechas || []).forEach(function (d) {
-                            bodyHtml += renderCeldaFecha(d);
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            // Pasamos isFirstDate para que la celda TR sepa si
+                            // lleva la clase sil-td-date-first (sin divisor) o
+                            // sil-td-date (con divisor). El primer bloque no
+                            // lleva divisor porque quedaría pegado a "Cupos
+                            // compatibles".
+                            bodyHtml += renderCeldaFecha(d, idx === 0);
                         });
 
                         // Acción
@@ -446,9 +461,8 @@
                             NombreDestino: row.NombreDestino || '',
                             // La grilla no expone zona real todavía; mandamos el
                             // codigoCentro como aproximación para que el dropdown
-                            // arranque con un valor. Cuando la API devuelva
                             // nombreZona/ZonaId reales, se cambia acá.
-                            Zona: row.CodigoCentro || '',
+                            Zona: row.NombreDestino || '',
                             Observacion: row.Observacion || '',
                             EstadoBadge: row.EstadoBadge || 'pending',
                             EstadoLabel: row.EstadoLabel || 'Pendiente',
@@ -532,19 +546,28 @@
                     return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
                 }
 
-                function renderCeldaFecha(d) {
+                function renderCeldaFecha(d, isFirstDate) {
                     // TR: el controller deposita aquí Cantidad (CONTRACTUAL) o CantidadFuturo
                     // (FUTURO) según la tabla a la que pertenece la fila. El render es
                     // genérico: si hay valor se muestra, si no y hay cupo disponible
                     // se pinta el chip rojo, si no, el 0 gris.
-                    let trCell = '<td>';
+                    //
+                    // La celda TR arranca cada bloque de fecha. Marcamos la primera
+                    // con sil-td-date-first para que el CSS no le dibuje divisor a
+                    // la izquierda (quedaría pegado al borde de "Cupos compatibles").
+                    // Las siguientes sí llevan sil-td-date, que dibuja una línea
+                    // vertical separando cada fecha.
+                    let trCls = isFirstDate ? 'sil-td-date sil-td-date-first' : 'sil-td-date';
+                    let trCell = '<td class="' + trCls + '">';
                     if (d.Cantidad > 0) trCell += d.Cantidad;
                     else if (d.TieneCupoDisponible) trCell += '<span class="sil-cell-red">0</span>';
                     else trCell += '<span class="sil-zero">0</span>';
                     trCell += '</td>';
 
                     // TO: queda en 0 simple hasta que se complete la explicación
-                    // correspondiente. Mismo criterio de color que TR.
+                    // correspondiente. Mismo criterio de color que TR. No lleva
+                    // clase: el divisor entre fechas ya quedó del lado izquierdo
+                    // del TR de la siguiente fecha.
                     let toCell = '<td>';
                     if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
                     else toCell += '<span class="sil-zero">0</span>';
