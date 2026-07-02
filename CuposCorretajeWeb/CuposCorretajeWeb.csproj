@@ -251,6 +251,8 @@
     <Compile Include="Models\CuposAgrupados.cs" />
     <Compile Include="Models\CuposAgrupadosDetalle.cs" />
     <Compile Include="Models\CuposAgrupadosPdf.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchesRequest.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchesResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\CupoCompatibleResumenViewModel.cs" />
     <Compile Include="Models\Solicitudes\CuposDisponibleViewModel.cs" />
     <Compile Include="Models\CuposDist.cs" />
