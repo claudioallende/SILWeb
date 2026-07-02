@@ -217,19 +217,21 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Pantalla 2 lo llama cada vez que el operador tilda/des-tilda días.
-    /// Traduce la selección a un <c>MatchesFilterDto</c> de SILData (reusando
-    /// CodigoGrano / CuentaVendedor / CuentaComprador de la solicitud que
-    /// está en TempData) y devuelve la lista de pares (solicitud, cupo)
-    /// clasificados por el motor.
+    /// Pantalla 2 lo llama una sola vez al cargar la pantalla para obtener
+    /// todos los matches disponibles para la solicitud activa, dentro de la
+    /// ventana por defecto del backend (hoy → hoy+7 días). El cliente filtra
+    /// localmente por fecha a medida que el operador tilda/des-tilda días,
+    /// evitando pegarle al backend en cada toggle.
+    ///
+    /// Si <see cref="BuscarMatchesRequest.Fechas"/> viene null o vacío (caso
+    /// típico de carga inicial), no se envía fechaDesde/fechaHasta al
+    /// backend: el DTO de SILData tiene defaults (hoy / hoy+7).
     /// </summary>
     [HttpPost]
     public async Task<JsonResult> BuscarMatches([System.Web.Http.FromBody] BuscarMatchesRequest req)
     {
       if (req == null || req.IdSolicitud <= 0)
         return Json(new { success = false, message = "Id de solicitud inválido." });
-      if (req.Fechas == null || req.Fechas.Count == 0)
-        return Json(new { success = false, message = "Seleccione al menos un día." });
 
       try
       {
@@ -250,26 +252,40 @@ namespace CuposCorretajeWeb.Controllers
         // Mantener para próximas llamadas (ver AltaSolicitud POST).
         TempData.Keep("Solicitud");
 
-        var fechasParsed = req.Fechas
-          .Select(f => DateTime.ParseExact(f, "yyyy-MM-dd", CultureInfo.InvariantCulture))
-          .OrderBy(d => d)
-          .ToList();
-
-        // Filtro para SILData. Las propiedes se serializan en camelCase
-        // porque NewtonSoft usa la convención del nombre de la propiedad
-        // C# (CodigoGrano → codigoGrano, etc.), que es lo que espera
-        // MatchesFilterDto del lado de SILData (.NET 8 + System.Text.Json
-        // camelCase por default).
-        var filter = new
+        // Filtro para SILData. Se serializa en camelCase (codigoGrano,
+        // cuentaVendedor, etc.) — convención del nombre de la propiedad C#
+        // en anonymous types, que es lo que espera MatchesFilterDto del lado
+        // de SILData (.NET 8 + System.Text.Json camelCase por default).
+        object filter;
+        if (req.Fechas != null && req.Fechas.Count > 0)
         {
-          codigoGrano = solicitud.CodigoGrano,
-          cuentaVendedor = solicitud.CuentaVendedor,
-          cuentaComprador = solicitud.CuentaComprador,
-          fechaDesde = fechasParsed.First(),
-          fechaHasta = fechasParsed.Last(),
-          incluirIncompatibles = false,
-          // agruparPor se omite: default = Solicitud (= 0) en el DTO.
-        };
+          var fechasParsed = req.Fechas
+            .Select(f => DateTime.ParseExact(f, "yyyy-MM-dd", CultureInfo.InvariantCulture))
+            .OrderBy(d => d)
+            .ToList();
+          filter = new
+          {
+            codigoGrano = solicitud.CodigoGrano,
+            cuentaVendedor = solicitud.CuentaVendedor,
+            cuentaComprador = solicitud.CuentaComprador,
+            fechaDesde = fechasParsed.First(),
+            fechaHasta = fechasParsed.Last(),
+            incluirIncompatibles = false
+            // agruparPor se omite: default = Solicitud (= 0) en el DTO.
+          };
+        }
+        else
+        {
+          // Sin rango: el backend resuelve fechaDesde/fechaHasta a
+          // hoy / hoy+7 (ver MatchesFilterDto defaults).
+          filter = new
+          {
+            codigoGrano = solicitud.CodigoGrano,
+            cuentaVendedor = solicitud.CuentaVendedor,
+            cuentaComprador = solicitud.CuentaComprador,
+            incluirIncompatibles = false
+          };
+        }
 
         var repo = new WebServiceSILRespository();
         var result = await repo.RequestSILDataPostAndDeserializeAsync<BuscarMatchesResponseViewModel>(
@@ -280,8 +296,9 @@ namespace CuposCorretajeWeb.Controllers
         if (result == null)
           result = new BuscarMatchesResponseViewModel();
 
+        var fechasLog = req.Fechas != null ? string.Join(",", req.Fechas) : "(default)";
         Trace.TraceInformation(
-          $"[Solicitudes] BuscarMatches id={req.IdSolicitud} fechas=[{string.Join(",", req.Fechas)}] items={result.Items.Count}");
+          $"[Solicitudes] BuscarMatches id={req.IdSolicitud} fechas=[{fechasLog}] items={result.Items.Count}");
 
         return Json(new { success = true, data = result });
       }

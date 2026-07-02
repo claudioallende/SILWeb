@@ -220,12 +220,19 @@
             var solicitudObservacion = @Html.Raw(Json.Encode(observacion ?? ""));
             var solicitanteNombre    = @Html.Raw(Json.Encode(Model != null ? (Model.Solicitante ?? "") : ""));
 
+            // Cache de matches devueltos por el backend. Se carga UNA sola vez al
+            // entrar a Pantalla 2 (el backend resuelve la ventana por defecto
+            // hoy → hoy+7) y se filtra client-side en cada toggle de fecha.
+            // Estructura: array de MatchItemDto tal cual viene del servidor
+            // (propiedades PascalCase por la serialización de Json()).
+            var allMatches = [];
+
             // Estado de cupos seleccionados por el operador. Lo declaramos
             // arriba (no cerca del change handler) porque pintarMatches
             // lo resetea en su re-pintado, y esa función se invoca desde
-            // recalcularTodo() durante el init. Con `var` funciona igual
-            // por hoisting, pero queda más prolijo tenerlo junto a los
-            // otros estados al tope del IIFE.
+            // renderForCurrentSelection() durante el init. Con `var`
+            // funciona igual por hoisting, pero queda más prolijo tenerlo
+            // junto a los otros estados al tope del IIFE.
             //   cupoId -> { obs: bool, match: 'dir'|'par'|'cond' }
             // Consumido por:
             //   - DLG 2: detectar cupos con obs=true antes del POST.
@@ -320,8 +327,10 @@
             // Mock de cupos por d&iacute;a: REMOVIDO.
             // El panel "Cupos Compatibles" ahora se llena con la respuesta real
             // del motor de matching (Solicitudes/BuscarMatches →
-            // SILData /api/ShiftRequest/Matches). Ver loadMatchesForSelection()
-            // y pintarMatches() m&aacute;s abajo.
+            // SILData /api/ShiftRequest/Matches), cargada UNA sola vez al
+            // entrar a la pantalla y filtrada client-side por fecha a medida
+            // que el operador tilda/des-tilda días. Ver cargarMatchesIniciales()
+            // y renderForCurrentSelection() m&aacute;s abajo.
 
             // Construye el HTML de un cupo card a partir de un MatchItemDto.
             //   - item.MatchType: "Directo" | "Parcial" | "Condicional" | null
@@ -417,19 +426,60 @@
                 });
             }
 
-            // Dispara la consulta al motor de matching para los d&iacute;as
-            // actualmente tildados. Si no hay selecci&oacute;n, limpia el panel
-            // al estado vac&iacute;o sin pegarle al backend.
-            function loadMatchesForSelection() {
-                var fechas = [];
+            // Carga TODOS los matches compatibles para la solicitud activa UNA sola vez
+            // al entrar a Pantalla 2. El backend resuelve la ventana por defecto
+            // (hoy → hoy+7 días) porque no mandamos `fechas`. El resultado se
+            // cachea en allMatches y se filtra client-side en cada toggle.
+            //
+            // Optimización: si el operador selecciona días dentro de esa
+            // ventana default, no hace falta volver a pegarle al backend.
+            function cargarMatchesIniciales() {
+                ShowLoader();
+                $.ajax({
+                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify({ idSolicitud: idSolicitud })
+                    // Sin `fechas` → backend defaults (hoy, hoy+7).
+                })
+                    .done(function (resp) {
+                        if (resp && resp.success) {
+                            // Json() serializa con propiedades PascalCase
+                            // (controller devuelve BuscarMatchesResponseViewModel
+                            // typed → JavaScriptSerializer preserva nombres).
+                            var data = resp.data || {};
+                            allMatches = data.Items || [];
+                            renderForCurrentSelection();
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: (resp && resp.message) || '—'
+                            });
+                            allMatches = [];
+                            renderForCurrentSelection();
+                        }
+                    })
+                    .fail(mostrarErrorAjax)
+                    .always(function () { HideLoader(); });
+            }
+
+            // Filtra allMatches por los d&iacute;as actualmente tildados y
+            // re-pinta el panel. Sin llamada AJAX: opera sobre el cache.
+            //   - Sin selecci&oacute;n: empty state "seleccion&aacute; d&iacute;as".
+            //   - Con selecci&oacute;n pero 0 matches en el cache para esos
+            //     d&iacute;as: empty state "no se encontraron cupos".
+            //   - Con selecci&oacute;n y matches: cards agrupadas por MatchType.
+            function renderForCurrentSelection() {
+                var $hd = $('#cuposPanelHd');
+                var checkedDates = [];
                 $('.chkDia:checked').each(function () {
-                    fechas.push($(this).closest('tr').data('fecha'));
+                    checkedDates.push($(this).closest('tr').data('fecha'));
                 });
 
-                // Sin selecci&oacute;n: empty state local, sin llamada AJAX.
-                if (fechas.length === 0) {
-                    var $hd0 = $('#cuposPanelHd');
-                    $hd0.text('Cupos compatibles — seleccioná días para ver');
+                if (checkedDates.length === 0) {
+                    $hd.text('Cupos compatibles — seleccioná días para ver');
                     $('#cuposEmpty').show();
                     $('#cuposListado').hide().empty();
                     $('#cuposNoResults').hide();
@@ -439,32 +489,19 @@
                     return;
                 }
 
-                ShowLoader();
-                $.ajax({
-                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    dataType: 'json',
-                    data: JSON.stringify({ idSolicitud: idSolicitud, fechas: fechas })
-                })
-                    .done(function (resp) {
-                        if (resp && resp.success) {
-                            pintarMatches(resp.data || { items: [] });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: (resp && resp.message) || '—'
-                            });
-                            pintarMatches({ items: [] });
-                        }
-                    })
-                    .fail(mostrarErrorAjax)
-                    .always(function () { HideLoader(); });
+                var filtered = allMatches.filter(function (item) {
+                    var f = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                    if (!f) return false;
+                    var ymd = f.getFullYear() + '-' + pad2(f.getMonth() + 1) + '-' + pad2(f.getDate());
+                    return checkedDates.indexOf(ymd) >= 0;
+                });
+
+                pintarMatches({ Items: filtered });
             }
 
-            // Pinta el panel de cupos a partir de la respuesta del backend.
-            //   - result.items es la lista plana de MatchItemDto.
+            // Pinta el panel de cupos a partir de la respuesta cacheada/filtrada.
+            //   - result.Items es la lista plana de MatchItemDto (PascalCase
+            //     por la serialización de JavaScriptSerializer via Json()).
             //   - Agrupa por MatchType: Directo / Parcial / Condicional.
             //   - Sin items: muestra el empty state "no se encontraron cupos".
             function pintarMatches(result) {
@@ -474,7 +511,7 @@
                 var $noResults = $('#cuposNoResults');
                 var $actions = $('#cuposActions');
 
-                var items = (result && result.items) || [];
+                var items = (result && result.Items) || [];
                 var dirs  = items.filter(function (i) { return i.MatchType === 'Directo';      });
                 var pars  = items.filter(function (i) { return i.MatchType === 'Parcial';      });
                 var conds = items.filter(function (i) { return i.MatchType === 'Condicional';  });
@@ -520,17 +557,28 @@
                 $('#btnConfirmarAsignacion').prop('disabled', true);
             }
 
-            // Recalcula resumen + dispara la b&uacute;squeda de matches. Se llama
-            // despu&eacute;s de cada toggle para mantener la UI consistente.
+            // Recalcula el resumen + re-pinta el panel filtrando desde el
+            // cache local. NO hace llamadas AJAX (todo es client-side a partir
+            // de la carga inicial).
             function recalcularTodo() {
                 var r = resumenSeleccion();
                 pintarResumen(r);
-                loadMatchesForSelection();
+                renderForCurrentSelection();
             }
 
             // Estado inicial de cada fila.
             $('#tablaDias tbody tr').each(function () { actualizarEstadoFila($(this)); });
-            recalcularTodo();
+            pintarResumen(resumenSeleccion());
+            // Disparo la carga inicial de matches UNA sola vez. Cuando termina,
+            // pintarMatches se llama desde el .done() con la respuesta del
+            // backend (cache en allMatches). En modo readonly no se carga
+            // porque el operador no interactúa con la grilla.
+            if (esEditable) {
+                cargarMatchesIniciales();
+            } else {
+                // Modo readonly: muestro empty state sin gastar la llamada.
+                $('#cuposPanelHd').text('Cupos compatibles — modo sólo lectura');
+            }
 
             // Modo readonly: deshabilita todos los controles editables del panel principal.
             if (!esEditable) {
