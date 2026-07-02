@@ -97,6 +97,13 @@ namespace CuposCorretajeWeb.Models.Data
       HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
       var response = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
 
+      // 204 NoContent: el endpoint ejecutó OK pero no tiene cuerpo. Algunos
+      // endpoints (ej. Matches cuando no hay resultados) lo declaran
+      // explícitamente. Devolvemos default(T) para evitar JsonReaderException
+      // al deserializar un body vacío.
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
       if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
       if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError || response.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await response.Content.ReadAsStringAsync());

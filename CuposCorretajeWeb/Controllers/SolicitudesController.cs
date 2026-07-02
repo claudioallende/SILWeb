@@ -1,9 +1,11 @@
 using CuposCorretajeWeb.Models.Data;
+using CuposCorretajeWeb.Models.Error;
 using CuposCorretajeWeb.Models.Solicitudes;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
@@ -104,6 +106,9 @@ namespace CuposCorretajeWeb.Controllers
       {
         return RedirectToAction("Index");
       }
+      // Keep para que sobreviva a las llamadas AJAX que Pantalla 2 hace a
+      // BuscarMatches (TempData se borra al final del request si no se Keep).
+      TempData.Keep("Solicitud");
 
       // ViewBag de modo + estado (la vista los usa para banner y readonly).
       ViewBag.Modo = solicitud.EsEditable ? "editable" : "readonly";
@@ -198,12 +203,99 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
+        // .Keep(): necesitamos que la VM sobreviva a las llamadas AJAX que
+        // Pantalla 2 hace a BuscarMatches (TempData se borra después del
+        // primer Read en el mismo request pipeline).
         TempData["Solicitud"] = solicitud;
+        TempData.Keep("Solicitud");
         return Json(new { success = true, redirectUrl = Url.Action("AltaSolicitud") });
       }
       catch (Exception ex)
       {
         return Json(new { success = false, message = ex.Message });
+      }
+    }
+
+    /// <summary>
+    /// Pantalla 2 lo llama cada vez que el operador tilda/des-tilda días.
+    /// Traduce la selección a un <c>MatchesFilterDto</c> de SILData (reusando
+    /// CodigoGrano / CuentaVendedor / CuentaComprador de la solicitud que
+    /// está en TempData) y devuelve la lista de pares (solicitud, cupo)
+    /// clasificados por el motor.
+    /// </summary>
+    [HttpPost]
+    public async Task<JsonResult> BuscarMatches([System.Web.Http.FromBody] BuscarMatchesRequest req)
+    {
+      if (req == null || req.IdSolicitud <= 0)
+        return Json(new { success = false, message = "Id de solicitud inválido." });
+      if (req.Fechas == null || req.Fechas.Count == 0)
+        return Json(new { success = false, message = "Seleccione al menos un día." });
+
+      try
+      {
+        // Reconstruimos los datos de la solicitud desde TempData (mismo
+        // patrón que AltaSolicitud GET). Si no hay TempData o no coincide el
+        // id, devolvemos error para que el operador vuelva a Pantalla 1
+        // en vez de rehidratar contra la API (no queremos un side-effect
+        // silencioso).
+        var solicitud = TempData["Solicitud"] as SolicitudViewModel;
+        if (solicitud == null || solicitud.IdSolicitud != req.IdSolicitud)
+        {
+          return Json(new
+          {
+            success = false,
+            message = "No se encontró la solicitud. Volvé a la grilla e ingresá de nuevo."
+          });
+        }
+        // Mantener para próximas llamadas (ver AltaSolicitud POST).
+        TempData.Keep("Solicitud");
+
+        var fechasParsed = req.Fechas
+          .Select(f => DateTime.ParseExact(f, "yyyy-MM-dd", CultureInfo.InvariantCulture))
+          .OrderBy(d => d)
+          .ToList();
+
+        // Filtro para SILData. Las propiedes se serializan en camelCase
+        // porque NewtonSoft usa la convención del nombre de la propiedad
+        // C# (CodigoGrano → codigoGrano, etc.), que es lo que espera
+        // MatchesFilterDto del lado de SILData (.NET 8 + System.Text.Json
+        // camelCase por default).
+        var filter = new
+        {
+          codigoGrano = solicitud.CodigoGrano,
+          cuentaVendedor = solicitud.CuentaVendedor,
+          cuentaComprador = solicitud.CuentaComprador,
+          fechaDesde = fechasParsed.First(),
+          fechaHasta = fechasParsed.Last(),
+          incluirIncompatibles = false,
+          // agruparPor se omite: default = Solicitud (= 0) en el DTO.
+        };
+
+        var repo = new WebServiceSILRespository();
+        var result = await repo.RequestSILDataPostAndDeserializeAsync<BuscarMatchesResponseViewModel>(
+          "ShiftRequest", "Matches", filter);
+
+        // 204 NoContent → wrapper devuelve default(T) = null. Traducimos a
+        // respuesta vacía para que PintarMatches muestre el empty state.
+        if (result == null)
+          result = new BuscarMatchesResponseViewModel();
+
+        Trace.TraceInformation(
+          $"[Solicitudes] BuscarMatches id={req.IdSolicitud} fechas=[{string.Join(",", req.Fechas)}] items={result.Items.Count}");
+
+        return Json(new { success = true, data = result });
+      }
+      catch (ApiException ex)
+      {
+        // 400/409/500 de SILData: el body ya viene como ProblemDetails. El
+        // caller (JS) extrae responseJSON.detail/title con mostrarErrorAjax.
+        Trace.TraceError($"BuscarMatches API error id={req.IdSolicitud}: " + ex.Message);
+        return Json(new { success = false, message = "La API de matching rechazó la consulta. Reintentá o contactá al administrador." });
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceError($"BuscarMatches error id={req.IdSolicitud}: " + ex);
+        return Json(new { success = false, message = "Error inesperado al buscar matches. Reintentá." });
       }
     }
 
@@ -277,13 +369,12 @@ namespace CuposCorretajeWeb.Controllers
     /// Confirma la asignación de los días seleccionados para una solicitud (Pantalla 2,
     /// botón "Confirmar asignación seleccionada").
     ///
-    /// Recibe idSolicitud + cupoCompatibleId (null por ahora) + mapa de fechas seleccionadas.
-    /// El cupo compatible es null hoy porque el panel derecho "Cupos Compatibles" es
-    /// placeholder; cuando se enchufe el motor de matching, este campo viajará poblado
-    /// y la llamada a SILData pasará los tres datos.
+    /// Recibe idSolicitud + lista de CupoIds (long, reales del motor de matching) +
+    /// mapa de fechas seleccionadas. CupoCompatibleId se conserva por compatibilidad
+    /// legacy y se popula con el primero de CupoIds si está null.
     ///
-    /// TODO: reemplazar el stub por la llamada real a SILData (ShiftRequest/ConfirmShiftRequestAsync?).
-    /// Por ahora sólo valida inputs y devuelve success para confirmar el flujo de UI.
+    /// TODO: reemplazar el stub por la llamada real a SILData (ShiftRequest/Accept
+    /// o el endpoint que se defina para confirmación batch).
     /// </summary>
     [HttpPost]
     public JsonResult ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
@@ -294,16 +385,22 @@ namespace CuposCorretajeWeb.Controllers
           return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
         if (req.Fechas == null || req.Fechas.Count == 0)
           return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Seleccione al menos un día." });
+        if (req.CupoIds == null || req.CupoIds.Count == 0)
+          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Seleccione al menos un cupo compatible." });
 
-        // TODO: llamar a SILData con req.IdSolicitud + req.CupoCompatibleId + req.Fechas.
-        // Por ahora el cupo compatible es null; cuando se enchufe el motor de matching
-        // este endpoint recibirá el id del cupo elegido del panel derecho.
-        Trace.TraceInformation($"[stub] ConfirmarAsignacionSeleccionada id={req.IdSolicitud} cupo={req.CupoCompatibleId} dias=[{string.Join(",", req.Fechas.Keys)}]");
+        // CupoCompatibleId legacy: si el caller lo manda null pero trae la lista,
+        // completamos con el primero para no romper consumidores que lo esperan.
+        if (!req.CupoCompatibleId.HasValue && req.CupoIds.Count > 0)
+          req.CupoCompatibleId = req.CupoIds[0];
+
+        // TODO: llamar a SILData con req.IdSolicitud + req.CupoIds + req.Fechas.
+        Trace.TraceInformation(
+          $"[stub] ConfirmarAsignacionSeleccionada id={req.IdSolicitud} cupos=[{string.Join(",", req.CupoIds)}] dias=[{string.Join(",", req.Fechas.Keys)}]");
 
         return Json(new SolicitudActionResponseViewModel
         {
           Success = true,
-          Message = $"Asignación confirmada (stub) para {req.Fechas.Count} día(s).",
+          Message = $"Asignación confirmada (stub) para {req.Fechas.Count} día(s) y {req.CupoIds.Count} cupo(s).",
           RedirectUrl = Url.Action("Index")
         });
       }

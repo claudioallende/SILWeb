@@ -221,7 +221,7 @@
             var solicitanteNombre    = @Html.Raw(Json.Encode(Model != null ? (Model.Solicitante ?? "") : ""));
 
             // Estado de cupos seleccionados por el operador. Lo declaramos
-            // arriba (no cerca del change handler) porque pintarPanelCupos
+            // arriba (no cerca del change handler) porque pintarMatches
             // lo resetea en su re-pintado, y esa función se invoca desde
             // recalcularTodo() durante el init. Con `var` funciona igual
             // por hoisting, pero queda más prolijo tenerlo junto a los
@@ -317,123 +317,193 @@
                 }
             }
 
-            // Mock de cupos por d&iacute;a (replica del mockup). Se reemplaza por la
-            // llamada real al motor de matching cuando est&eacute; disponible.
-            //   - match: 'dir' (directo), 'par' (parcial), 'cond' (con observaciones)
-            //   - obs: si true, muestra caja de "Verificar condiciones antes de asignar"
-            // La key es la fecha en yyyy-MM-dd (alineada con data-fecha de las filas).
-            var cuposDB = {
-                '2026-06-11': [
-                    { id: '#3872', match: 'dir', vendedor: 'AGRIC. GAN. J. POSSE',     comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '3 TR', obs: false },
-                    { id: '#3845', match: 'par', vendedor: 'A.C.A. PROD. AGRIC.',      comprador: '— no informado',  destino: 'ROSARIO', disp: '1 TR', obs: false }
-                ],
-                '2026-06-12': [
-                    { id: '#3888', match: 'dir', vendedor: 'COOP. AG. IRIGOYEN',        comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '2 TR', obs: false }
-                ],
-                '2026-06-13': [
-                    { id: '#3901', match: 'dir', vendedor: 'COOP. AG. MONTE MA&Iacute;Z', comprador: 'BUNGE ARG. S.A.', destino: 'ROSARIO', disp: '5 TR', obs: false },
-                    { id: '#3910', match: 'cond', vendedor: 'BOUQUET LTDA.',             comprador: 'BUNGE ARG. S.A.', destino: 'ROSARIO', disp: '2 TR', obs: true  },
-                    { id: '#3912', match: 'par', vendedor: 'A.C.A. CDC',                 comprador: '— no informado', destino: 'ROSARIO', disp: '3 TR', obs: false }
-                ],
-                '2026-06-14': [
-                    { id: '#3920', match: 'dir', vendedor: 'AGRIC. GAN. J. POSSE',      comprador: 'BUNGE ARG. S.A.',  destino: 'ROSARIO', disp: '3 TR', obs: false }
-                ],
-                '2026-06-15': [],
-                '2026-06-16': [],
-                '2026-06-17': [
-                    { id: '#3955', match: 'par', vendedor: 'LEHMA LTDA.',               comprador: '— no informado',  destino: 'ROSARIO', disp: '1 TR', obs: false }
-                ]
-            };
+            // Mock de cupos por d&iacute;a: REMOVIDO.
+            // El panel "Cupos Compatibles" ahora se llena con la respuesta real
+            // del motor de matching (Solicitudes/BuscarMatches →
+            // SILData /api/ShiftRequest/Matches). Ver loadMatchesForSelection()
+            // y pintarMatches() m&aacute;s abajo.
 
-            // Construye el HTML de un cupo card.
-            function cupoCardHtml(c) {
-                var isCond = c.match === 'cond';
-                var isPar  = c.match === 'par';
+            // Construye el HTML de un cupo card a partir de un MatchItemDto.
+            //   - item.MatchType: "Directo" | "Parcial" | "Condicional" | null
+            //   - item.Solicitud.CuentaVendedor / CuentaComprador / Cantidad / Observacion
+            //   - item.Cupo.CodVendSIL / CodCompSIL / CodDestino / Fecha
+            //
+            // Nota: MatchCupoResumen hoy s&oacute;lo trae IDs (no nombres) y no
+            // trae cantidad disponible del cupo. Mostramos los IDs con fallback
+            // a em-dash para nulls y usamos Solicitud.Cantidad como placeholder
+            // visible (es la cantidad solicitada, no la disponible) hasta que
+            // SILData exponga esos campos.
+            function matchCardHtml(item) {
+                var tipo = item.MatchType;
+                var isCond = tipo === 'Condicional';
+                var isPar  = tipo === 'Parcial';
                 var badgeClass = isCond ? 'sil-badge-obs' : (isPar ? 'sil-badge-par' : 'sil-badge-dir');
                 var badgeLabel = isCond ? 'Con observaciones' : (isPar ? 'Match parcial' : 'Match directo');
                 var hdFill    = isCond ? '#fff0f0' : (isPar ? '#fffbea' : '#eafaf1');
                 var borderCol = isCond ? 'var(--sil-red-border)' : (isPar ? 'var(--sil-amber-border)' : 'var(--sil-green-border)');
-                var compradorNa = (c.comprador || '').charAt(0) === '—' ? ' sil-cupo-comprador-na' : '';
-                var obsHtml = c.obs
-                    ? '<div class="sil-cupo-obs"><strong>Obs.:</strong> Verificar condiciones antes de asignar.</div>'
+                var matchShort = isCond ? 'cond' : (isPar ? 'par' : 'dir');
+
+                var s = item.Solicitud || {};
+                var c = item.Cupo || {};
+
+                // IDs sin nombres disponibles en MatchCupoResumen.
+                var vendedor  = c.CodVendSIL || (s.CuentaVendedor ? String(s.CuentaVendedor) : '') || '—';
+                var compradorRaw = s.CuentaComprador;
+                var comprador = compradorRaw ? ('#' + compradorRaw) : '— no informado';
+                var compradorNa = comprador.charAt(0) === '—' ? ' sil-cupo-comprador-na' : '';
+                var destino   = c.CodDestino || '—';
+                // TODO: reemplazar con cupo.cantidadDisponible cuando exista en el DTO.
+                var disp      = (s.Cantidad || 0) + ' TR (solicitado)';
+
+                // Parseo de fecha del cupo. SILData serializa DateTime como
+                // "/Date(…)/" o ISO 8601 seg&uacute;n config; contemplamos los dos.
+                var fechaRaw = c.Fecha ? parseFechaSIL(c.Fecha) : null;
+                var fechaDisplay = fechaRaw
+                    ? pad2(fechaRaw.getDate()) + '/' + pad2(fechaRaw.getMonth() + 1)
                     : '';
-                var fechaDisplay = c.fecha && c.fecha.length === 10 ? c.fecha.substring(8, 10) + '/' + c.fecha.substring(5, 7) : '';
+
+                var obsHtml = isCond
+                    ? '<div class="sil-cupo-obs"><strong>Obs.:</strong> ' +
+                        escHtml(item.Razon || s.Observacion || 'Verificar antes de asignar.') +
+                      '</div>'
+                    : '';
+
                 return '' +
-                    // data-cupo-id / data-obs / data-match: los consume el click handler
-                    // de Confirmar para DLG 2 (detectar cupos con obs) sin parsear texto.
-                    '<div class="sil-cupo-card" data-cupo-id="' + c.id + '" data-obs="' + (c.obs ? '1' : '0') + '" data-match="' + c.match + '" style="border-color:' + borderCol + ';">' +
+                    // data-cupo-id / data-obs / data-match: los consume el click
+                    // handler de Confirmar (DLG 2) sin parsear texto.
+                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
                     '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
                     '    <input type="checkbox" class="sil-cupo-chk" />' +
                     '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
-                    '    <span class="sil-cupo-id">Cupo ' + c.id + ' &middot; ' + fechaDisplay + '</span>' +
+                    '    <span class="sil-cupo-id">Cupo #' + item.CupoId + (fechaDisplay ? ' &middot; ' + fechaDisplay : '') + '</span>' +
                     '  </div>' +
                     '  <div class="sil-cupo-card-body">' +
-                    '    <div class="sil-cupo-field"><span>Vendedor</span><span>' + c.vendedor + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + compradorNa.trim() + '">' + c.comprador + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Destino</span><span>' + c.destino + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + c.disp + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Vendedor</span><span>' + escHtml(String(vendedor)) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + compradorNa.trim() + '">' + escHtml(comprador) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Destino</span><span>' + escHtml(destino) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + escHtml(disp) + '</span></div>' +
                     obsHtml +
                     '  </div>' +
                     '</div>';
             }
 
-            // Pinta el panel de cupos seg&uacute;n haya o no d&iacute;as seleccionados.
-            //   - Sin selecci&oacute;n: empty state con icono de calendario.
-            //   - Con selecci&oacute;n y cupos: cards seccionados por tipo de match.
-            //   - Con selecci&oacute;n sin cupos: mensaje "no se encontraron cupos".
-            function pintarPanelCupos(r) {
+            // Devuelve un Date a partir del formato que use SILData para
+            // serializar DateTime: soporta ISO 8601 ("2026-07-15T00:00:00"
+            // o "2026-07-15") y el formato legacy de Newtonsoft
+            // ("/Date(1718409600000)/" o "/Date(1718409600000-0300)/").
+            function parseFechaSIL(v) {
+                if (v == null) return null;
+                if (v instanceof Date) return v;
+                var s = String(v);
+                var iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+                if (iso) return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+                var nw = /\/Date\((-?\d+)/.exec(s);
+                if (nw) return new Date(parseInt(nw[1], 10));
+                return null;
+            }
+
+            function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+            // Helper de error para .fail() de jQuery. Extrae detail/title/message del
+            // body de un ProblemDetails (lo que devuelve SILData en 400/409) o
+            // cae al statusText si no hay body parseable.
+            function mostrarErrorAjax(xhr) {
+                var body = xhr && xhr.responseJSON;
+                var detail = body && (body.detail || body.title || body.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: detail || (xhr && xhr.statusText) || 'Fallo de red'
+                });
+            }
+
+            // Dispara la consulta al motor de matching para los d&iacute;as
+            // actualmente tildados. Si no hay selecci&oacute;n, limpia el panel
+            // al estado vac&iacute;o sin pegarle al backend.
+            function loadMatchesForSelection() {
+                var fechas = [];
+                $('.chkDia:checked').each(function () {
+                    fechas.push($(this).closest('tr').data('fecha'));
+                });
+
+                // Sin selecci&oacute;n: empty state local, sin llamada AJAX.
+                if (fechas.length === 0) {
+                    var $hd0 = $('#cuposPanelHd');
+                    $hd0.text('Cupos compatibles — seleccioná días para ver');
+                    $('#cuposEmpty').show();
+                    $('#cuposListado').hide().empty();
+                    $('#cuposNoResults').hide();
+                    $('#cuposActions').hide();
+                    selectedCupos = {};
+                    $('#btnConfirmarAsignacion').prop('disabled', true);
+                    return;
+                }
+
+                ShowLoader();
+                $.ajax({
+                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify({ idSolicitud: idSolicitud, fechas: fechas })
+                })
+                    .done(function (resp) {
+                        if (resp && resp.success) {
+                            pintarMatches(resp.data || { items: [] });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: (resp && resp.message) || '—'
+                            });
+                            pintarMatches({ items: [] });
+                        }
+                    })
+                    .fail(mostrarErrorAjax)
+                    .always(function () { HideLoader(); });
+            }
+
+            // Pinta el panel de cupos a partir de la respuesta del backend.
+            //   - result.items es la lista plana de MatchItemDto.
+            //   - Agrupa por MatchType: Directo / Parcial / Condicional.
+            //   - Sin items: muestra el empty state "no se encontraron cupos".
+            function pintarMatches(result) {
                 var $hd = $('#cuposPanelHd');
                 var $empty = $('#cuposEmpty');
                 var $listado = $('#cuposListado');
                 var $noResults = $('#cuposNoResults');
                 var $actions = $('#cuposActions');
 
-                if (r.count === 0) {
-                    $hd.text('Cupos compatibles — seleccioná días para ver');
-                    $empty.show();
-                    $listado.hide().empty();
-                    $noResults.hide();
-                    $actions.hide();
-                    return;
-                }
+                var items = (result && result.items) || [];
+                var dirs  = items.filter(function (i) { return i.MatchType === 'Directo';      });
+                var pars  = items.filter(function (i) { return i.MatchType === 'Parcial';      });
+                var conds = items.filter(function (i) { return i.MatchType === 'Condicional';  });
 
-                // Recolectar todos los cupos de los d&iacute;as seleccionados.
-                var allCupos = [];
-                $('.chkDia:checked').each(function () {
-                    var k = $(this).closest('tr').data('fecha');
-                    var lista = cuposDB[k] || [];
-                    for (var i = 0; i < lista.length; i++) {
-                        allCupos.push($.extend({}, lista[i], { fecha: k }));
-                    }
-                });
-
-                if (allCupos.length === 0) {
+                if (items.length === 0) {
                     $hd.text('Cupos compatibles — 0 encontrado(s)');
                     $empty.hide();
                     $listado.hide().empty();
                     $noResults.show();
                     $actions.hide();
+                    selectedCupos = {};
+                    $('#btnConfirmarAsignacion').prop('disabled', true);
                     return;
                 }
 
-                $hd.text('Cupos compatibles — ' + allCupos.length + ' encontrado' + (allCupos.length !== 1 ? 's' : ''));
-
-                var dirs  = allCupos.filter(function (c) { return c.match === 'dir';  });
-                var pars  = allCupos.filter(function (c) { return c.match === 'par';  });
-                var conds = allCupos.filter(function (c) { return c.match === 'cond'; });
+                $hd.text('Cupos compatibles — ' + items.length + ' encontrado' + (items.length !== 1 ? 's' : ''));
 
                 var html = '';
                 if (dirs.length) {
                     html += '<div class="sil-cupo-section-title sil-cupo-section-dir">&#9679; Match directo (' + dirs.length + ')</div>';
-                    for (var j = 0; j < dirs.length; j++) html += cupoCardHtml(dirs[j]);
+                    dirs.forEach(function (i) { html += matchCardHtml(i); });
                 }
                 if (pars.length) {
                     html += '<div class="sil-cupo-section-title sil-cupo-section-par">&#9679; Match parcial (' + pars.length + ')</div>';
-                    for (var k = 0; k < pars.length; k++) html += cupoCardHtml(pars[k]);
+                    pars.forEach(function (i) { html += matchCardHtml(i); });
                 }
                 if (conds.length) {
                     html += '<div class="sil-cupo-section-title sil-cupo-section-cond">&#9679; Con observaciones (' + conds.length + ')</div>';
-                    for (var l = 0; l < conds.length; l++) html += cupoCardHtml(conds[l]);
+                    conds.forEach(function (i) { html += matchCardHtml(i); });
                 }
 
                 $listado.html(html).show();
@@ -450,12 +520,12 @@
                 $('#btnConfirmarAsignacion').prop('disabled', true);
             }
 
-            // Recalcula resumen + panel de cupos. Se dispara despu&eacute;s de
-            // cada toggle para mantener la UI consistente.
+            // Recalcula resumen + dispara la b&uacute;squeda de matches. Se llama
+            // despu&eacute;s de cada toggle para mantener la UI consistente.
             function recalcularTodo() {
                 var r = resumenSeleccion();
                 pintarResumen(r);
-                pintarPanelCupos(r);
+                loadMatchesForSelection();
             }
 
             // Estado inicial de cada fila.
@@ -488,7 +558,7 @@
             });
 
             // Tildar/des-tildar un cupo habilita o no el bot&oacute;n Confirmar.
-            // El bind vive fuera de pintarPanelCupos para no re-engancharse en
+            // El bind vive fuera de pintarMatches para no re-engancharse en
             // cada repintado del listado.
             //
             // El estado `selectedCupos` (declarado m&aacute;s arriba junto a los
@@ -598,20 +668,22 @@
                 });
 
                 function doPost() {
-                    // Array de IDs (sin '#') para el payload batch. Cuando
-                    // SILData defina el endpoint de Accept real, este array
-                    // se mapea contra `cupoId` de SolicitudTurno.
-                    var cuposIds = Object.keys(selectedCupos);
+                    // Array de IDs reales (long) de los cupos seleccionados.
+                    // selectedCupos es { cupoId: { obs, match } } poblado desde
+                    // el data-cupo-id de la card, que ya viene como string
+                    // del long que devuelve el motor.
+                    var cuposIds = Object.keys(selectedCupos).map(function (k) {
+                        var n = parseInt(k, 10);
+                        return isNaN(n) ? k : n;
+                    });
                     postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
                         idSolicitud: idSolicitud,
-                        cupoCompatibleId: cuposIds[0],   // legacy: el primero
-                        cupos: cuposIds,
+                        cupoCompatibleId: cuposIds[0] || null,   // legacy: el primero
+                        cupoIds: cuposIds,                       // lista real (long[])
                         fechas: fechas
                     })
                         .done(manejarRespuesta)
-                        .fail(function (xhr) {
-                            Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
-                        });
+                        .fail(mostrarErrorAjax);
                 }
 
                 // DLG 2: confirmaci&oacute;n expl&iacute;cita cuando hay cupos con
