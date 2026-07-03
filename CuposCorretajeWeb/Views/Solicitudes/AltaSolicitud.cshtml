@@ -364,12 +364,14 @@
 
                 // Render de cada campo: sólo el nombre (Catálogo).
                 // Cada render devuelve { text, missing }; cuando el
-                // catálogo no tiene el código, aplicamos la clase
+                // catálogo no tiene el código o el flag de coincidencia
+                // viene en false (el criterio no coincide entre la
+                // solicitud y el cupo), aplicamos la clase
                 // sil-cupo-comprador-na al <span> para que se vea en
                 // cursiva amber como "No informado". Ver renderField().
-                var vendedor  = renderField(c.NombreVendedor);
-                var comprador = renderField(c.NombreComprador);
-                var destino   = renderField(c.NombreDestino);
+                var vendedor  = renderField(c.NombreVendedor, item.VendedorCoincide === false);
+                var comprador = renderField(c.NombreComprador, item.CompradorCoincide === false);
+                var destino   = renderField(c.NombreDestino, item.DestinoCoincide === false);
 
                 // Cantidad: placeholder con la cantidad de la solicitud
                 // (sigue sin haber disponibles del cupo en el DTO).
@@ -388,21 +390,11 @@
                       '</div>'
                     : '';
 
-                // Cada fila se renderiza SOLO si el flag de coincidencia
-                // correspondiente es distinto de false (true, null o undefined
-                // → mostrar). Esto refleja "sólo muestro los campos si
-                // coinciden entre solicitud y cupo" — coherente con el badge
+                // Cada fila se renderiza siempre; cuando el flag de coincidencia viene
+                // en false (el criterio no coincide entre la solicitud y el
+                // cupo), el renderField correspondiente devuelve "No
+                // informado" en cursiva amber. Coherente con el badge
                 // Parcial/Directo y la Razon del motor.
-                var vendedorRow = item.VendedorCoincide !== false
-                    ? '<div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>'
-                    : '';
-                var compradorRow = item.CompradorCoincide !== false
-                    ? '<div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>'
-                    : '';
-                var destinoRow = item.DestinoCoincide !== false
-                    ? '<div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>'
-                    : '';
-
                 return '' +
                     // data-cupo-id / data-obs / data-match: los consume el click
                     // handler de Confirmar (DLG 2) sin parsear texto.
@@ -413,7 +405,9 @@
                     '    <span class="sil-cupo-id">Cupo #' + item.CupoId + (fechaDisplay ? ' &middot; ' + fechaDisplay : '') + '</span>' +
                     '  </div>' +
                     '  <div class="sil-cupo-card-body">' +
-                    vendedorRow + compradorRow + destinoRow +
+                    '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + escHtml(disp) + '</span></div>' +
                     obsHtml +
                     '  </div>' +
@@ -430,11 +424,13 @@
             // Devuelve { text, missing }.
             //   - text:    el texto a mostrar (sólo el nombre, o "No
             //              informado").
-            //   - missing: true si el catálogo no resolvió el nombre. El
-            //              render aplica la clase sil-cupo-comprador-na
+            //   - missing: true si el catálogo no resolvió el nombre o si
+            //              el flag de coincidencia del motor está en false
+            //              (el criterio no coincide entre solicitud y cupo).
+            //              El render aplica la clase sil-cupo-comprador-na
             //              cuando missing es true.
-            function renderField(name) {
-                if (name) {
+            function renderField(name, forceMissing) {
+                if (!forceMissing && name) {
                     return { text: name, missing: false };
                 }
                 return { text: 'No informado', missing: true };
