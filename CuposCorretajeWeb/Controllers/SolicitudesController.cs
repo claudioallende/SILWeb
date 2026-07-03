@@ -296,6 +296,11 @@ namespace CuposCorretajeWeb.Controllers
         if (result == null)
           result = new BuscarMatchesResponseViewModel();
 
+        // Los nombres del CUPO (vendedor / comprador / destino / grano) ya
+        // vienen hidratados por SILData en MatchCupoResumen.NombreVendedor
+        // / NombreComprador / NombreDestino / NombreGrano. No hace falta
+        // un GET extra acá.
+
         var fechasLog = req.Fechas != null ? string.Join(",", req.Fechas) : "(default)";
         Trace.TraceInformation(
           $"[Solicitudes] BuscarMatches id={req.IdSolicitud} fechas=[{fechasLog}] items={result.Items.Count}");
@@ -584,6 +589,37 @@ namespace CuposCorretajeWeb.Controllers
         case "CBA": return "Córdoba";
         default: return codigo;
       }
+    }
+
+    /// <summary>
+    /// Enriquece cada <see cref="MatchItemViewModel"/> de la lista con los
+    /// nombres hidratados del catálogo de SILData (<c>SolicitudTurnoView</c>).
+    ///
+    /// Estrategia: 1 sola llamada GET a <c>/api/ShiftRequest/GetByVendedorAsync/{cuentaVendedor}</c>
+    /// que devuelve TODAS las solicitudes del vendedor con nombres resueltos.
+    /// Después indexamos por <c>Id</c> en un diccionario y copiamos los nombres
+    /// a los items de match que correspondan.
+    ///
+    /// Notas:
+    /// - La pantalla 2 siempre trabaja con un único vendedor activo
+    ///   (el de la solicitud en TempData), as&iacute; que con 1 llamada alcanza.
+    /// - Los nombres son de la SOLICITUD. Para campos del CUPO (Comprador /
+    ///   Destino) el nombre puede NO coincidir con el id del cupo cuando el
+    ///   match es Parcial/Condicional. La UI muestra el nombre cuando est&aacute;
+    ///   disponible y el id del cupo como contexto.
+    /// - Si la llamada falla (timeout, 5xx, etc.) NO rompemos el flujo:
+    ///   dejamos los nombres null y la card cae al fallback de IDs.
+    /// </summary>
+    [Obsolete("Reemplazado por hidrataci&oacute;n directa en MatchCupoResumen (SILData).")]
+    private static async Task HidratarNombres(List<MatchItemViewModel> items, long cuentaVendedor)
+    {
+      // Stub inofensivo tras la hidrata directa en SILData
+      // (MatchCupoResumen.NombreVendedor / NombreComprador / NombreDestino).
+      // Se conserva la firma porque MatchItemViewModel ya no tiene las
+      // propiedades planas NombreVendedor/Comprador/Destino/Grano (viven
+      // adentro de Cupo). Si en alg&uacute;n momento queremos volver a
+      // hidratar desde GetByVendedorAsync, este stub ser&aacute; el lugar.
+      await Task.CompletedTask;
     }
   }
 }

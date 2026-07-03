@@ -45,9 +45,13 @@ namespace CuposCorretajeWeb.Models.Solicitudes
   }
 
   /// <summary>
-  /// Resumen del cupo involucrado en el match. Hoy SILData sólo expone IDs
-  /// (CodVendSIL, CodCompSIL, CodDestino) — sin nombres. Las cards de Pantalla
-  /// 2 muestran los IDs con fallback a em-dash para nulls.
+  /// Resumen del cupo involucrado en el match. SILData hidrata
+  /// <c>NombreVendedor</c>, <c>NombreComprador</c>, <c>NombreDestino</c> y
+  /// <c>NombreGrano</c> vía AccountService + GeographicalAereaService. Cuando
+  /// el catálogo no tiene el código, los nombres quedan null y la card
+  /// muestra el ID como fallback. No hace falta que el controller MVC haga
+  /// una llamada extra a GetByVendedorAsync para traer estos datos: ya
+  /// vienen en el payload de Matches.
   /// </summary>
   public class MatchCupoResumenViewModel
   {
@@ -57,5 +61,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string CodCompSIL { get; set; }
     public string CodDestino { get; set; }
     public DateTime? Fecha { get; set; }
+    public string NombreVendedor { get; set; }
+    public string NombreComprador { get; set; }
+    public string NombreDestino { get; set; }
+    public string NombreGrano { get; set; }
   }
 }

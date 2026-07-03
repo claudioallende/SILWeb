@@ -109,6 +109,30 @@ namespace CuposCorretajeWeb.Models.Data
         throw new ApiException(await response.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
     }
+
+    /// <summary>
+    /// Wrapper GET contra SILData (sin body). Los endpoints públicos de SILData
+    /// están sin [Authorize], así que no se manda bearer.
+    ///
+    /// Hoy no existe un wrapper GET→SILData: <see cref="RequestGetAndDeserializeAsync{T}"/>
+    /// apunta al otro base URL (WebServiceCuposCorretaje legacy, con bearer).
+    /// Este wrapper sirve para los endpoints GET de SILData que ya tenemos
+    /// publicados (ej. <c>GET /api/ShiftRequest/GetByVendedorAsync/{cuenta}</c>).
+    /// </summary>
+    public async Task<T> RequestSILDataGetAndDeserializeAsync<T>(string Controller, string Action)
+    {
+      var client = new HttpClient();
+      var response = await client.GetAsync(GetPathApiSilData(Controller) + Action);
+
+      // 204 NoContent: mismo tratamiento que el wrapper POST.
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
+    }
     public async Task<T> DeserializeAsync<T>(string JsonResponse)
     {
       return await Task.FromResult(JsonConvert.DeserializeObject<T>(JsonResponse));
