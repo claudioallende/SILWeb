@@ -181,25 +181,6 @@
                         </div>
                     </div>
 
-                    <!-- Filtros por tipo de match (chips togglables).
-                         Se muestran s&oacute;lo cuando hay matches; los pinta el JS
-                         en pintarMatches() seg&uacute;n los counts reales. -->
-                    <div class="sil-cupo-filters" id="cuposFilters" style="display:none;">
-                        <span class="sil-cupo-filter-label">Filtrar por</span>
-                        <button type="button" class="sil-cupo-chip sil-cupo-chip-dir active" data-type="Directo">
-                            <span class="sil-cupo-chip-dot"></span>
-                            Directo <span class="sil-cupo-chip-cnt">0</span>
-                        </button>
-                        <button type="button" class="sil-cupo-chip sil-cupo-chip-par active" data-type="Parcial">
-                            <span class="sil-cupo-chip-dot"></span>
-                            Parcial <span class="sil-cupo-chip-cnt">0</span>
-                        </button>
-                        <button type="button" class="sil-cupo-chip sil-cupo-chip-cond active" data-type="Condicional">
-                            <span class="sil-cupo-chip-dot"></span>
-                            Condicional <span class="sil-cupo-chip-cnt">0</span>
-                        </button>
-                    </div>
-
                     <!-- Listado de cupos: se llena por JS cuando hay d&iacute;as seleccionados -->
                     <div class="sil-cupos-listado" id="cuposListado" style="display:none;">
                         <!-- generado din&aacute;micamente -->
@@ -261,9 +242,6 @@
             // Filtros por tipo de match (chips arriba del listado de cupos).
             // Default: los 3 activos. Cuando el operador apaga un chip,
             // se ocultan los cards de ese tipo. Se aplica DESPUÉS del
-            // filtro por fecha (todo client-side sobre allMatches).
-            var matchFilters = { Directo: true, Parcial: true, Condicional: true };
-
             // ---- Helpers ----
 
             // Lee el TR (columna 2) de la fila como n&uacute;mero entero.
@@ -556,35 +534,20 @@
             //   - result.Items es la lista plana de MatchItemDto (PascalCase
             //     por la serialización de JavaScriptSerializer via Json()).
             //   - Agrupa por MatchType: Directo / Parcial / Condicional.
-            //   - Aplica los filtros de chips (matchFilters) sobre los items
-            //     antes de agrupar. Los chips del panel muestran el count
-            //     TOTAL por tipo (antes de filtrar) para que el operador sepa
-            //     cu&aacute;ntos hay de cada uno aunque haya apagado uno.
             //   - Sin items: muestra el empty state "no se encontraron cupos".
-            //   - Hay items pero todos filtrados: muestra empty state
-            //     "todos los tipos est&aacute;n filtrados" + chips para reactivar.
             function pintarMatches(result) {
                 var $hd = $('#cuposPanelHd');
                 var $empty = $('#cuposEmpty');
-                var $filters = $('#cuposFilters');
                 var $listado = $('#cuposListado');
                 var $noResults = $('#cuposNoResults');
                 var $actions = $('#cuposActions');
 
                 var items = (result && result.Items) || [];
 
-                // Counts totales por tipo (para pintar los chips). Sobre el
-                // set SIN filtrar — el chip muestra "cu&aacute;ntos hay" y al
-                // apagarlo el operador ya sabe cu&aacute;ntos se est&aacute;n ocultando.
-                var totalDirs  = items.filter(function (i) { return i.MatchType === 'Directo';     }).length;
-                var totalPars  = items.filter(function (i) { return i.MatchType === 'Parcial';     }).length;
-                var totalConds = items.filter(function (i) { return i.MatchType === 'Condicional'; }).length;
-
                 // Sin items para los d&iacute;as seleccionados: empty state.
                 if (items.length === 0) {
                     $hd.text('Cupos compatibles — 0 encontrado(s)');
                     $empty.hide();
-                    $filters.hide();
                     $listado.hide().empty();
                     $noResults.show();
                     $actions.hide();
@@ -593,57 +556,11 @@
                     return;
                 }
 
-                // Hay items: renderizar los chips con counts. Si un tipo tiene
-                // 0, lo ocultamos del bar (no tiene sentido mostrar "Directo (0)").
-                $filters.show();
-                var $chipDir = $filters.find('.sil-cupo-chip-dir')
-                    .toggleClass('sil-cupo-chip-empty', totalDirs === 0)
-                    .find('.sil-cupo-chip-cnt').text(totalDirs).end();
-                var $chipPar = $filters.find('.sil-cupo-chip-par')
-                    .toggleClass('sil-cupo-chip-empty', totalPars === 0)
-                    .find('.sil-cupo-chip-cnt').text(totalPars).end();
-                var $chipCond = $filters.find('.sil-cupo-chip-cond')
-                    .toggleClass('sil-cupo-chip-empty', totalConds === 0)
-                    .find('.sil-cupo-chip-cnt').text(totalConds).end();
-
-                // Aplicar filtros de chips. matchFilters[type]===false → oculto.
-                var visible = items.filter(function (i) {
-                    return matchFilters[i.MatchType] !== false;
-                });
-
-                // Si hay matches pero todos quedaron fuera por los filtros,
-                // mostramos un empty state contextual. El operador puede
-                // reactivar un chip desde la barra (que sigue visible).
-                if (visible.length === 0) {
-                    $hd.text('Cupos compatibles — ' + items.length + ' encontrado(s) (todos filtrados)');
-                    $listado.hide().empty();
-                    $empty.hide();
-                    $noResults.html(
-                        '<div class="sil-cupos-empty-icon">&#128269;</div>' +
-                        '<div class="sil-cupos-empty-text">' +
-                        'Hay <strong>' + items.length + ' cupo(s) compatible(s)</strong> para los d&iacute;as seleccionados, ' +
-                        'pero todos quedaron fuera por los filtros activos. ' +
-                        'Reactiv&aacute; un chip arriba para verlos.' +
-                        '</div>'
-                    ).show();
-                    $actions.hide();
-                    selectedCupos = {};
-                    $('#btnConfirmarAsignacion').prop('disabled', true);
-                    return;
-                }
-
-                // Restaurar el texto del empty state est&aacute;ndar (porque
-                // arriba lo pisamos para el caso "filtrados").
-                $noResults.html(
-                    '<div class="sil-cupos-empty-icon">&#128269;</div>' +
-                    '<div class="sil-cupos-empty-text">No se encontraron cupos compatibles para los d&iacute;as seleccionados.</div>'
-                );
-
                 $hd.text('Cupos compatibles — ' + items.length + ' encontrado' + (items.length !== 1 ? 's' : ''));
 
-                var dirs  = visible.filter(function (i) { return i.MatchType === 'Directo';     });
-                var pars  = visible.filter(function (i) { return i.MatchType === 'Parcial';     });
-                var conds = visible.filter(function (i) { return i.MatchType === 'Condicional'; });
+                var dirs  = items.filter(function (i) { return i.MatchType === 'Directo';     });
+                var pars  = items.filter(function (i) { return i.MatchType === 'Parcial';     });
+                var conds = items.filter(function (i) { return i.MatchType === 'Condicional'; });
 
                 var html = '';
                 if (dirs.length) {
@@ -719,23 +636,6 @@
             $('#tablaDias').on('change', '.chkDia', function () {
                 actualizarEstadoFila($(this).closest('tr'));
                 recalcularTodo();
-            });
-
-            // Toggle de chips de filtro (Directo / Parcial / Condicional).
-            // El chip muestra el count TOTAL por tipo; al apagarlo se ocultan
-            // los cards de ese tipo pero el count se mantiene visible para
-            // que el operador sepa cu&aacute;ntos est&aacute;n ocultos.
-            //
-            // Al togglear se re-renderiza el listado filtrado (sin llamada
-            // AJAX: todo client-side sobre allMatches). Esto resetea
-            // selectedCupos — la UX es consistente con el toggle de d&iacute;a.
-            $('#cuposFilters').on('click', '.sil-cupo-chip', function () {
-                var $chip = $(this);
-                if ($chip.hasClass('sil-cupo-chip-empty')) return;   // chip sin items: no-op
-                var type = $chip.data('type');
-                matchFilters[type] = !matchFilters[type];
-                $chip.toggleClass('active', matchFilters[type]);
-                renderForCurrentSelection();
             });
 
             // Tildar/des-tildar un cupo habilita o no el bot&oacute;n Confirmar.

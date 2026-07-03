@@ -268,6 +268,7 @@ namespace CuposCorretajeWeb.Controllers
             codigoGrano = solicitud.CodigoGrano,
             cuentaVendedor = solicitud.CuentaVendedor,
             cuentaComprador = solicitud.CuentaComprador,
+            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
             fechaDesde = fechasParsed.First(),
             fechaHasta = fechasParsed.Last(),
             incluirIncompatibles = false
@@ -283,6 +284,7 @@ namespace CuposCorretajeWeb.Controllers
             codigoGrano = solicitud.CodigoGrano,
             cuentaVendedor = solicitud.CuentaVendedor,
             cuentaComprador = solicitud.CuentaComprador,
+            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
             incluirIncompatibles = false
           };
         }
