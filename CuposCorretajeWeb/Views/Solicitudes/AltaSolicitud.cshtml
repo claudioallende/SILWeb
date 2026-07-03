@@ -388,6 +388,21 @@
                       '</div>'
                     : '';
 
+                // Cada fila se renderiza SOLO si el flag de coincidencia
+                // correspondiente es distinto de false (true, null o undefined
+                // → mostrar). Esto refleja "sólo muestro los campos si
+                // coinciden entre solicitud y cupo" — coherente con el badge
+                // Parcial/Directo y la Razon del motor.
+                var vendedorRow = item.VendedorCoincide !== false
+                    ? '<div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>'
+                    : '';
+                var compradorRow = item.CompradorCoincide !== false
+                    ? '<div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>'
+                    : '';
+                var destinoRow = item.DestinoCoincide !== false
+                    ? '<div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>'
+                    : '';
+
                 return '' +
                     // data-cupo-id / data-obs / data-match: los consume el click
                     // handler de Confirmar (DLG 2) sin parsear texto.
@@ -398,9 +413,7 @@
                     '    <span class="sil-cupo-id">Cupo #' + item.CupoId + (fechaDisplay ? ' &middot; ' + fechaDisplay : '') + '</span>' +
                     '  </div>' +
                     '  <div class="sil-cupo-card-body">' +
-                    '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
+                    vendedorRow + compradorRow + destinoRow +
                     '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + escHtml(disp) + '</span></div>' +
                     obsHtml +
                     '  </div>' +
