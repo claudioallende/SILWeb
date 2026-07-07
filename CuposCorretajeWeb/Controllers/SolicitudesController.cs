@@ -216,17 +216,6 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    /// <summary>
-    /// Pantalla 2 lo llama una sola vez al cargar la pantalla para obtener
-    /// todos los matches disponibles para la solicitud activa, dentro de la
-    /// ventana por defecto del backend (hoy → hoy+7 días). El cliente filtra
-    /// localmente por fecha a medida que el operador tilda/des-tilda días,
-    /// evitando pegarle al backend en cada toggle.
-    ///
-    /// Si <see cref="BuscarMatchesRequest.Fechas"/> viene null o vacío (caso
-    /// típico de carga inicial), no se envía fechaDesde/fechaHasta al
-    /// backend: el DTO de SILData tiene defaults (hoy / hoy+7).
-    /// </summary>
     [HttpPost]
     public async Task<JsonResult> BuscarMatches([System.Web.Http.FromBody] BuscarMatchesRequest req)
     {
@@ -252,10 +241,6 @@ namespace CuposCorretajeWeb.Controllers
         // Mantener para próximas llamadas (ver AltaSolicitud POST).
         TempData.Keep("Solicitud");
 
-        // Filtro para SILData. Se serializa en camelCase (codigoGrano,
-        // cuentaVendedor, etc.) — convención del nombre de la propiedad C#
-        // en anonymous types, que es lo que espera MatchesFilterDto del lado
-        // de SILData (.NET 8 + System.Text.Json camelCase por default).
         object filter;
         if (req.Fechas != null && req.Fechas.Count > 0)
         {
@@ -293,15 +278,8 @@ namespace CuposCorretajeWeb.Controllers
         var result = await repo.RequestSILDataPostAndDeserializeAsync<BuscarMatchesResponseViewModel>(
           "ShiftRequest", "Matches", filter);
 
-        // 204 NoContent → wrapper devuelve default(T) = null. Traducimos a
-        // respuesta vacía para que PintarMatches muestre el empty state.
         if (result == null)
           result = new BuscarMatchesResponseViewModel();
-
-        // Los nombres del CUPO (vendedor / comprador / destino / grano) ya
-        // vienen hidratados por SILData en MatchCupoResumen.NombreVendedor
-        // / NombreComprador / NombreDestino / NombreGrano. No hace falta
-        // un GET extra acá.
 
         var fechasLog = req.Fechas != null ? string.Join(",", req.Fechas) : "(default)";
         Trace.TraceInformation(
