@@ -85,6 +85,30 @@
       </div>
     }
 
+    <!-- Banner de Aceptados Previos (verde, s&oacute;lo si CantidadAceptada > 0).
+         Informa al operador cu&aacute;ntos cupos de la solicitud ya fueron
+         aceptados en corridas anteriores. El backend expone
+         CANTIDAD_ACEPTADA y CANTIDAD_FUTURO_ACEPTADA desde SOLTURNOS;
+         los copiamos al VM en el payload que arma Index al hacer "ver".
+         Por ahora no hay desglose por fecha (limita el endpoint del
+         backend); si en una iteraci&oacute;n posterior se quiere
+         desglose, hay que joinear SOLTURNOS_DETALLE con CUPOSCORRE.fecha. -->
+    @if (Model != null && Model.CantidadAceptada > 0)
+    {
+      <div class="sil-annotation" style="border-left-color: var(--sil-green-border); background: var(--sil-green-light); color: var(--sil-green);">
+        <strong>Cupos ya aceptados</strong>
+        <div>
+          Esta solicitud tiene <strong>@Model.CantidadAceptada</strong> de
+          @(Model.CantidadOriginal > 0 ? Model.CantidadOriginal.ToString() : "&mdash;")
+          cupos aceptados en corridas anteriores.
+          @if (Model.CantidadFuturoAceptada > 0)
+          {
+            <span>(@(Model.CantidadFuturoAceptada) futuros.)</span>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
     <div class="sil-split">
       <!-- ===== PANEL IZQUIERDO — D&Iacute;AS ===== -->
@@ -214,9 +238,11 @@
             var idSolicitud = @(Model != null ? Model.IdSolicitud : 0);
 
             // Strings del servidor que el modal DLG 2 necesita mostrar dentro de
-            // un Swal.fire({ html: ... }). Los serializamos con Json.Encode para
-            // que queden listos como literales JS (manejo correcto de comillas,
-            // acentos y caracteres de control). Ver también escHtml() abajo.
+            // un Swal.fire({ html: ... }). Los serializamos con
+            // JsonConvert.SerializeObject (Newtonsoft, ya disponible vía
+            // @using Newtonsoft.Json) para que queden listos como literales
+            // JS (manejo correcto de comillas, acentos y caracteres de
+            // control). Ver también escHtml() abajo.
             var solicitudObservacion = @Html.Raw(JsonConvert.SerializeObject(observacion ?? ""));
             var solicitanteNombre    = @Html.Raw(JsonConvert.SerializeObject(Model != null ? (Model.Solicitante ?? "") : ""));
             // Cantidad PEDIDA ORIGINALMENTE (suma de TR en el mapa Fechas).
@@ -700,11 +726,11 @@
             }
 
             function manejarRespuesta(resp) {
-                if (resp && resp.success) {
-                    Swal.fire({ icon: 'success', title: 'Listo', text: resp.message, timer: 1500, showConfirmButton: false })
-                        .then(function () { window.location = resp.redirectUrl || '/Solicitudes/Index'; });
+                if (resp && resp.Success) {
+                    Swal.fire({ icon: 'success', title: 'Listo', text: resp.Message, timer: 1500, showConfirmButton: false })
+                        .then(function () { window.location = resp.RedirectUrl || '/Solicitudes/Index'; });
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.message) || '&mdash;' });
+                    Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.Message) || 'Error desconocido.' });
                 }
             }
 
@@ -817,12 +843,18 @@
                             // (asignación parcial), lo mostramos ANTES del
                             // manejo estándar y respetamos los segundos de
                             // timer para no taparlo con el redirect.
-                            if (resp && resp.success && resp.pendientes && resp.pendientes > 0) {
+                            // IMPORTANTE: ConfirmarAsignacionResponse se
+                            // serializa con Json() en PascalCase (Success,
+                            // Message, Solicitados, Asignados, Pendientes,
+                            // RedirectUrl). Si el controller cambió a
+                            // camelCase en el futuro, este bloque y
+                            // manejarRespuesta deben actualizarse en paralelo.
+                            if (resp && resp.Success && resp.Pendientes && resp.Pendientes > 0) {
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Asignaci&oacute;n parcial',
-                                    text: 'Asignaste ' + resp.asignados + ' de ' + resp.solicitados + ' cupos. ' +
-                                          resp.pendientes + ' quedaron pendientes.',
+                                    text: 'Asignaste ' + resp.Asignados + ' de ' + resp.Solicitados + ' cupos. ' +
+                                          resp.Pendientes + ' quedaron pendientes.',
                                     timer: 2500,
                                     showConfirmButton: false
                                 }).then(function () {

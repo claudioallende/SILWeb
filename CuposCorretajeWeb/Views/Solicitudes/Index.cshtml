@@ -420,8 +420,16 @@
                     totales.forEach(function (t) {
                         const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
                         footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
-                        // TO queda en 0 simple hasta que se complete la explicación correspondiente.
-                        footHtml += '<td><span class="sil-zero">0</span></td>';
+                        // TO: ahora muestra la suma de cupos aceptados para esa fecha.
+                        // Mismo criterio de color que TR.
+                        const toVal = t.to || 0;
+                        if (toVal > 0) {
+                            footHtml += '<td>' + toVal + '</td>';
+                        } else if (t.tieneCupoDisponible) {
+                            footHtml += '<td><span class="sil-cell-red">0</span></td>';
+                        } else {
+                            footHtml += '<td><span class="sil-zero">0</span></td>';
+                        }
                     });
                     footHtml += '<td></td></tr>';
                     $(tfootId).html(footHtml);
@@ -447,6 +455,9 @@
                             return acc;
                         }, {});
 
+                        // Cantidad original = suma de TR en la grilla.
+                        const cantidadOriginal = Object.values(fechas).reduce(function (a, b) { return a + (b || 0); }, 0);
+
                         const payload = {
                             IdSolicitud: row.Id,
                             CodigoCentro: row.CodigoCentro || '',
@@ -466,7 +477,15 @@
                             Observacion: row.Observacion || '',
                             EstadoBadge: row.EstadoBadge || 'pending',
                             EstadoLabel: row.EstadoLabel || 'Pendiente',
-                            Fechas: fechas
+                            Fechas: fechas,
+                            // Acumuladores de aceptados (totales, sin desglose
+                            // por fecha). El backend los expone en
+                            // GetAllAsync desde CANTIDAD_ACEPTADA y
+                            // CANTIDAD_FUTURO_ACEPTADA de SOLTURNOS. Los
+                            // usamos para el banner de Pantalla 2.
+                            CantidadAceptada: row.CantidadAceptada || 0,
+                            CantidadFuturoAceptada: row.CantidadFuturoAceptada || 0,
+                            CantidadOriginal: cantidadOriginal
                         };
 
                         // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
@@ -564,12 +583,15 @@
                     else trCell += '<span class="sil-zero">0</span>';
                     trCell += '</td>';
 
-                    // TO: queda en 0 simple hasta que se complete la explicación
-                    // correspondiente. Mismo criterio de color que TR. No lleva
-                    // clase: el divisor entre fechas ya quedó del lado izquierdo
-                    // del TR de la siguiente fecha.
+                    // TO: cupos aceptados para esta fecha (total depositado por el
+                    // controller en la celda de la fecha del primer item del grupo).
+                    // Mismo criterio de color que TR. No lleva clase: el divisor
+                    // entre fechas ya quedó del lado izquierdo del TR de la
+                    // siguiente fecha.
                     let toCell = '<td>';
-                    if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
+                    var toVal = d.CantidadFuturo || 0;
+                    if (toVal > 0) toCell += toVal;
+                    else if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
                     else toCell += '<span class="sil-zero">0</span>';
                     toCell += '</td>';
 

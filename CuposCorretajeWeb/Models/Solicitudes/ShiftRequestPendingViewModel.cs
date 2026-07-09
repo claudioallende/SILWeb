@@ -37,6 +37,17 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public short? CtgCupo { get; set; }
 
     /// <summary>
+    /// Acumulador de cupos aceptados (≤ Cantidad). Se setea en Accept.
+    /// </summary>
+    public int CantidadAceptada { get; set; }
+
+    /// <summary>
+    /// Acumulador de cupos futuros aceptados (≤ CantidadFuturo). Subset
+    /// de <see cref="CantidadAceptada"/> cuando la solicitud es EsFuturo=true.
+    /// </summary>
+    public int CantidadFuturoAceptada { get; set; }
+
+    /// <summary>
     /// Devuelve la clave CSS del badge de estado para la grilla de Pantalla 1.
     /// Valores posibles: "pending" | "asig" | "rech".
     /// </summary>

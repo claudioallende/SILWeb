@@ -38,5 +38,22 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public bool EsEditable => EstadoBadge == "pending";
 
     public Dictionary<string, int> Fechas { get; set; }
+
+    /// <summary>
+    /// Acumulador total de cupos aceptados al momento de abrir la pantalla
+    /// (≤ Cantidad original de la solicitud). Sirve para mostrar en el
+    /// banner "X de N ya aceptados" y deshabilitar acciones redundantes.
+    /// </summary>
+    public int CantidadAceptada { get; set; }
+
+    /// <summary>
+    /// Acumulador total de cupos futuros aceptados (≤ CantidadFuturo).
+    /// Subset de <see cref="CantidadAceptada"/> cuando la solicitud es
+    /// futura. En solicitudes contractuales siempre vale 0.
+    /// </summary>
+    public int CantidadFuturoAceptada { get; set; }
+
+    /// <summary>Cantidad original pedida (suma de TR en el mapa Fechas).</summary>
+    public int CantidadOriginal { get; set; }
   }
 }

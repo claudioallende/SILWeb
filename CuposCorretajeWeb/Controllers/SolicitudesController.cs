@@ -592,9 +592,17 @@ namespace CuposCorretajeWeb.Controllers
     /// destino null forman su propio grupo, no se mezclan con las que sí
     /// tienen destino.
     ///
-    /// El parámetro campoCantidadTR indica qué campo del item se acumula en la
-    /// columna TR de la celda resultante. La columna TO se mantiene en 0 por
-    /// ahora; se completará en una iteración posterior.
+    /// Parámetro <paramref name="campoCantidadTR"/>: campo del item que se
+    /// acumula en la columna TR (Cantidad o CantidadFuturo según la tabla).
+    ///
+    /// Columna TO (<see cref="SolicitudTurnoDetalleGrupoView.CantidadFuturo"/>):
+    /// acumula la cantidad ACEPTADA para esa fecha. Como el response del
+    /// backend no desglosa los aceptados por fecha (vienen totales en
+    /// CantidadAceptada / CantidadFuturoAceptada), ponemos el total del grupo
+    /// en la celda de la fecha solicitada por el primer item del grupo y 0 en
+    /// el resto. Es una simplificación: si en una iteración posterior se
+    /// quiere el desglose por fecha, hay que agregar un endpoint que joinee
+    /// SOLTURNOS_DETALLE con CUPOSCORRE.fecha.
     /// </summary>
     private static List<SolicitudTurnoGrupoView> GroupBySolicitud(
       IEnumerable<ShiftRequestPendingViewModel> items,
@@ -634,16 +642,32 @@ namespace CuposCorretajeWeb.Controllers
           })
           .ToDictionary(k => k.Fecha, k => k);
 
+        // Total de aceptados para la columna TO. Sin desglose por fecha
+        // (limitación actual del endpoint GetAllAsync del backend). Se
+        // deposita en la celda de la fecha del primer item del grupo para
+        // que el operador lo vea.
+        int totalAceptadosGrupo = campoCantidadTR == "Cantidad"
+          ? g.Sum(x => x.CantidadAceptada)
+          : g.Sum(x => x.CantidadFuturoAceptada);
+        string? fechaAceptadosKey = null;
+
         foreach (var item in g)
         {
           string fechaKey = item.FechaSolicitado.ToString("yyyy-MM-dd");
           if (!detalles.ContainsKey(fechaKey)) continue; // fuera de la ventana
 
-          // Tabla CONTRACTUAL: campoCantidadTR = "Cantidad"  → TR recibe Cantidad.
-          // Tabla FUTURO:      campoCantidadTR = "CantidadFuturo" → TR recibe CantidadFuturo.
-          // La columna TO queda en 0 (se completará después).
+          // TR (Cantidad/CantidadFuturo segun corresponda a la tabla)
           int valor = campoCantidadTR == "Cantidad" ? item.Cantidad : item.CantidadFuturo;
           if (valor > 0) detalles[fechaKey].Cantidad += valor;
+
+          // TO: marcar la fecha del primer item del grupo para depositar
+          // el total de aceptados ahi.
+          if (fechaAceptadosKey == null) fechaAceptadosKey = fechaKey;
+        }
+
+        if (fechaAceptadosKey != null && totalAceptadosGrupo > 0)
+        {
+          detalles[fechaAceptadosKey].CantidadFuturo = totalAceptadosGrupo;
         }
 
         // El estado de la fila lo define la primera solicitud del grupo.
