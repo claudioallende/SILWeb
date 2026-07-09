@@ -219,6 +219,10 @@
             // acentos y caracteres de control). Ver también escHtml() abajo.
             var solicitudObservacion = @Html.Raw(Json.Encode(observacion ?? ""));
             var solicitanteNombre    = @Html.Raw(Json.Encode(Model != null ? (Model.Solicitante ?? "") : ""));
+            // Cantidad PEDIDA ORIGINALMENTE (suma de TR en el mapa Fechas).
+            // Se usa para validar que el operador no asigne más de lo que pidió
+            // cuando usa el input de cantidad por cupo.
+            var solicitudCantidadOriginal = @(Model != null ? Model.Fechas?.Values.Sum() ?? 0 : 0);
 
             // Cache de matches devueltos por el backend. Se carga UNA sola vez al
             // entrar a Pantalla 2 (el backend resuelve la ventana por defecto
@@ -409,6 +413,12 @@
                     '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + escHtml(disp) + '</span></div>' +
+                    '    <div class="sil-cupo-field sil-cupo-cant-row">' +
+                    '      <span>Cantidad a asignar</span>' +
+                    '      <input type="number" class="sil-cupo-cant" min="1" max="1" value="1"' +
+                    '             style="width:60px;text-align:right;"' +
+                    '             title="Hoy cada cupo es entero (1). A futuro se habilitar&aacute; subdivisi&oacute;n." />' +
+                    '    </div>' +
                     obsHtml +
                     '  </div>' +
                     '</div>';
@@ -665,6 +675,9 @@
                         obs: $card.data('obs') == '1' || $card.data('obs') === true,
                         match: $card.data('match')
                     };
+                    // Resetear el input de cantidad a 1 cada vez que se tilda
+                    // (defensa contra valores stale de iteraciones previas).
+                    $card.find('.sil-cupo-cant').val(1);
                 } else {
                     delete selectedCupos[id];
                 }
@@ -766,13 +779,59 @@
                         var n = parseInt(k, 10);
                         return isNaN(n) ? k : n;
                     });
+
+                    // Cantidad por cupo: se lee del input numérico de cada
+                    // card. Si la card no está tildada, su input queda fuera
+                    // del state y se ignora. Default 1 por cupo.
+                    var cantidadPorCupo = {};
+                    var totalAsignar = 0;
+                    cuposIds.forEach(function (cid) {
+                        var $card = $('.sil-cupo-card[data-cupo-id="' + cid + '"]');
+                        var cant = parseInt($card.find('.sil-cupo-cant').val(), 10) || 1;
+                        if (cant < 1) cant = 1;
+                        cantidadPorCupo[cid] = cant;
+                        totalAsignar += cant;
+                    });
+
+                    // Defensa client-side: no asignar más de lo que pidió la
+                    // solicitud. El backend también lo valida (400).
+                    if (solicitudCantidadOriginal > 0 && totalAsignar > solicitudCantidadOriginal) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Cantidad excedida',
+                            text: 'Est&aacute;s asignando ' + totalAsignar + ' cupos pero la solicitud pide ' + solicitudCantidadOriginal + '. Ajust&aacute; las cantidades.',
+                            confirmButtonColor: '#a93226'
+                        });
+                        return;
+                    }
+
                     postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
                         idSolicitud: idSolicitud,
                         cupoCompatibleId: cuposIds[0] || null,   // legacy: el primero
                         cupoIds: cuposIds,                       // lista real (long[])
-                        fechas: fechas
+                        fechas: fechas,
+                        cantidadPorCupo: cantidadPorCupo          // mapa cupoId → cantidad
                     })
-                        .done(manejarRespuesta)
+                        .done(function (resp) {
+                            // Si el backend devolvió un toast informativo
+                            // (asignación parcial), lo mostramos ANTES del
+                            // manejo estándar y respetamos los segundos de
+                            // timer para no taparlo con el redirect.
+                            if (resp && resp.success && resp.pendientes && resp.pendientes > 0) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Asignaci&oacute;n parcial',
+                                    text: 'Asignaste ' + resp.asignados + ' de ' + resp.solicitados + ' cupos. ' +
+                                          resp.pendientes + ' quedaron pendientes.',
+                                    timer: 2500,
+                                    showConfirmButton: false
+                                }).then(function () {
+                                    manejarRespuesta(resp);
+                                });
+                                return;
+                            }
+                            manejarRespuesta(resp);
+                        })
                         .fail(mostrarErrorAjax);
                 }
 

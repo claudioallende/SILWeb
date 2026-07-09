@@ -21,5 +21,14 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 
     /// <summary>Dict con los días seleccionados (yyyy-MM-dd) y la cantidad TR asociada.</summary>
     public Dictionary<string, int> Fechas { get; set; }
+
+    /// <summary>
+    /// Mapa cupoId → cantidad a asignar (1 por defecto). Permite que el operador
+    /// asigne parcialmente los cupos disponibles para la solicitud.
+    /// Hoy todos los cupos son enteros (sin subdivisión), así que este campo
+    /// se valida en frontend para que el operador no pida más de lo disponible
+    /// por cupo. Queda como hook para cuando se agregue subdivisión intra-cupo.
+    /// </summary>
+    public Dictionary<long, int> CantidadPorCupo { get; set; } = new Dictionary<long, int>();
   }
 }

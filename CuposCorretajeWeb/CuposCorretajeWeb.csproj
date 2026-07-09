@@ -302,6 +302,13 @@
     <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudActionResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\ConfirmarAsignacionRequest.cs" />
+    <Compile Include="Models\Solicitudes\ConfirmarAsignacionResponse.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\AcceptPayloadBuilder.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\CupoDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptDataDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptResultDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestRejectResultDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\SolicitudTurnoDto.cs" />
     <Compile Include="Models\Solicitudes\SolicitudesIndexResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudViewModel.cs" />

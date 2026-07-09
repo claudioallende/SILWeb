@@ -1,7 +1,9 @@
 using CuposCorretajeWeb.Models.Data;
 using CuposCorretajeWeb.Models.Error;
 using CuposCorretajeWeb.Models.Solicitudes;
+using CuposCorretajeWeb.Models.Solicitudes.Mapping;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -304,28 +306,61 @@ namespace CuposCorretajeWeb.Controllers
     /// <summary>
     /// Confirma una solicitud (cambia su estado a Asignada).
     /// Pantalla 2 lo llama desde el botón "Confirmar".
-    ///
-    /// TODO: reemplazar el stub por la llamada real a SILData cuando se
-    /// defina el endpoint correspondiente (controller/acción a confirmar
-    /// con backend). Por ahora sólo devuelve success para validar el flujo
-    /// de UI.
+    /// Legacy: acepta Cantidad=1 contra el cupo pre-asignado en la solicitud
+    /// (de SOLTURNOS.CUPO_ID). Funciona como wrapper de
+    /// <see cref="ConfirmarAsignacionSeleccionada"/> con un único cupo.
     /// </summary>
     [HttpPost]
-    public JsonResult ConfirmarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    public async Task<JsonResult> ConfirmarSolicitud([System.Web.Http.FromBody] long idSolicitud)
     {
       try
       {
         if (idSolicitud <= 0)
-          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+          return Json(new SolicitudActionResponseViewModel
+          {
+            Success = false,
+            Message = "Id de solicitud inválido."
+          });
 
-        // TODO: llamada a SILData (ShiftRequest/ConfirmShiftRequestAsync?).
-        Trace.TraceInformation($"[stub] ConfirmarSolicitud id={idSolicitud}");
+        var repo = new WebServiceSILRespository();
 
+        // Traer la solicitud para conocer su cupo pre-asignado.
+        var solicitud = await repo.RequestSILDataGetAndDeserializeAsync<SolicitudTurnoDto>(
+          "ShiftRequest", idSolicitud.ToString());
+
+        if (solicitud == null)
+          return Json(new SolicitudActionResponseViewModel
+          {
+            Success = false,
+            Message = "No se encontró la solicitud."
+          });
+
+        if (!solicitud.CupoId.HasValue || solicitud.CupoId.Value <= 0)
+          return Json(new SolicitudActionResponseViewModel
+          {
+            Success = false,
+            Message = "La solicitud no tiene un cupo compatible pre-asignado. Use el flujo de selección múltiple (ConfirmarAsignacionSeleccionada)."
+          });
+
+        // Wrapper de Cantidad=1 sobre el cupo pre-asignado.
+        var req = new ConfirmarAsignacionRequest
+        {
+          IdSolicitud = idSolicitud,
+          CupoCompatibleId = solicitud.CupoId,
+          CupoIds = new List<long> { solicitud.CupoId.Value },
+          Fechas = new Dictionary<string, int>(),
+          CantidadPorCupo = new Dictionary<long, int> { { solicitud.CupoId.Value, 1 } }
+        };
+
+        return await ConfirmarAsignacionSeleccionada(req);
+      }
+      catch (ApiException ex)
+      {
+        Trace.TraceError("ConfirmarSolicitud error: " + ex);
         return Json(new SolicitudActionResponseViewModel
         {
-          Success = true,
-          Message = "Solicitud confirmada (stub).",
-          RedirectUrl = Url.Action("Index")
+          Success = false,
+          Message = ExtractApiMessage(ex)
         });
       }
       catch (Exception ex)
@@ -336,28 +371,57 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Rechaza una solicitud (cambia su estado a Rechazada).
+    /// Rechaza una solicitud completa (cambia su estado a Rechazada).
     /// Pantalla 2 lo llama desde el botón "Rechazar".
-    ///
-    /// TODO: reemplazar el stub por la llamada real a SILData cuando se
-    /// defina el endpoint correspondiente.
+    /// Si la solicitud tenía cupos previamente asignados (Accept parcial),
+    /// el backend libera esos cupos automáticamente dentro de la misma
+    /// transacción (ver <c>SolicitudTurnoStore.RejectRequestsAsync</c>).
     /// </summary>
     [HttpPost]
-    public JsonResult RechazarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    public async Task<JsonResult> RechazarSolicitud([System.Web.Http.FromBody] long idSolicitud)
     {
       try
       {
         if (idSolicitud <= 0)
-          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+          return Json(new SolicitudActionResponseViewModel
+          {
+            Success = false,
+            Message = "Id de solicitud inválido."
+          });
 
-        // TODO: llamada a SILData (ShiftRequest/RejectShiftRequestAsync?).
-        Trace.TraceInformation($"[stub] RechazarSolicitud id={idSolicitud}");
+        // Reutilizamos el mismo DTO que el endpoint Reject de SILData.
+        // No se puede referenciar directamente porque el frontend no tiene
+        // project ref a SILData — construimos un JObject equivalente.
+        var payload = new
+        {
+          solicitudIds = new List<long> { idSolicitud },
+          motivo = "Rechazo manual desde Pantalla 2.",
+          automatico = false
+        };
+
+        var repo = new WebServiceSILRespository();
+        var resultado = await repo.RequestSILDataPostAndDeserializeAsync<ShiftRequestRejectResultDto>(
+          "ShiftRequest", "Reject", payload);
+
+        bool exito = resultado != null && resultado.TotalRechazados > 0;
+        string message = exito
+          ? "Solicitud rechazada correctamente."
+          : "La solicitud ya no está pendiente (fue asignada o rechazada por otro operador).";
 
         return Json(new SolicitudActionResponseViewModel
         {
-          Success = true,
-          Message = "Solicitud rechazada (stub).",
+          Success = exito,
+          Message = message,
           RedirectUrl = Url.Action("Index")
+        });
+      }
+      catch (ApiException ex)
+      {
+        Trace.TraceError("RechazarSolicitud error: " + ex);
+        return Json(new SolicitudActionResponseViewModel
+        {
+          Success = false,
+          Message = ExtractApiMessage(ex)
         });
       }
       catch (Exception ex)
@@ -368,54 +432,134 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Confirma la asignación de los días seleccionados para una solicitud (Pantalla 2,
+    /// Confirma la asignación de los cupos seleccionados para una solicitud (Pantalla 2,
     /// botón "Confirmar asignación seleccionada").
     ///
     /// Recibe idSolicitud + lista de CupoIds (long, reales del motor de matching) +
-    /// mapa de fechas seleccionadas. CupoCompatibleId se conserva por compatibilidad
-    /// legacy y se popula con el primero de CupoIds si está null.
+    /// mapa de fechas seleccionadas + mapa CantidadPorCupo (default 1 por cupo).
+    /// CupoCompatibleId se conserva por compatibilidad legacy y se popula con el
+    /// primero de CupoIds si está null.
     ///
-    /// TODO: reemplazar el stub por la llamada real a SILData (ShiftRequest/Accept
-    /// o el endpoint que se defina para confirmación batch).
+    /// Llama a <c>POST /api/ShiftRequest/Accept</c> con la solicitud completa
+    /// (obtenida vía GET a <c>/api/ShiftRequest/{id}</c>) y los cupos completos
+    /// (obtenidos vía POST a <c>/api/ShiftRequest/Cupos/ByIds</c>).
     /// </summary>
     [HttpPost]
-    public JsonResult ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
+    public async Task<JsonResult> ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
     {
       try
       {
         if (req == null || req.IdSolicitud <= 0)
-          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Id de solicitud inválido." });
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = "Id de solicitud inválido."
+          });
         if (req.Fechas == null || req.Fechas.Count == 0)
-          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Seleccione al menos un día." });
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = "Seleccione al menos un día."
+          });
         if (req.CupoIds == null || req.CupoIds.Count == 0)
-          return Json(new SolicitudActionResponseViewModel { Success = false, Message = "Seleccione al menos un cupo compatible." });
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = "Seleccione al menos un cupo compatible."
+          });
 
         // CupoCompatibleId legacy: si el caller lo manda null pero trae la lista,
         // completamos con el primero para no romper consumidores que lo esperan.
         if (!req.CupoCompatibleId.HasValue && req.CupoIds.Count > 0)
           req.CupoCompatibleId = req.CupoIds[0];
 
-        // TODO: llamar a SILData con req.IdSolicitud + req.CupoIds + req.Fechas.
-        Trace.TraceInformation(
-          $"[stub] ConfirmarAsignacionSeleccionada id={req.IdSolicitud} cupos=[{string.Join(",", req.CupoIds)}] dias=[{string.Join(",", req.Fechas.Keys)}]");
+        var repo = new WebServiceSILRespository();
 
-        return Json(new SolicitudActionResponseViewModel
+        // 1) Construir el payload SILData (trae solicitud + cupos, popula
+        //    Cantidad desde CantidadPorCupo si existe).
+        var payload = await AcceptPayloadBuilder.BuildAsync(repo, req);
+
+        // 2) POST a /api/ShiftRequest/Accept. La respuesta trae el desglose
+        //    de asignados vs solicitados vs pendientes (modelo SOLTURNOS_DETALLE).
+        var resultado = await repo.RequestSILDataPostAndDeserializeAsync<ShiftRequestAcceptResultDto>(
+          "ShiftRequest", "Accept", payload);
+
+        if (resultado == null)
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = "El backend no devolvió resultado."
+          });
+
+        // 3) Mapear el resultado al response VM.
+        int asignados = resultado.CantidadAsignadaEnEsteAccept;
+        int solicitados = resultado.CantidadSolicitadaTotal > 0
+          ? resultado.CantidadSolicitadaTotal
+          : req.CupoIds.Count;
+        int pendientes = resultado.CantidadPendienteRestante > 0
+          ? resultado.CantidadPendienteRestante
+          : Math.Max(0, solicitados - asignados);
+
+        string message = pendientes > 0
+          ? $"Asignaste {asignados} de {solicitados} cupos. {pendientes} quedaron pendientes."
+          : $"Asignación confirmada: {asignados} cupos.";
+
+        return Json(new ConfirmarAsignacionResponse
         {
           Success = true,
-          Message = $"Asignación confirmada (stub) para {req.Fechas.Count} día(s) y {req.CupoIds.Count} cupo(s).",
+          Message = message,
+          Solicitados = solicitados,
+          Asignados = asignados,
+          Pendientes = pendientes,
           RedirectUrl = Url.Action("Index")
+        });
+      }
+      catch (ApiException ex)
+      {
+        Trace.TraceError("ConfirmarAsignacionSeleccionada error: " + ex);
+        return Json(new ConfirmarAsignacionResponse
+        {
+          Success = false,
+          Message = ExtractApiMessage(ex)
         });
       }
       catch (Exception ex)
       {
         Trace.TraceError("ConfirmarAsignacionSeleccionada error: " + ex);
-        return Json(new SolicitudActionResponseViewModel { Success = false, Message = ex.Message });
+        return Json(new ConfirmarAsignacionResponse { Success = false, Message = ex.Message });
       }
     }
 
     // =====================================================================
     // Helpers privados
     // =====================================================================
+
+    /// <summary>
+    /// Extrae el mensaje de error de un <see cref="ApiException"/> lanzado por
+    /// la capa <c>Util.RequestSILData*</c>. Esos métodos envuelven el body del
+    /// <c>ProblemDetails</c> devuelto por SILData en caso de 4xx/5xx.
+    /// </summary>
+    /// <remarks>
+    /// SILData devuelve <c>ProblemDetails</c> (RFC 7807) con campos
+    /// <c>title</c>, <c>detail</c>, <c>status</c>. Preferimos <c>detail</c>
+    /// (mensaje específico) sobre <c>title</c> (genérico).
+    /// </remarks>
+    private static string ExtractApiMessage(ApiException ex)
+    {
+      if (ex == null) return "Error desconocido.";
+      try
+      {
+        var problem = JObject.Parse(ex.Message);
+        return problem["detail"]?.ToString()
+            ?? problem["title"]?.ToString()
+            ?? ex.Message;
+      }
+      catch
+      {
+        // El body no es JSON — devolvemos el mensaje crudo.
+        return ex.Message;
+      }
+    }
 
     private static List<SolicitudTurnoDetalleGrupoView> EnumerateFechas(DateTime desde, int dias)
     {
