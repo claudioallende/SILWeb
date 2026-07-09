@@ -23,8 +23,8 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
     /// <summary>Cantidad pendiente restante (SolicitadaTotal - AsignadaEnEsteAccept).</summary>
     public int CantidadPendienteRestante { get; set; }
 
-    public List<ShiftRequestAssignedItemDto> Asignados { get; set; } = new();
-    public List<ShiftRequestAcceptFailureDto> Fallos { get; set; } = new();
+    public List<ShiftRequestAssignedItemDto> Asignados { get; set; } = new List<ShiftRequestAssignedItemDto>();
+    public List<ShiftRequestAcceptFailureDto> Fallos { get; set; } = new List<ShiftRequestAcceptFailureDto>();
   }
 
   public class ShiftRequestAssignedItemDto
@@ -40,7 +40,7 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
     /// y se cuenta en <c>CantidadAceptada</c> (o <c>CantidadFuturoAceptada</c>
     /// si la solicitud es <c>EsFuturo=true</c>).
     /// </summary>
-    public List<long> CuposAsignados { get; set; } = new();
+    public List<long> CuposAsignados { get; set; } = new List<long>();
 
     public string TipoMatch { get; set; }
   }

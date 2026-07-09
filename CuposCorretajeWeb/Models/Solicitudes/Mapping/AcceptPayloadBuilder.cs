@@ -50,7 +50,7 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
         throw new System.ArgumentNullException(nameof(mvcRequest));
       if (solicitudCompleta == null)
         throw new System.ArgumentNullException(nameof(solicitudCompleta));
-      cuposCompletos ??= new List<CupoDto>();
+      cuposCompletos = cuposCompletos ?? new List<CupoDto>();
 
       // Cantidad en el payload = cuánto quiere asignar AHORA el operador.
       // El backend lo valida contra la cantidad pedida original (campo

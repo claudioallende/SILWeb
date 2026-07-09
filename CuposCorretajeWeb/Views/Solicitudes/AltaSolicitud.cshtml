@@ -2,213 +2,213 @@
 @using Newtonsoft.Json;
 @model SolicitudViewModel
 @{
-    ViewBag.Title = "Detalle de Solicitud";
+  ViewBag.Title = "Detalle de Solicitud";
 
-    // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
-    // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
-    // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
-    // del encoding del .cshtml.
-    const string GUION = "-";
+  // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
+  // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
+  // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
+  // del encoding del .cshtml.
+  const string GUION = "-";
 
-    // SafeStr como Func (no local function) para que compile en el Razor
-    // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
-    Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
+  // SafeStr como Func (no local function) para que compile en el Razor
+  // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
+  Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
 
-    var esEditable = Model != null && Model.EsEditable;
-    var readClass = esEditable ? "" : "sil-readonly";
-    var estadoBadge = (ViewBag.EstadoBadge as string) ?? "pending";
-    var estadoLabel = (ViewBag.EstadoLabel as string) ?? "Pendiente";
-    var modoTexto = esEditable ? "Modo edici&oacute;n" : "Modo s&oacute;lo lectura";
-    var errorMessage = ViewBag.ErrorMessage as string;
-    var observacion = Model.Observacion;
+  var esEditable = Model != null && Model.EsEditable;
+  var readClass = esEditable ? "" : "sil-readonly";
+  var estadoBadge = (ViewBag.EstadoBadge as string) ?? "pending";
+  var estadoLabel = (ViewBag.EstadoLabel as string) ?? "Pendiente";
+  var modoTexto = esEditable ? "Modo edici&oacute;n" : "Modo s&oacute;lo lectura";
+  var errorMessage = ViewBag.ErrorMessage as string;
+  var observacion = Model.Observacion;
 
-    // Para los 7 d&iacute;as hardcodeados, los valores TR/TO no vienen en el VM legacy
-    // (s&oacute;lo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
-    // Cuando se enchufe el motor de matching, se reemplaza por un listado real.
+  // Para los 7 d&iacute;as hardcodeados, los valores TR/TO no vienen en el VM legacy
+  // (s&oacute;lo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
+  // Cuando se enchufe el motor de matching, se reemplaza por un listado real.
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/Content/solicitudes-alta.css" />
+  <link rel="stylesheet" href="~/Content/solicitudes-alta.css" />
 }
 
 <div class="container-fluid">
-    <div class="sil-page-hd">
-        <div>
-            <h1>Detalle de Solicitud</h1>
-            <p class="text-muted">Selecci&oacute;n de d&iacute;as y cupos compatibles</p>
-        </div>
+  <div class="sil-page-hd">
+    <div>
+      <h1>Detalle de Solicitud</h1>
+      <p class="text-muted">Selecci&oacute;n de d&iacute;as y cupos compatibles</p>
+    </div>
+  </div>
+
+  <div class="@readClass">
+    <!-- Banner de modo + estado + (opcional) error -->
+    <div class="sil-mode-banner @(string.IsNullOrEmpty(errorMessage) ? "" : "sil-mode-banner-error")">
+      <span class="sil-badge sil-badge-@estadoBadge">@estadoLabel</span>
+      <span class="sil-mode-banner-text">@Html.Raw(modoTexto)</span>
+      @if (!string.IsNullOrEmpty(errorMessage))
+      {
+        <span class="sil-mode-banner-text">@GUION @errorMessage</span>
+      }
     </div>
 
-    <div class="@readClass">
-        <!-- Banner de modo + estado + (opcional) error -->
-        <div class="sil-mode-banner @(string.IsNullOrEmpty(errorMessage) ? "" : "sil-mode-banner-error")">
-            <span class="sil-badge sil-badge-@estadoBadge">@estadoLabel</span>
-            <span class="sil-mode-banner-text">@Html.Raw(modoTexto)</span>
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <span class="sil-mode-banner-text">@GUION @errorMessage</span>
-            }
-        </div>
+    <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
 
-        <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
-
-        <!-- Cabecera resumen -->
-        <div class="sil-summary">
-            <div class="sil-summary-cell">
-                <small>Solicitante</small>
-                <div>@SafeStr(Model.Solicitante)</div>
-            </div>
-            <div class="sil-summary-cell">
-                <small>Grano</small>
-                <div>@SafeStr(Model.NombreGrano)</div>
-            </div>
-            <div class="sil-summary-cell">
-                <small>Comprador</small>
-                <div>@SafeStr(Model.Comprador)</div>
-            </div>
-            <div class="sil-summary-cell">
-                <small>Zona</small>
-                <div>@SafeStr(Model.NombreDestino)</div>
-            </div>
-            <div class="sil-summary-cell">
-                <small>Centro</small>
-                <div>@SafeStr(Model.CodigoCentro)</div>
-            </div>
-        </div>
-
-        <!-- Banner de Observaciones (&aacute;mbar, s&oacute;lo si hay contenido) -->
-        @if (!string.IsNullOrWhiteSpace(observacion))
-        {
-            <div class="sil-annotation" style="border-left-color: var(--sil-amber-border); background: var(--sil-amber-light); color: var(--sil-amber);">
-                <strong>Observaciones del solicitante</strong>
-                <div>@observacion</div>
-            </div>
-        }
-
-        <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
-        <div class="sil-split">
-            <!-- ===== PANEL IZQUIERDO — D&Iacute;AS ===== -->
-            <div class="sil-panel">
-                <div class="sil-panel-hd ph-navy">
-                    <span>Solicitudes por d&iacute;a &mdash; 7 d&iacute;as</span>
-                    <span class="sil-panel-hd-sub">Seleccion&aacute; los d&iacute;as sobre los que quer&eacute;s operar</span>
-                </div>
-                <div class="sil-panel-body">
-
-                    <!-- instrucci&oacute;n -->
-                    <div class="sil-instruction-box">
-                        <span class="sil-instruction-icon">i</span>
-                        Hac&eacute; clic en una fila para seleccionar o deseleccionar el d&iacute;a. El panel derecho actualiza los cupos compatibles.
-                    </div>
-
-                    <!-- tabla de d&iacute;as -->
-                    <div class="sil-tbl-card">
-                        <table class="sil-day-tbl" id="tablaDias">
-                            <thead>
-                                <tr>
-                                    <th style="width:32px;"></th>
-                                    <th style="text-align:left; padding-left:10px;">Fecha</th>
-                                    <th style="text-align:center;">Sol. TR</th>
-                                    <th style="text-align:center;">Sol. TO</th>
-                                    <th style="text-align:center;">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (int dia = 0; dia < 7; dia++)
-                                {
-                                    var fecha = DateTime.Now.AddDays(dia).Date;
-                                    var fechaKey = fecha.ToString("yyyy-MM-dd");
-                                    var fechaDisplay = fecha.ToString("dd/MM");
-                                    var diaSemana = fecha.ToString("ddd");
-                                    var dict = (Model != null) ? Model.Fechas : null;
-                                    var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
-                                    // TO no se persiste en el VM legacy: queda en 0 por ahora.
-                                    var toFuturas = 0;
-                                    var sinSolicitudes = (tr == 0 && toFuturas == 0);
-                                    <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
-                                        <td>
-                                            @if (!sinSolicitudes)
-                                            {
-                                                <input type="checkbox" class="sil-day-chk chkDia" @(esEditable ? "" : "disabled=\"disabled\"") />
-                                            }
-                                        </td>
-                                        <td class="sil-day-fecha">
-                                            <strong>@fechaDisplay</strong>
-                                            <span class="sil-day-diasem">@diaSemana</span>
-                                        </td>
-                                        <td style="text-align:center;">@tr</td>
-                                        <td style="text-align:center;">@toFuturas</td>
-                                        <td style="text-align:center;">
-                                            <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
-                                                @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
-                                            </span>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- resumen selecci&oacute;n -->
-                    <div class="sil-resumen-box" id="diasResumen">
-                        Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.
-                    </div>
-
-                    <!-- acciones globales -->
-                    <div class="sil-actions-block">
-                        <div class="sil-action-label">Acciones sobre la solicitud</div>
-                        <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
-                            Rechazar solicitud completa
-                        </button>
-                        <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
-                            + Crear nuevo cupo
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== PANEL DERECHO — CUPOS ===== -->
-            <div class="sil-panel">
-                <div class="sil-panel-hd ph-teal" id="cuposPanelHd">
-                    Cupos compatibles &mdash; seleccion&aacute; d&iacute;as para ver
-                </div>
-                <div class="sil-panel-body">
-                    <!-- Estado vacío: sin d&iacute;as seleccionados -->
-                    <div class="sil-cupos-empty" id="cuposEmpty">
-                        <div class="sil-cupos-empty-icon">&#128197;</div>
-                        <div class="sil-cupos-empty-text">
-                            Seleccion&aacute; uno o m&aacute;s d&iacute;as en el panel izquierdo para visualizar los cupos compatibles para esas fechas.
-                        </div>
-                    </div>
-
-                    <!-- Listado de cupos: se llena por JS cuando hay d&iacute;as seleccionados -->
-                    <div class="sil-cupos-listado" id="cuposListado" style="display:none;">
-                        <!-- generado din&aacute;micamente -->
-                    </div>
-
-                    <!-- Sin resultados: hay d&iacute;as seleccionados pero ning&uacute;n cupo -->
-                    <div class="sil-cupos-no-results" id="cuposNoResults" style="display:none;">
-                        <div class="sil-cupos-empty-icon">&#128269;</div>
-                        <div class="sil-cupos-empty-text">
-                            No se encontraron cupos compatibles para los d&iacute;as seleccionados.
-                        </div>
-                    </div>
-
-                    <!-- Acciones: s&oacute;lo se muestran cuando hay cupos para asignar -->
-                    <div class="sil-cupos-actions" id="cuposActions" style="display:none;">
-                        <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
-                        <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
-                            Confirmar asignaci&oacute;n seleccionada
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Cabecera resumen -->
+    <div class="sil-summary">
+      <div class="sil-summary-cell">
+        <small>Solicitante</small>
+        <div>@SafeStr(Model.Solicitante)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Grano</small>
+        <div>@SafeStr(Model.NombreGrano)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Comprador</small>
+        <div>@SafeStr(Model.Comprador)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Zona</small>
+        <div>@SafeStr(Model.NombreDestino)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Centro</small>
+        <div>@SafeStr(Model.CodigoCentro)</div>
+      </div>
     </div>
+
+    <!-- Banner de Observaciones (&aacute;mbar, s&oacute;lo si hay contenido) -->
+    @if (!string.IsNullOrWhiteSpace(observacion))
+    {
+      <div class="sil-annotation" style="border-left-color: var(--sil-amber-border); background: var(--sil-amber-light); color: var(--sil-amber);">
+        <strong>Observaciones del solicitante</strong>
+        <div>@observacion</div>
+      </div>
+    }
+
+    <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
+    <div class="sil-split">
+      <!-- ===== PANEL IZQUIERDO — D&Iacute;AS ===== -->
+      <div class="sil-panel">
+        <div class="sil-panel-hd ph-navy">
+          <span>Solicitudes por d&iacute;a &mdash; 7 d&iacute;as</span>
+          <span class="sil-panel-hd-sub">Seleccion&aacute; los d&iacute;as sobre los que quer&eacute;s operar</span>
+        </div>
+        <div class="sil-panel-body">
+
+          <!-- instrucci&oacute;n -->
+          <div class="sil-instruction-box">
+            <span class="sil-instruction-icon">i</span>
+            Hac&eacute; clic en una fila para seleccionar o deseleccionar el d&iacute;a. El panel derecho actualiza los cupos compatibles.
+          </div>
+
+          <!-- tabla de d&iacute;as -->
+          <div class="sil-tbl-card">
+            <table class="sil-day-tbl" id="tablaDias">
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th style="text-align:left; padding-left:10px;">Fecha</th>
+                  <th style="text-align:center;">Sol. TR</th>
+                  <th style="text-align:center;">Sol. TO</th>
+                  <th style="text-align:center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (int dia = 0; dia < 7; dia++)
+                {
+                  var fecha = DateTime.Now.AddDays(dia).Date;
+                  var fechaKey = fecha.ToString("yyyy-MM-dd");
+                  var fechaDisplay = fecha.ToString("dd/MM");
+                  var diaSemana = fecha.ToString("ddd");
+                  var dict = (Model != null) ? Model.Fechas : null;
+                  var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
+                  // TO no se persiste en el VM legacy: queda en 0 por ahora.
+                  var toFuturas = 0;
+                  var sinSolicitudes = (tr == 0 && toFuturas == 0);
+                  <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
+                    <td>
+                      @if (!sinSolicitudes)
+                      {
+                        <input type="checkbox" class="sil-day-chk chkDia" @(esEditable ? "" : "disabled=\"disabled\"") />
+                      }
+                    </td>
+                    <td class="sil-day-fecha">
+                      <strong>@fechaDisplay</strong>
+                      <span class="sil-day-diasem">@diaSemana</span>
+                    </td>
+                    <td style="text-align:center;">@tr</td>
+                    <td style="text-align:center;">@toFuturas</td>
+                    <td style="text-align:center;">
+                      <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
+                        @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- resumen selecci&oacute;n -->
+          <div class="sil-resumen-box" id="diasResumen">
+            Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.
+          </div>
+
+          <!-- acciones globales -->
+          <div class="sil-actions-block">
+            <div class="sil-action-label">Acciones sobre la solicitud</div>
+            <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
+              Rechazar solicitud completa
+            </button>
+            <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
+              + Crear nuevo cupo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PANEL DERECHO — CUPOS ===== -->
+      <div class="sil-panel">
+        <div class="sil-panel-hd ph-teal" id="cuposPanelHd">
+          Cupos compatibles &mdash; seleccion&aacute; d&iacute;as para ver
+        </div>
+        <div class="sil-panel-body">
+          <!-- Estado vacío: sin d&iacute;as seleccionados -->
+          <div class="sil-cupos-empty" id="cuposEmpty">
+            <div class="sil-cupos-empty-icon">&#128197;</div>
+            <div class="sil-cupos-empty-text">
+              Seleccion&aacute; uno o m&aacute;s d&iacute;as en el panel izquierdo para visualizar los cupos compatibles para esas fechas.
+            </div>
+          </div>
+
+          <!-- Listado de cupos: se llena por JS cuando hay d&iacute;as seleccionados -->
+          <div class="sil-cupos-listado" id="cuposListado" style="display:none;">
+            <!-- generado din&aacute;micamente -->
+          </div>
+
+          <!-- Sin resultados: hay d&iacute;as seleccionados pero ning&uacute;n cupo -->
+          <div class="sil-cupos-no-results" id="cuposNoResults" style="display:none;">
+            <div class="sil-cupos-empty-icon">&#128269;</div>
+            <div class="sil-cupos-empty-text">
+              No se encontraron cupos compatibles para los d&iacute;as seleccionados.
+            </div>
+          </div>
+
+          <!-- Acciones: s&oacute;lo se muestran cuando hay cupos para asignar -->
+          <div class="sil-cupos-actions" id="cuposActions" style="display:none;">
+            <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
+            <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
+              Confirmar asignaci&oacute;n seleccionada
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 @section Scripts {
-    <script type="text/javascript">
+  <script type="text/javascript">
         $(function () {
             var esEditable = @((esEditable ? "true" : "false"));
             var idSolicitud = @(Model != null ? Model.IdSolicitud : 0);
@@ -884,5 +884,5 @@
                 window.location = '@Url.Action("Index", "Solicitudes")';
             });
         });
-    </script>
+  </script>
 }
