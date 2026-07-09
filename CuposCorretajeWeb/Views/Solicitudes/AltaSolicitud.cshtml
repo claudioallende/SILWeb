@@ -217,12 +217,12 @@
             // un Swal.fire({ html: ... }). Los serializamos con Json.Encode para
             // que queden listos como literales JS (manejo correcto de comillas,
             // acentos y caracteres de control). Ver también escHtml() abajo.
-            var solicitudObservacion = @Html.Raw(Json.Encode(observacion ?? ""));
-            var solicitanteNombre    = @Html.Raw(Json.Encode(Model != null ? (Model.Solicitante ?? "") : ""));
+            var solicitudObservacion = @Html.Raw(JsonConvert.SerializeObject(observacion ?? ""));
+            var solicitanteNombre    = @Html.Raw(JsonConvert.SerializeObject(Model != null ? (Model.Solicitante ?? "") : ""));
             // Cantidad PEDIDA ORIGINALMENTE (suma de TR en el mapa Fechas).
             // Se usa para validar que el operador no asigne más de lo que pidió
             // cuando usa el input de cantidad por cupo.
-            var solicitudCantidadOriginal = @(Model != null ? Model.Fechas?.Values.Sum() ?? 0 : 0);
+            var solicitudCantidadOriginal = @(Model != null && Model.Fechas != null ? Model.Fechas.Values.Sum() : 0);
 
             // Cache de matches devueltos por el backend. Se carga UNA sola vez al
             // entrar a Pantalla 2 (el backend resuelve la ventana por defecto
