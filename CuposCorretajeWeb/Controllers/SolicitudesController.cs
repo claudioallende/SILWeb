@@ -757,15 +757,6 @@ namespace CuposCorretajeWeb.Controllers
           })
           .ToDictionary(k => k.Fecha, k => k);
 
-        // Total de aceptados para la columna TO. Sin desglose por fecha
-        // (limitación actual del endpoint GetAllAsync del backend). Se
-        // deposita en la celda de la fecha del primer item del grupo para
-        // que el operador lo vea.
-        int totalAceptadosGrupo = campoCantidadTR == "Cantidad"
-          ? g.Sum(x => x.CantidadAceptada)
-          : g.Sum(x => x.CantidadFuturoAceptada);
-        string fechaAceptadosKey = null;
-
         foreach (var item in g)
         {
           string fechaKey = item.FechaSolicitado.ToString("yyyy-MM-dd");
@@ -775,14 +766,16 @@ namespace CuposCorretajeWeb.Controllers
           int valor = campoCantidadTR == "Cantidad" ? item.Cantidad : item.CantidadFuturo;
           if (valor > 0) detalles[fechaKey].Cantidad += valor;
 
-          // TO: marcar la fecha del primer item del grupo para depositar
-          // el total de aceptados ahi.
-          if (fechaAceptadosKey == null) fechaAceptadosKey = fechaKey;
-        }
-
-        if (fechaAceptadosKey != null && totalAceptadosGrupo > 0)
-        {
-          detalles[fechaAceptadosKey].CantidadFuturo = totalAceptadosGrupo;
+          // TO: CantidadAceptada (o CantidadFuturoAceptada para la tabla FUTURO)
+          // por FECHA, no la suma del grupo depositada en la celda del primer
+          // item. Cada item tiene su propia FechaSolicitado y su propio
+          // CantidadAceptada; depositar la SUYA en la celda de SU fecha es lo
+          // que el operador espera ver — aceptar cupos para el d&iacute;a 10
+          // debe impactar la celda del 10, no la del 9.
+          int aceptados = campoCantidadTR == "Cantidad"
+            ? item.CantidadAceptada
+            : item.CantidadFuturoAceptada;
+          if (aceptados > 0) detalles[fechaKey].CantidadFuturo = aceptados;
         }
 
         // El estado de la fila lo define la primera solicitud del grupo.
