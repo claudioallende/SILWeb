@@ -237,6 +237,17 @@
             var esEditable = @((esEditable ? "true" : "false"));
             var idSolicitud = @(Model != null ? Model.IdSolicitud : 0);
 
+            // Mapa fecha → solicitudId. Lo serializamos desde el VM para que
+            // Pantalla 2 pueda pedir matches de la solicitud ESPECÍFICA del
+            // día tildado (no sólo la del primer item del grupo, que es lo
+            // que va en idSolicitud arriba). Viene de SolicitudesController.
+            // GroupBySolicitud → SolicitudTurnoGrupoView.SolicitudesPorFecha.
+            var solicitudPorFecha = @Html.Raw(JsonConvert.SerializeObject(
+                Model != null && Model.SolicitudesPorFecha != null
+                    ? Model.SolicitudesPorFecha
+                    : new Dictionary<string, long>()
+            ));
+
             // Strings del servidor que el modal DLG 2 necesita mostrar dentro de
             // un Swal.fire({ html: ... }). Los serializamos con
             // JsonConvert.SerializeObject (Newtonsoft, ya disponible vía
@@ -250,12 +261,14 @@
             // cuando usa el input de cantidad por cupo.
             var solicitudCantidadOriginal = @(Model != null && Model.Fechas != null ? Model.Fechas.Values.Sum() : 0);
 
-            // Cache de matches devueltos por el backend. Se carga UNA sola vez al
-            // entrar a Pantalla 2 (el backend resuelve la ventana por defecto
-            // hoy → hoy+7) y se filtra client-side en cada toggle de fecha.
-            // Estructura: array de MatchItemDto tal cual viene del servidor
-            // (propiedades PascalCase por la serialización de Json()).
-            var allMatches = [];
+            // Cache de matches devueltos por el backend, INDEXADO por
+            // solicitudId. Estructura: { [solicitudId]: MatchItemDto[] }.
+            // Antes era un array global, pero ahora Pantalla 2 puede trabajar
+            // con varias solicitudes (una por fecha tildada), así que cada
+            // solicitud tiene su propio cache. Se carga UNA vez por
+            // solicitudId al entrar a Pantalla 2 (o cuando se tilda un día
+            // cuya solicitud a&uacute;n no fue consultada).
+            var matchesPorSolicitud = {};
 
             // Estado de cupos seleccionados por el operador. Lo declaramos
             // arriba (no cerca del change handler) porque pintarMatches
@@ -430,9 +443,12 @@
                 // informado" en cursiva amber. Coherente con el badge
                 // Parcial/Directo y la Razon del motor.
                 return '' +
-                    // data-cupo-id / data-obs / data-match: los consume el click
-                    // handler de Confirmar (DLG 2) sin parsear texto.
-                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
+                    // data-cupo-id / data-solicitud-id / data-obs / data-match: los consume
+                    // el click handler de Confirmar (DLG 2) sin parsear texto.
+                    // data-solicitud-id se necesita para que el handler pueda
+                    // validar que todos los cupos seleccionados correspondan a la
+                    // solicitud activa (idSolicitud) antes de armar el POST.
+                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-solicitud-id="' + item.SolicitudId + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
                     '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
                     '    <input type="checkbox" class="sil-cupo-chk" />' +
                     '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
@@ -506,50 +522,69 @@
                 });
             }
 
-            // Carga TODOS los matches compatibles para la solicitud activa UNA sola vez
-            // al entrar a Pantalla 2. El backend resuelve la ventana por defecto
-            // (hoy → hoy+7 días) porque no mandamos `fechas`. El resultado se
-            // cachea en allMatches y se filtra client-side en cada toggle.
+            // Carga los matches compatibles para TODAS las solicitudes del grupo en
+            // paralelo. Cada solicitud tiene su propio cache en matchesPorSolicitud.
+            // El backend resuelve la ventana por defecto (hoy → hoy+7 días)
+            // porque no mandamos `fechas`.
             //
-            // Optimización: si el operador selecciona días dentro de esa
-            // ventana default, no hace falta volver a pegarle al backend.
+            // Estrategia:
+            //   1) Tomamos el set único de solicitudIds de solicitudPorFecha.
+            //   2) Por cada id, disparamos un POST a BuscarMatches en paralelo.
+            //   3) Cuando TODOS terminan (Promise.all), pintamos.
+            //
+            // Fallback: si la pantalla se abre sin SolicitudesPorFecha (caso
+            // legacy o testing manual), usamos idSolicitud como única consulta.
             function cargarMatchesIniciales() {
                 ShowLoader();
-                $.ajax({
-                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    dataType: 'json',
-                    data: JSON.stringify({ idSolicitud: idSolicitud })
-                    // Sin `fechas` → backend defaults (hoy, hoy+7).
-                })
-                    .done(function (resp) {
+                var ids = Object.keys(solicitudPorFecha).map(function (k) {
+                    return solicitudPorFecha[k];
+                });
+                // Deduplicar ids.
+                var uniqIds = [];
+                var seen = {};
+                ids.forEach(function (i) { if (!seen[i]) { seen[i] = true; uniqIds.push(i); } });
+                if (uniqIds.length === 0) uniqIds = [idSolicitud];
+
+                var promesas = uniqIds.map(function (sid) {
+                    return $.ajax({
+                        url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: JSON.stringify({ idSolicitud: sid })
+                    }).then(function (resp) {
                         if (resp && resp.success) {
-                            // Json() serializa con propiedades PascalCase
-                            // (controller devuelve BuscarMatchesResponseViewModel
-                            // typed → JavaScriptSerializer preserva nombres).
-                            var data = resp.data || {};
-                            allMatches = data.Items || [];
-                            renderForCurrentSelection();
+                            matchesPorSolicitud[sid] = (resp.data && resp.data.Items) || [];
                         } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: (resp && resp.message) || '—'
-                            });
-                            allMatches = [];
-                            renderForCurrentSelection();
+                            matchesPorSolicitud[sid] = [];
                         }
-                    })
-                    .fail(mostrarErrorAjax)
-                    .always(function () { HideLoader(); });
+                    }, function () {
+                        // Si una falla, esa solicitud queda sin cache; el render
+                        // se hace igual con lo que tengamos.
+                        matchesPorSolicitud[sid] = [];
+                    });
+                });
+
+                $.when.apply($, promesas).always(function () {
+                    HideLoader();
+                    renderForCurrentSelection();
+                });
             }
 
-            // Filtra allMatches por los d&iacute;as actualmente tildados y
-            // re-pinta el panel. Sin llamada AJAX: opera sobre el cache.
+            // Filtra los matches cacheados por los d&iacute;as actualmente
+            // tildados y re-pinta el panel. Sin llamada AJAX (opera sobre el
+            // cache de matchesPorSolicitud y dispara cargas on-demand si
+            // alg&uacute;n solicitudId a&uacute;n no fue cacheado).
+            //
+            // Multi-solicitud: Pantalla 1 agrupa varias solicitudes (una por
+            // fecha) bajo una sola fila visual. solicitudPorFecha mapea cada
+            // fecha tildada a su solicitudId ESPEC&Iacute;FICO. Por cada
+            // solicitudId distinto, agregamos sus matches y filtramos por
+            // fecha del CUPO para descartar cupos que correspondan a d&iacute;as
+            // que el operador NO tild&oacute;.
             //   - Sin selecci&oacute;n: empty state "seleccion&aacute; d&iacute;as".
-            //   - Con selecci&oacute;n pero 0 matches en el cache para esos
-            //     d&iacute;as: empty state "no se encontraron cupos".
+            //   - Con selecci&oacute;n pero 0 matches en el cache: empty state
+            //     "no se encontraron cupos".
             //   - Con selecci&oacute;n y matches: cards agrupadas por MatchType.
             function renderForCurrentSelection() {
                 var $hd = $('#cuposPanelHd');
@@ -569,32 +604,87 @@
                     return;
                 }
 
-                var filtered = allMatches.filter(function (item) {
-                    // Filtro por fecha del CUPO: tiene que estar dentro de los
-                    // d&iacute;as tildados (regla de negocio: el operador s&oacute;lo
-                    // quiere ver cupos para los d&iacute;as que seleccion&oacute;).
-                    var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
-                    if (!fCupo) return false;
-                    var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
-                    if (checkedDates.indexOf(ymdCupo) < 0) return false;
-
-                    // Filtro por fecha de la SOLICITUD: cada item referencia una
-                    // solicitud con su propio FechaSolicitado. En Pantalla 2 la
-                    // fila de Pantalla 1 puede agrupar varias solicitudes (una
-                    // por fecha) bajo el mismo (grano, vendedor); si el
-                    // operador abre con la primera solicitud del grupo
-                    // (idSolicitud) y tilda el d&iacute;a 10/07, queremos ver
-                    // los matches contra la solicitud del 10/07, no contra la
-                    // del 09/07. Sin este filtro, los cards muestran "Match TR"
-                    // con la cantidad de la solicitud activa (la primera del
-                    // grupo) en vez de la del d&iacute;a tildado.
-                    var fSol = item.Solicitud && parseFechaSIL(item.Solicitud.FechaSolicitado);
-                    if (!fSol) return false;
-                    var ymdSol = fSol.getFullYear() + '-' + pad2(fSol.getMonth() + 1) + '-' + pad2(fSol.getDate());
-                    return checkedDates.indexOf(ymdSol) >= 0;
+                // 1) Resolver el set &uacute;nico de solicitudIds correspondientes
+                //    a los d&iacute;as tildados. Si por alg&uacute;n motivo el
+                //    mapa no tiene la fecha (legacy sin SolicitudesPorFecha),
+                //    caemos al idSolicitud activo como &uacute;nico fallback.
+                var idsParaCargar = [];
+                var idsSet = {};
+                checkedDates.forEach(function (f) {
+                    var sid = solicitudPorFecha[f] || idSolicitud;
+                    if (!idsSet[sid]) {
+                        idsSet[sid] = true;
+                        idsParaCargar.push(sid);
+                    }
                 });
 
-                pintarMatches({ Items: filtered });
+                // 2) Disparar cargas on-demand para los solicitudIds que a&uacute;n
+                //    no est&aacute;n en matchesPorSolicitud. Cuando llegan,
+                //    repintamos sin re-disparar AJAX.
+                var promesasPendientes = [];
+                idsParaCargar.forEach(function (sid) {
+                    if (matchesPorSolicitud[sid] === undefined) {
+                        matchesPorSolicitud[sid] = null; // marca de "en vuelo"
+                        promesasPendientes.push(cargarMatchesParaSolicitud(sid));
+                    }
+                });
+
+                function pintarConCache() {
+                    var items = [];
+                    checkedDates.forEach(function (f) {
+                        var sid = solicitudPorFecha[f] || idSolicitud;
+                        var matchList = matchesPorSolicitud[sid];
+                        if (!matchList) return; // a&uacute;n no lleg&oacute; o fall&oacute;
+
+                        matchList.forEach(function (item) {
+                            if (!item) return;
+                            // Filtro por fecha del CUPO: tiene que estar dentro de los
+                            // d&iacute;as tildados (regla de negocio: el operador s&oacute;lo
+                            // quiere ver cupos para los d&iacute;as que seleccion&oacute;).
+                            var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                            if (!fCupo) return;
+                            var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                            if (checkedDates.indexOf(ymdCupo) < 0) return;
+                            items.push(item);
+                        });
+                    });
+
+                    pintarMatches({ Items: items });
+                }
+
+                if (promesasPendientes.length === 0) {
+                    pintarConCache();
+                } else {
+                    ShowLoader();
+                    $.when.apply($, promesasPendientes).always(function () {
+                        HideLoader();
+                        pintarConCache();
+                    });
+                }
+            }
+
+            // Carga los matches para UNA solicitud espec&iacute;fica y los guarda
+            // en matchesPorSolicitud[solicitudId]. Es la versi&oacute;n
+            // "individual" del cargarMatchesIniciales (que dispara N en
+            // paralelo al entrar a Pantalla 2). Se usa en modo on-demand
+            // cuando el operador tilda una fecha cuya solicitud a&uacute;n no
+            // hab&iacute;a sido consultada.
+            function cargarMatchesParaSolicitud(solicitudId) {
+                return $.ajax({
+                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify({ idSolicitud: solicitudId })
+                }).then(function (resp) {
+                    if (resp && resp.success) {
+                        matchesPorSolicitud[solicitudId] = (resp.data && resp.data.Items) || [];
+                    } else {
+                        matchesPorSolicitud[solicitudId] = [];
+                    }
+                }, function () {
+                    matchesPorSolicitud[solicitudId] = [];
+                });
             }
 
             // Pinta el panel de cupos a partir de la respuesta cacheada/filtrada.
@@ -613,30 +703,33 @@
 
                 // El backend devuelve 1 item por cada cruce (solicitud, cupo)
                 // compatible, contra TODAS las solicitudes que matchean los
-                // filtros de cat&aacute;logo (grano, vendedor, comprador, destino,
-                // fecha). En Pantalla 2 siempre estamos trabajando con UNA
-                // solicitud activa (la del "ver" desde Pantalla 1), as&iacute;
-                // que primero filtramos a los items que matchean contra ESA
-                // solicitud. Sin este filtro, si hay 3 solicitudes que matchean
-                // y s&oacute;lo 2 cupos, ver&iacute;amos 6 items / 6 cards en vez
-                // de 2 cards (uno por cupo).
-                var items = rawItems.filter(function (i) {
-                    return i && i.SolicitudId === idSolicitud;
-                });
-
-                // Adem&aacute;s agrupamos por CupoId. En teor&iacute;a ya viene 1 item
-                // por cupo (porque filtramos por SolicitudId), pero dejamos
-                // la agrupaci&oacute;n como red de seguridad: si por alguna
-                // raz&oacute;n el backend devuelve varios items para el mismo
-                // par (solicitud, cupo), nos quedamos con el primero.
-                var seenCupos = {};
+                // filtros de cat&aacute;logo. El frontend ya filtr&oacute; por
+                // Solicitud.FechaSolicitado (en renderForCurrentSelection),
+                // as&iacute; que ac&aacute; los items que llegan corresponden
+                // a d&iacute;as que el operador tild&oacute;.
+                //
+                // Pantalla 1 agrupa varias solicitudes (una por fecha) bajo una
+                // sola fila visual. Por eso NO filtramos por SolicitudId === idSolicitud
+                // ac&aacute;: queremos ver los cupos que matchean contra la
+                // solicitud del d&iacute;a tildado, no s&oacute;lo contra la
+                // primera solicitud del grupo (la activa). Si la fila de Pantalla 1
+                // tiene solicitudes del 09/07, 10/07 y 11/07 y el operador tilda
+                // 10/07, los cards deben mostrar los matches contra la solicitud
+                // del 10/07 (con su Cantidad propia), no contra la del 09/07.
+                //
+                // Agrupamos por (CupoId, SolicitudId) para no repetir cards: si
+                // el mismo cupo matchea contra dos solicitudes distintas (caso
+                // raro pero posible), mostramos un card por cada par.
+                var seenKeys = {};
                 var dedup = [];
-                items.forEach(function (i) {
-                    if (seenCupos[i.CupoId]) return;
-                    seenCupos[i.CupoId] = true;
+                rawItems.forEach(function (i) {
+                    if (!i) return;
+                    var key = i.CupoId + '|' + i.SolicitudId;
+                    if (seenKeys[key]) return;
+                    seenKeys[key] = true;
                     dedup.push(i);
                 });
-                items = dedup;
+                var items = dedup;
 
                 // Sin items para los d&iacute;as seleccionados: empty state.
                 if (items.length === 0) {
@@ -697,9 +790,9 @@
             $('#tablaDias tbody tr').each(function () { actualizarEstadoFila($(this)); });
             pintarResumen(resumenSeleccion());
             // Disparo la carga inicial de matches UNA sola vez. Cuando termina,
-            // pintarMatches se llama desde el .done() con la respuesta del
-            // backend (cache en allMatches). En modo readonly no se carga
-            // porque el operador no interactúa con la grilla.
+            // pintarMatches se llama desde el .always() con la respuesta del
+            // backend (cache en matchesPorSolicitud). En modo readonly no se
+            // carga porque el operador no interactúa con la grilla.
             if (esEditable) {
                 cargarMatchesIniciales();
             } else {
@@ -748,7 +841,13 @@
                 if ($(this).is(':checked')) {
                     selectedCupos[id] = {
                         obs: $card.data('obs') == '1' || $card.data('obs') === true,
-                        match: $card.data('match')
+                        match: $card.data('match'),
+                        // SolicitudId del par (cupo, solicitud) que matche&oacute;.
+                        // Lo guardamos para validar antes del POST que todos los
+                        // cupos seleccionados correspondan a la misma solicitud
+                        // activa (idSolicitud). Si no coinciden, el backend los
+                        // asignar&iacute;a a la solicitud equivocada.
+                        solicitudId: $card.data('solicitud-id')
                     };
                     // Resetear el input de cantidad a 1 cada vez que se tilda
                     // (defensa contra valores stale de iteraciones previas).
@@ -816,12 +915,19 @@
             //
             // Flujo:
             //   1) Valida que haya al menos un d&iacute;a y un cupo seleccionados.
-            //   2) DLG 2: si alg&uacute;n cupo seleccionado tiene obs=true, muestra
-            //      un Swal de advertencia con la observaci&oacute;n del solicitante
-            //      y los cupos afectados. Si el operador confirma, sigue; si
-            //      cancela, aborta (no se hace POST y los checkboxes quedan
-            //      como estaban).
-            //   3) POST a ConfirmarAsignacionSeleccionada con el array de cupos.
+            //   2) Agrupa los cupos seleccionados por solicitudId (cada cupo
+            //      arrastra su solicitudId desde data-solicitud-id de la card).
+            //   3) Por cada solicitudId distinto, arma una
+            //      <AsignacionPorSolicitud> y valida que la suma de cupos a
+            //      asignar no exceda la cantidad pedida original para ESA
+            //      solicitud (no la del grupo entero, que es la suma).
+            //   4) DLG 2: si alg&uacute;n cupo seleccionado tiene obs=true,
+            //      muestra un Swal de advertencia con la observaci&oacute;n
+            //      del solicitante y los cupos afectados. Si confirma, sigue;
+            //      si cancela, aborta.
+            //   5) POST a ConfirmarAsignacionSeleccionada con la lista de
+            //      <AsignacionPorSolicitud>. El controller dispara un Accept
+            //      por cada una y agrega los resultados.
             $('#btnConfirmarAsignacion').on('click', function () {
                 var fechas = {};
                 $('.chkDia:checked').each(function () {
@@ -845,57 +951,103 @@
                     return selectedCupos[id].obs;
                 });
 
-                function doPost() {
-                    // Array de IDs reales (long) de los cupos seleccionados.
-                    // selectedCupos es { cupoId: { obs, match } } poblado desde
-                    // el data-cupo-id de la card, que ya viene como string
-                    // del long que devuelve el motor.
-                    var cuposIds = Object.keys(selectedCupos).map(function (k) {
-                        var n = parseInt(k, 10);
-                        return isNaN(n) ? k : n;
-                    });
+                // Agrupaci&oacute;n por solicitudId: cada card arrastra su
+                // solicitudId desde data-solicitud-id, as&iacute; que este
+                // armado es 1-1 con lo que se pint&oacute;. Sumamos la
+                // cantidad por cupo (input num&eacute;rico de cada card) y
+                // tambi&eacute;n computamos el TR por solicitud (suma de los
+                // d&iacute;as tildados cuya fecha mapea a esa solicitudId).
+                var asignaciones = {}; // { [sid]: { fecha, tr, cupos: [{id, cant}], cantidadPorCupo: {id:cant} } }
+                Object.keys(selectedCupos).forEach(function (cupoIdStr) {
+                    var s = selectedCupos[cupoIdStr];
+                    var sid = s.solicitudId;
+                    if (!asignaciones[sid]) asignaciones[sid] = {
+                        idSolicitud: sid,
+                        cupos: [],
+                        cantidadPorCupo: {},
+                        // TR de la solicitud = suma de TR de los d&iacute;as
+                        // tildados cuya fecha mapea a esta solicitud. Lo
+                        // inicializamos lazy al cerrar la agrupaci&oacute;n.
+                        tr: 0,
+                        fecha: null
+                    };
+                    var $card = $('.sil-cupo-card[data-cupo-id="' + cupoIdStr + '"]');
+                    var cant = parseInt($card.find('.sil-cupo-cant').val(), 10) || 1;
+                    if (cant < 1) cant = 1;
+                    var cupoIdNum = parseInt(cupoIdStr, 10);
+                    if (isNaN(cupoIdNum)) cupoIdNum = cupoIdStr;
+                    asignaciones[sid].cupos.push({ id: cupoIdNum, cant: cant });
+                    asignaciones[sid].cantidadPorCupo[cupoIdNum] = cant;
+                });
 
-                    // Cantidad por cupo: se lee del input numérico de cada
-                    // card. Si la card no está tildada, su input queda fuera
-                    // del state y se ignora. Default 1 por cupo.
-                    var cantidadPorCupo = {};
-                    var totalAsignar = 0;
-                    cuposIds.forEach(function (cid) {
-                        var $card = $('.sil-cupo-card[data-cupo-id="' + cid + '"]');
-                        var cant = parseInt($card.find('.sil-cupo-cant').val(), 10) || 1;
-                        if (cant < 1) cant = 1;
-                        cantidadPorCupo[cid] = cant;
-                        totalAsignar += cant;
-                    });
-
-                    // Defensa client-side: no asignar más de lo que pidió la
-                    // solicitud. El backend también lo valida (400).
-                    if (solicitudCantidadOriginal > 0 && totalAsignar > solicitudCantidadOriginal) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Cantidad excedida',
-                            text: 'Est&aacute;s asignando ' + totalAsignar + ' cupos pero la solicitud pide ' + solicitudCantidadOriginal + '. Ajust&aacute; las cantidades.',
-                            confirmButtonColor: '#a93226'
-                        });
-                        return;
+                // Cerrar TR y fecha representativa por solicitudId.
+                Object.keys(fechas).forEach(function (f) {
+                    var sid = solicitudPorFecha[f] || idSolicitud;
+                    if (asignaciones[sid]) {
+                        asignaciones[sid].tr += fechas[f] || 0;
+                        if (!asignaciones[sid].fecha) asignaciones[sid].fecha = f;
                     }
+                });
 
+                // Defensa client-side: no asignar m&aacute;s de lo que pidi&oacute;
+                // la solicitud para CADA solicitudId. Se chequea contra la TR
+                // pedida (no la cantidad legacy del VM que es la suma del grupo).
+                var excedidos = [];
+                Object.keys(asignaciones).forEach(function (sid) {
+                    var a = asignaciones[sid];
+                    var totalAAsignar = a.cupos.reduce(function (acc, x) { return acc + x.cant; }, 0);
+                    if (a.tr > 0 && totalAAsignar > a.tr) {
+                        excedidos.push({ sid: sid, asignar: totalAAsignar, pedir: a.tr });
+                    }
+                });
+                if (excedidos.length > 0) {
+                    var msg = excedidos.map(function (e) {
+                        return 'Solicitud ' + e.sid + ': ' + e.asignar + ' cupos a asignar vs ' + e.pedir + ' pedidos.';
+                    }).join('\n');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cantidad excedida',
+                        text: msg,
+                        confirmButtonColor: '#a93226'
+                    });
+                    return;
+                }
+
+                // Armar el payload final: lista de AsignacionPorSolicitud.
+                var asignacionesPorSolicitud = Object.keys(asignaciones).map(function (sid) {
+                    var a = asignaciones[sid];
+                    return {
+                        idSolicitud: a.idSolicitud,
+                        fecha: a.fecha,
+                        tr: a.tr,
+                        cupoIds: a.cupos.map(function (c) { return c.id; }),
+                        cantidadPorCupo: a.cantidadPorCupo
+                    };
+                });
+
+                function doPost() {
                     postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
-                        idSolicitud: idSolicitud,
-                        cupoCompatibleId: cuposIds[0] || null,   // legacy: el primero
-                        cupoIds: cuposIds,                       // lista real (long[])
+                        idSolicitud: idSolicitud,                                 // legacy
+                        cupoCompatibleId: asignacionesPorSolicitud[0] ? asignacionesPorSolicitud[0].cupoIds[0] : null,
+                        cupoIds: asignacionesPorSolicitud.reduce(function (acc, a) { return acc.concat(a.cupoIds); }, []),
                         fechas: fechas,
-                        cantidadPorCupo: cantidadPorCupo          // mapa cupoId → cantidad
+                        cantidadPorCupo: asignacionesPorSolicitud.reduce(function (acc, a) {
+                            Object.keys(a.cantidadPorCupo).forEach(function (k) { acc[k] = a.cantidadPorCupo[k]; });
+                            return acc;
+                        }, {}),
+                        // NEW: multi-solicitud. El controller usa esto si viene;
+                        // si no, cae al flujo legacy de idSolicitud + cupoIds.
+                        asignacionesPorSolicitud: asignacionesPorSolicitud
                     })
                         .done(function (resp) {
-                            // Si el backend devolvió un toast informativo
-                            // (asignación parcial), lo mostramos ANTES del
-                            // manejo estándar y respetamos los segundos de
+                            // Si el backend devolvi&oacute; un toast informativo
+                            // (asignaci&oacute;n parcial), lo mostramos ANTES del
+                            // manejo est&aacute;ndar y respetamos los segundos de
                             // timer para no taparlo con el redirect.
                             // IMPORTANTE: ConfirmarAsignacionResponse se
                             // serializa con Json() en PascalCase (Success,
                             // Message, Solicitados, Asignados, Pendientes,
-                            // RedirectUrl). Si el controller cambió a
+                            // RedirectUrl). Si el controller cambi&oacute; a
                             // camelCase en el futuro, este bloque y
                             // manejarRespuesta deben actualizarse en paralelo.
                             if (resp && resp.Success && resp.Pendientes && resp.Pendientes > 0) {

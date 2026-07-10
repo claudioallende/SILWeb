@@ -205,6 +205,12 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
+        // Defensa: si el caller no mand&oacute; SolicitudesPorFecha (caso
+        // t&iacute;pico porque el ViewModel lo completa el controller en el
+        // flujo GET), lo inicializamos vac&iacute;o para no romper la vista.
+        if (solicitud.SolicitudesPorFecha == null)
+          solicitud.SolicitudesPorFecha = new Dictionary<string, long>();
+
         // .Keep(): necesitamos que la VM sobreviva a las llamadas AJAX que
         // Pantalla 2 hace a BuscarMatches (TempData se borra después del
         // primer Read en el mismo request pipeline).
@@ -449,7 +455,26 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
-        if (req == null || req.IdSolicitud <= 0)
+        if (req == null)
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = "Request nulo."
+          });
+
+        // Multi-solicitud: si vienen AsignacionesPorSolicitud, iteramos.
+        // Cada entrada es una unidad (solicitudId + cupos a asignar). El
+        // backend Accept es 1-a-N con ShiftRequestAcceptDataDto.ShiftRequest,
+        // pero ac&aacute; mandamos un Accept por entrada y agregamos los
+        // resultados para simplificar el manejo de errores parciales
+        // (si una falla, no abortamos el resto: devolvemos success=false
+        // con detalle por solicitud en el Message).
+        if (req.AsignacionesPorSolicitud != null && req.AsignacionesPorSolicitud.Count > 0)
+        {
+          return await ConfirmarAsignacionesMultiples(req);
+        }
+
+        if (req.IdSolicitud <= 0)
           return Json(new ConfirmarAsignacionResponse
           {
             Success = false,
@@ -528,6 +553,96 @@ namespace CuposCorretajeWeb.Controllers
         Trace.TraceError("ConfirmarAsignacionSeleccionada error: " + ex);
         return Json(new ConfirmarAsignacionResponse { Success = false, Message = ex.Message });
       }
+    }
+
+    /// <summary>
+    /// Helper privado: ejecuta la corrida multi-solicitud. Construye un
+    /// ConfirmarAsignacionRequest single por cada AsignacionPorSolicitud
+    /// y reusa el pipeline de AcceptPayloadBuilder (que ya sabe llamar a
+    /// GET /ShiftRequest/{id} + POST /ShiftRequest/Cupos/ByIds + POST
+    /// /ShiftRequest/Accept). Si alguna falla, se reporta en el Message y
+    /// las dem&aacute;s contin&uacute;an. Al final agregamos los resultados.
+    /// </summary>
+    private async Task<JsonResult> ConfirmarAsignacionesMultiples(ConfirmarAsignacionRequest req)
+    {
+      var repo = new WebServiceSILRespository();
+      int totalAsignados = 0;
+      int totalSolicitados = 0;
+      int totalPendientes = 0;
+      var errores = new List<string>();
+      var exitos = new List<string>();
+
+      foreach (var a in req.AsignacionesPorSolicitud)
+      {
+        if (a == null || a.IdSolicitud <= 0 || a.CupoIds == null || a.CupoIds.Count == 0)
+        {
+          errores.Add($"Asignación inválida (solicitud={a?.IdSolicitud}, cupos vacíos).");
+          continue;
+        }
+
+        var subRequest = new ConfirmarAsignacionRequest
+        {
+          IdSolicitud = a.IdSolicitud,
+          CupoIds = a.CupoIds,
+          CupoCompatibleId = a.CupoIds[0],
+          Fechas = new Dictionary<string, int> { { a.Fecha ?? string.Empty, a.Tr } },
+          CantidadPorCupo = a.CantidadPorCupo ?? new Dictionary<long, int>()
+        };
+
+        try
+        {
+          var payload = await AcceptPayloadBuilder.BuildAsync(repo, subRequest);
+          var resultado = await repo.RequestSILDataPostAndDeserializeAsync<ShiftRequestAcceptResultDto>(
+            "ShiftRequest", "Accept", payload);
+
+          if (resultado == null)
+          {
+            errores.Add($"Solicitud {a.IdSolicitud}: el backend no devolvió resultado.");
+            continue;
+          }
+
+          int asig = resultado.CantidadAsignadaEnEsteAccept;
+          int soli = resultado.CantidadSolicitadaTotal > 0
+            ? resultado.CantidadSolicitadaTotal
+            : a.CupoIds.Count;
+          int pend = resultado.CantidadPendienteRestante > 0
+            ? resultado.CantidadPendienteRestante
+            : Math.Max(0, soli - asig);
+
+          totalAsignados += asig;
+          totalSolicitados += soli;
+          totalPendientes += pend;
+          exitos.Add($"Sol. {a.IdSolicitud}: {asig}/{soli}");
+        }
+        catch (ApiException ex)
+        {
+          errores.Add($"Solicitud {a.IdSolicitud}: {ExtractApiMessage(ex)}");
+        }
+        catch (Exception ex)
+        {
+          errores.Add($"Solicitud {a.IdSolicitud}: {ex.Message}");
+        }
+      }
+
+      bool allOk = errores.Count == 0;
+      string message;
+      if (totalPendientes > 0)
+        message = $"Asignaste {totalAsignados} de {totalSolicitados} cupos. {totalPendientes} quedaron pendientes.";
+      else
+        message = $"Asignación confirmada: {totalAsignados} cupos en {exitos.Count} solicitud(es).";
+
+      if (errores.Count > 0)
+        message += " Errores: " + string.Join(" | ", errores);
+
+      return Json(new ConfirmarAsignacionResponse
+      {
+        Success = allOk,
+        Message = message,
+        Solicitados = totalSolicitados,
+        Asignados = totalAsignados,
+        Pendientes = totalPendientes,
+        RedirectUrl = allOk ? Url.Action("Index") : null
+      });
     }
 
     // =====================================================================
@@ -693,7 +808,20 @@ namespace CuposCorretajeWeb.Controllers
           Observacion = first.Observacion,
           CantidadFechas = detalles.Values
             .OrderBy(d => d.Fecha)
-            .ToList()
+            .ToList(),
+          // Mapa fecha → solicitudId. Pantalla 1 agrupa solicitudes por
+          // (grano, vendedor, comprador, destino); cada item del grupo tiene
+          // su propio Id y FechaSolicitado. Cuando el operador tilda una
+          // fecha en Pantalla 2, ese mapa nos permite saber la solicitudId
+          // ESPECÍFICA del d&iacute;a (no s&oacute;lo la del primer item).
+          // Si dos items del grupo caen en la misma fecha (no deber&iacute;a
+          // pasar en la pr&aacute;ctica por la l&oacute;gica de creaci&oacute;n
+          // de SOLTURNOS), gana el primero que aparece.
+          SolicitudesPorFecha = g
+            .GroupBy(x => x.FechaSolicitado.Date)
+            .ToDictionary(
+              gg => gg.Key.ToString("yyyy-MM-dd"),
+              gg => gg.First().Id)
         };
 
         result.Add(row);

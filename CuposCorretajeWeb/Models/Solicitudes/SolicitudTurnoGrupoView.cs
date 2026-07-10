@@ -43,6 +43,20 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 
     /// <summary>Detalle de cantidad de solicitudes por fecha (TR y TO), alineado con la grilla.</summary>
     public IEnumerable<SolicitudTurnoDetalleGrupoView> CantidadFechas { get; set; }
+
+    /// <summary>
+    /// Mapa fecha (yyyy-MM-dd) → id de la solicitud que corresponde a esa fecha.
+    /// Pantalla 1 agrupa solicitudes (una por fecha) bajo una sola fila visual.
+    /// Cuando el operador tilda una fecha en Pantalla 2, necesitamos el id
+    /// ESPECÍFICO de la solicitud de esa fecha para pedirle al backend los
+    /// matches correctos (no los de la primera solicitud del grupo).
+    ///
+    /// Si dos o m&aacute;s solicitudes del grupo caen en la misma fecha, nos
+    /// quedamos con la primera que aparece en el resultado del backend (no
+    /// se da en la pr&aacute;ctica porque SOLTURNOS tiene UNIQUE impl&iacute;cito
+    /// por (vendedor, grano, fecha)).
+    /// </summary>
+    public Dictionary<string, long> SolicitudesPorFecha { get; set; }
   }
 
   /// <summary>

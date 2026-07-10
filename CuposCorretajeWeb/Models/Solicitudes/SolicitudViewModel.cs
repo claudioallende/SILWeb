@@ -55,5 +55,14 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 
     /// <summary>Cantidad original pedida (suma de TR en el mapa Fechas).</summary>
     public int CantidadOriginal { get; set; }
+
+    /// <summary>
+    /// Mapa fecha (yyyy-MM-dd) → id de la solicitud para esa fecha. Copiado
+    /// desde <see cref="SolicitudTurnoGrupoView.SolicitudesPorFecha"/> al
+    /// armar el VM de Pantalla 2. Pantalla 2 lo usa para resolver la
+    /// solicitudId del d&iacute;a tildado y as&iacute; consultar matches
+    /// contra la solicitud correcta (no la primera del grupo).
+    /// </summary>
+    public Dictionary<string, long> SolicitudesPorFecha { get; set; }
   }
 }

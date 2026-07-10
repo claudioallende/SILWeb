@@ -485,7 +485,12 @@
                             // usamos para el banner de Pantalla 2.
                             CantidadAceptada: row.CantidadAceptada || 0,
                             CantidadFuturoAceptada: row.CantidadFuturoAceptada || 0,
-                            CantidadOriginal: cantidadOriginal
+                            CantidadOriginal: cantidadOriginal,
+                            // Mapa fecha → solicitudId para que Pantalla 2 pueda
+                            // pedir matches de la solicitud ESPEC&Iacute;FICA del
+                            // d&iacute;a tildado (no s&oacute;lo la primera del
+                            // grupo, que es lo que va en IdSolicitud).
+                            SolicitudesPorFecha: row.SolicitudesPorFecha || {}
                         };
 
                         // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
