@@ -146,8 +146,13 @@
                   var diaSemana = fecha.ToString("ddd");
                   var dict = (Model != null) ? Model.Fechas : null;
                   var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
-                  // TO no se persiste en el VM legacy: queda en 0 por ahora.
-                  var toFuturas = 0;
+                  // TO = cupos ya ACEPTADOS para esta fecha (≤ TR). Lo
+                  // trae el VM desde Pantalla 1 (FechasAceptadas, populated
+                  // por GroupBySolicitud del controller a partir de
+                  // CantidadAceptada per-fecha). Si la fecha no est&aacute; en
+                  // el dict (caso legacy sin el campo), queda en 0.
+                  var dictTO = (Model != null) ? Model.FechasAceptadas : null;
+                  var toFuturas = (dictTO != null && dictTO.ContainsKey(fechaKey)) ? dictTO[fechaKey] : 0;
                   var sinSolicitudes = (tr == 0 && toFuturas == 0);
                   <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
                     <td>

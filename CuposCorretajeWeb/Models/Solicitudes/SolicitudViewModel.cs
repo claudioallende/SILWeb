@@ -64,5 +64,13 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// contra la solicitud correcta (no la primera del grupo).
     /// </summary>
     public Dictionary<string, long> SolicitudesPorFecha { get; set; }
+
+    /// <summary>
+    /// Mapa fecha (yyyy-MM-dd) → cupos ya ACEPTADOS para esa fecha
+    /// (≤ TR). Copiado desde <see cref="SolicitudTurnoGrupoView.FechasAceptadas"/>.
+    /// Pantalla 2 lo muestra en la columna "Sol. TO" para que el operador
+    /// sepa cu&aacute;ntos cupos ya fueron otorgados antes de aceptar m&aacute;s.
+    /// </summary>
+    public Dictionary<string, int> FechasAceptadas { get; set; }
   }
 }

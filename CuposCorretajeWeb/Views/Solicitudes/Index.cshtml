@@ -455,6 +455,19 @@
                             return acc;
                         }, {});
 
+                        // Diccionario de cupos YA ACEPTADOS por fecha
+                        // (yyyy-MM-dd). Cada item del grupo deposita su
+                        // CantidadAceptada en la celda de SU propia fecha
+                        // (no la suma del grupo en la celda del primer item,
+                        // como en versiones anteriores). Pantalla 2 lo usa
+                        // para pintar la columna "Sol. TO" y mostrar al
+                        // operador cu&aacute;ntos cupos ya fueron otorgados
+                        // para esa fecha antes de aceptar m&aacute;s.
+                        const fechasAceptadas = (row.CantidadFechas || []).reduce(function (acc, d) {
+                            acc[d.Fecha] = d.CantidadFuturo || 0;
+                            return acc;
+                        }, {});
+
                         // Cantidad original = suma de TR en la grilla.
                         const cantidadOriginal = Object.values(fechas).reduce(function (a, b) { return a + (b || 0); }, 0);
 
@@ -486,6 +499,11 @@
                             CantidadAceptada: row.CantidadAceptada || 0,
                             CantidadFuturoAceptada: row.CantidadFuturoAceptada || 0,
                             CantidadOriginal: cantidadOriginal,
+                            // Cupos ya aceptados por fecha (per-fecha, no
+                            // suma del grupo). Pantalla 2 lo muestra en
+                            // "Sol. TO" para que el operador vea el
+                            // progreso real de cada d&iacute;a.
+                            FechasAceptadas: fechasAceptadas,
                             // Mapa fecha → solicitudId para que Pantalla 2 pueda
                             // pedir matches de la solicitud ESPEC&Iacute;FICA del
                             // d&iacute;a tildado (no s&oacute;lo la primera del

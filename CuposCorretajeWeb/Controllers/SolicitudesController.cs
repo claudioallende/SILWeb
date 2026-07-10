@@ -814,7 +814,17 @@ namespace CuposCorretajeWeb.Controllers
             .GroupBy(x => x.FechaSolicitado.Date)
             .ToDictionary(
               gg => gg.Key.ToString("yyyy-MM-dd"),
-              gg => gg.First().Id)
+              gg => gg.First().Id),
+          // Mapa fecha → CantidadAceptada (o CantidadFuturoAceptada para
+          // FUTURO) por FECHA, no la suma del grupo. Cada item deposita su
+          // aceptados en la celda de su propia fecha. Si en una iteraci&oacute;n
+          // posterior se necesita el desglose por cupo aceptado, se cambia
+          // el SELECT en SolicitudTurnoStore.
+          FechasAceptadas = g
+            .Where(x => ventana.Any(v => v.Fecha == x.FechaSolicitado.ToString("yyyy-MM-dd")))
+            .ToDictionary(
+              x => x.FechaSolicitado.ToString("yyyy-MM-dd"),
+              x => campoCantidadTR == "Cantidad" ? x.CantidadAceptada : x.CantidadFuturoAceptada)
         };
 
         result.Add(row);

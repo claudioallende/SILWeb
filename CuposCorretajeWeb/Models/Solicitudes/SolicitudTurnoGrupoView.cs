@@ -57,6 +57,16 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// por (vendedor, grano, fecha)).
     /// </summary>
     public Dictionary<string, long> SolicitudesPorFecha { get; set; }
+
+    /// <summary>
+    /// Mapa fecha (yyyy-MM-dd) → cantidad de cupos ACEPTADOS para esa fecha
+    /// (≤ Cantidad pedida). Lo deposita <c>GroupBySolicitud</c> por cada
+    /// item del grupo, en la celda de su propia <c>FechaSolicitado</c>.
+    /// Pantalla 1 lo muestra en la columna TO, y Pantalla 2 lo muestra en
+    /// la columna "Sol. TO" para que el operador sepa cu&aacute;ntos cupos
+    /// ya fueron otorgados para esa fecha antes de aceptar m&aacute;s.
+    /// </summary>
+    public Dictionary<string, int> FechasAceptadas { get; set; }
   }
 
   /// <summary>
