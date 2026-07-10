@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk '{ for \\(i=1; i<=length\\($0\\); i++\\) { c=substr\\($0,i,1\\); if \\(c==\"{\"\\) b++; else if \\(c==\"}\"\\) b--; } } END { print \"AltaSolicitud.cshtml braces=\" b }' d:/ACA/SILWeb/CuposCorretajeWeb/Views/Solicitudes/AltaSolicitud.cshtml)"
+    ]
+  }
+}

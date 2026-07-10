@@ -584,10 +584,18 @@
             //
             // Multi-solicitud: Pantalla 1 agrupa varias solicitudes (una por
             // fecha) bajo una sola fila visual. solicitudPorFecha mapea cada
-            // fecha tildada a su solicitudId ESPEC&Iacute;FICO. Por cada
-            // fecha tildada, agregamos los matches de su solicitud y
-            // filtramos por fecha del CUPO para descartar cupos que
-            // correspondan a d&iacute;as que el operador NO tild&oacute;.
+            // fecha tildada a su solicitudId ESPEC&Iacute;FICO.
+            //
+            // IMPORTANTE — el filtro se hace por d&iacute;a tildado, no por
+            // solicitudId: el engine puede devolver matches para un sid
+            // (ej. sid10) que incluyen cupos con Cupo.Fecha de OTROS d&iacute;as
+            // (ej. 11/07, 12/07). Si iteramos por sids y aceptamos cualquier
+            // Cupo.Fecha ∈ checkedDates, terminar&iacute;amos mostrando el
+            // mismo cupo dos veces (una vez por cada fecha tildada que
+            // coincida). Para cada fecha f, los cupos v&aacute;lidos son los
+            // que tienen Cupo.Fecha == f. Iteramos checkedDates y filtramos
+            // por Cupo.Fecha == f en cada pasada — as&iacute; cada cupo
+            // aparece a lo sumo una vez, y los cupos cross-date se ignoran.
             //   - Sin selecci&oacute;n: empty state "seleccion&aacute; d&iacute;as".
             //   - Con selecci&oacute;n pero 0 matches: empty state "no se
             //     encontraron cupos".
@@ -610,29 +618,27 @@
                     return;
                 }
 
-                // Set &uacute;nico de solicitudIds correspondientes a los
-                // d&iacute;as tildados. Si por alg&uacute;n motivo el mapa no
-                // tiene la fecha (legacy sin SolicitudesPorFecha), caemos al
-                // idSolicitud activo como &uacute;nico fallback.
-                var sids = {};
-                checkedDates.forEach(function (f) {
-                    sids[solicitudPorFecha[f] || idSolicitud] = true;
-                });
-
-                // Agregar matches de cada solicitudId del set, filtrando por
-                // fecha del CUPO (cupo.Fecha) ∈ checkedDates. El cache
-                // matchesPorSolicitud ya tiene TODOS los matches del grupo
-                // (no hace falta volver a pegarle al backend).
+                // Iterar por d&iacute;a tildado. Para cada d&iacute;a f:
+                //   1) resolver la solicitudId correspondiente a f
+                //      (solicitudPorFecha[f] o idSolicitud como fallback legacy);
+                //   2) pull matchesPorSolicitud[sid];
+                //   3) aceptar s&oacute;lo los items cuyo Cupo.Fecha == f
+                //      (as&iacute; un cupo con fecha 10/07 NO se muestra
+                //      cuando s&oacute;lo se tild&oacute; 11/07, y un cupo
+                //      con fecha 11/07 NO se mezcla con la selecci&oacute;n
+                //      del 10/07 aunque est&eacute; en matchesPorSolicitud[sid10]).
                 var items = [];
-                Object.keys(sids).forEach(function (sid) {
+                checkedDates.forEach(function (f) {
+                    var sid = solicitudPorFecha[f] || idSolicitud;
                     var matchList = matchesPorSolicitud[sid];
                     if (!matchList) return;
+
                     matchList.forEach(function (item) {
                         if (!item) return;
                         var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
                         if (!fCupo) return;
                         var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
-                        if (checkedDates.indexOf(ymdCupo) < 0) return;
+                        if (ymdCupo !== f) return; // mismo d&iacute;a y nada m&aacute;s
                         items.push(item);
                     });
                 });
