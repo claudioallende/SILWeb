@@ -522,69 +522,75 @@
                 });
             }
 
-            // Carga los matches compatibles para TODAS las solicitudes del grupo en
-            // paralelo. Cada solicitud tiene su propio cache en matchesPorSolicitud.
-            // El backend resuelve la ventana por defecto (hoy → hoy+7 días)
-            // porque no mandamos `fechas`.
+            // Carga TODOS los matches compatibles para el GRUPO de solicitudes
+            // en UNA sola llamada a BuscarMatches. El backend filtra por
+            // cat&aacute;logo (grano/vendedor/comprador/destino) y rango de
+            // fechas, no por idSolicitud espec&iacute;fico: el response trae
+            // un item por (solicitud, cupo) compatible, con SolicitudId y
+            // Solicitud.FechaSolicitado de cada solicitud del grupo. Esa
+            // respuesta la dispatchamos por SolicitudId en matchesPorSolicitud
+            // para que el render filtre correctamente seg&uacute;n la fecha
+            // tildada.
             //
-            // Estrategia:
-            //   1) Tomamos el set único de solicitudIds de solicitudPorFecha.
-            //   2) Por cada id, disparamos un POST a BuscarMatches en paralelo.
-            //   3) Cuando TODOS terminan (Promise.all), pintamos.
-            //
-            // Fallback: si la pantalla se abre sin SolicitudesPorFecha (caso
-            // legacy o testing manual), usamos idSolicitud como única consulta.
+            // Por qu&eacute; una sola llamada y no N: TempData del controller
+            // guarda s&oacute;lo la primera solicitud del grupo, y la
+            // validaci&oacute;n actual exige que req.IdSolicitud ==
+            // solicitud.IdSolicitud. Si mand&aacute;ramos una llamada por
+            // cada solicitudId del grupo, s&oacute;lo la del primer item
+            // pasar&iacute;a; las dem&aacute;s recibir&iacute;an success=false
+            // y el cache quedar&iacute;a vac&iacute;o para los otros d&iacute;as.
             function cargarMatchesIniciales() {
                 ShowLoader();
-                var ids = Object.keys(solicitudPorFecha).map(function (k) {
-                    return solicitudPorFecha[k];
-                });
-                // Deduplicar ids.
-                var uniqIds = [];
-                var seen = {};
-                ids.forEach(function (i) { if (!seen[i]) { seen[i] = true; uniqIds.push(i); } });
-                if (uniqIds.length === 0) uniqIds = [idSolicitud];
-
-                var promesas = uniqIds.map(function (sid) {
-                    return $.ajax({
-                        url: '@Url.Action("BuscarMatches", "Solicitudes")',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        dataType: 'json',
-                        data: JSON.stringify({ idSolicitud: sid })
-                    }).then(function (resp) {
+                $.ajax({
+                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    // idSolicitud: usamos el de la primera solicitud del
+                    // grupo (el mismo que la VM activa). El backend usa este
+                    // s&oacute;lo para resolver el filter del TempData, no
+                    // para discriminar qu&eacute; solicitudes se incluyen.
+                    data: JSON.stringify({ idSolicitud: idSolicitud })
+                })
+                    .done(function (resp) {
                         if (resp && resp.success) {
-                            matchesPorSolicitud[sid] = (resp.data && resp.data.Items) || [];
+                            var items = (resp.data && resp.data.Items) || [];
+                            // Dispatch por SolicitudId: cada item va al cache
+                            // de su solicitud. As&iacute; matchesPorSolicitud
+                            // queda indexado y el render filtra por la
+                            // solicitudId del d&iacute;a tildado.
+                            items.forEach(function (item) {
+                                if (!item) return;
+                                var sid = item.SolicitudId;
+                                if (sid == null) return;
+                                if (!matchesPorSolicitud[sid]) matchesPorSolicitud[sid] = [];
+                                matchesPorSolicitud[sid].push(item);
+                            });
                         } else {
-                            matchesPorSolicitud[sid] = [];
+                            // Respuesta con success=false (t&iacute;picamente:
+                            // 400/409 de SILData). No llenamos el cache: el
+                            // empty state se muestra y el operador decide.
                         }
-                    }, function () {
-                        // Si una falla, esa solicitud queda sin cache; el render
-                        // se hace igual con lo que tengamos.
-                        matchesPorSolicitud[sid] = [];
-                    });
-                });
-
-                $.when.apply($, promesas).always(function () {
-                    HideLoader();
-                    renderForCurrentSelection();
-                });
+                        renderForCurrentSelection();
+                    })
+                    .fail(mostrarErrorAjax)
+                    .always(function () { HideLoader(); });
             }
 
             // Filtra los matches cacheados por los d&iacute;as actualmente
-            // tildados y re-pinta el panel. Sin llamada AJAX (opera sobre el
-            // cache de matchesPorSolicitud y dispara cargas on-demand si
-            // alg&uacute;n solicitudId a&uacute;n no fue cacheado).
+            // tildados y re-pinta el panel. Sin llamada AJAX: opera sobre el
+            // cache de matchesPorSolicitud (poblado por cargarMatchesIniciales
+            // en una sola llamada a BuscarMatches al entrar a Pantalla 2).
             //
             // Multi-solicitud: Pantalla 1 agrupa varias solicitudes (una por
             // fecha) bajo una sola fila visual. solicitudPorFecha mapea cada
             // fecha tildada a su solicitudId ESPEC&Iacute;FICO. Por cada
-            // solicitudId distinto, agregamos sus matches y filtramos por
-            // fecha del CUPO para descartar cupos que correspondan a d&iacute;as
-            // que el operador NO tild&oacute;.
+            // fecha tildada, agregamos los matches de su solicitud y
+            // filtramos por fecha del CUPO para descartar cupos que
+            // correspondan a d&iacute;as que el operador NO tild&oacute;.
             //   - Sin selecci&oacute;n: empty state "seleccion&aacute; d&iacute;as".
-            //   - Con selecci&oacute;n pero 0 matches en el cache: empty state
-            //     "no se encontraron cupos".
+            //   - Con selecci&oacute;n pero 0 matches: empty state "no se
+            //     encontraron cupos".
             //   - Con selecci&oacute;n y matches: cards agrupadas por MatchType.
             function renderForCurrentSelection() {
                 var $hd = $('#cuposPanelHd');
@@ -604,87 +610,34 @@
                     return;
                 }
 
-                // 1) Resolver el set &uacute;nico de solicitudIds correspondientes
-                //    a los d&iacute;as tildados. Si por alg&uacute;n motivo el
-                //    mapa no tiene la fecha (legacy sin SolicitudesPorFecha),
-                //    caemos al idSolicitud activo como &uacute;nico fallback.
-                var idsParaCargar = [];
-                var idsSet = {};
+                // Set &uacute;nico de solicitudIds correspondientes a los
+                // d&iacute;as tildados. Si por alg&uacute;n motivo el mapa no
+                // tiene la fecha (legacy sin SolicitudesPorFecha), caemos al
+                // idSolicitud activo como &uacute;nico fallback.
+                var sids = {};
                 checkedDates.forEach(function (f) {
-                    var sid = solicitudPorFecha[f] || idSolicitud;
-                    if (!idsSet[sid]) {
-                        idsSet[sid] = true;
-                        idsParaCargar.push(sid);
-                    }
+                    sids[solicitudPorFecha[f] || idSolicitud] = true;
                 });
 
-                // 2) Disparar cargas on-demand para los solicitudIds que a&uacute;n
-                //    no est&aacute;n en matchesPorSolicitud. Cuando llegan,
-                //    repintamos sin re-disparar AJAX.
-                var promesasPendientes = [];
-                idsParaCargar.forEach(function (sid) {
-                    if (matchesPorSolicitud[sid] === undefined) {
-                        matchesPorSolicitud[sid] = null; // marca de "en vuelo"
-                        promesasPendientes.push(cargarMatchesParaSolicitud(sid));
-                    }
-                });
-
-                function pintarConCache() {
-                    var items = [];
-                    checkedDates.forEach(function (f) {
-                        var sid = solicitudPorFecha[f] || idSolicitud;
-                        var matchList = matchesPorSolicitud[sid];
-                        if (!matchList) return; // a&uacute;n no lleg&oacute; o fall&oacute;
-
-                        matchList.forEach(function (item) {
-                            if (!item) return;
-                            // Filtro por fecha del CUPO: tiene que estar dentro de los
-                            // d&iacute;as tildados (regla de negocio: el operador s&oacute;lo
-                            // quiere ver cupos para los d&iacute;as que seleccion&oacute;).
-                            var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
-                            if (!fCupo) return;
-                            var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
-                            if (checkedDates.indexOf(ymdCupo) < 0) return;
-                            items.push(item);
-                        });
+                // Agregar matches de cada solicitudId del set, filtrando por
+                // fecha del CUPO (cupo.Fecha) ∈ checkedDates. El cache
+                // matchesPorSolicitud ya tiene TODOS los matches del grupo
+                // (no hace falta volver a pegarle al backend).
+                var items = [];
+                Object.keys(sids).forEach(function (sid) {
+                    var matchList = matchesPorSolicitud[sid];
+                    if (!matchList) return;
+                    matchList.forEach(function (item) {
+                        if (!item) return;
+                        var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                        if (!fCupo) return;
+                        var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                        if (checkedDates.indexOf(ymdCupo) < 0) return;
+                        items.push(item);
                     });
-
-                    pintarMatches({ Items: items });
-                }
-
-                if (promesasPendientes.length === 0) {
-                    pintarConCache();
-                } else {
-                    ShowLoader();
-                    $.when.apply($, promesasPendientes).always(function () {
-                        HideLoader();
-                        pintarConCache();
-                    });
-                }
-            }
-
-            // Carga los matches para UNA solicitud espec&iacute;fica y los guarda
-            // en matchesPorSolicitud[solicitudId]. Es la versi&oacute;n
-            // "individual" del cargarMatchesIniciales (que dispara N en
-            // paralelo al entrar a Pantalla 2). Se usa en modo on-demand
-            // cuando el operador tilda una fecha cuya solicitud a&uacute;n no
-            // hab&iacute;a sido consultada.
-            function cargarMatchesParaSolicitud(solicitudId) {
-                return $.ajax({
-                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    dataType: 'json',
-                    data: JSON.stringify({ idSolicitud: solicitudId })
-                }).then(function (resp) {
-                    if (resp && resp.success) {
-                        matchesPorSolicitud[solicitudId] = (resp.data && resp.data.Items) || [];
-                    } else {
-                        matchesPorSolicitud[solicitudId] = [];
-                    }
-                }, function () {
-                    matchesPorSolicitud[solicitudId] = [];
                 });
+
+                pintarMatches({ Items: items });
             }
 
             // Pinta el panel de cupos a partir de la respuesta cacheada/filtrada.
