@@ -764,7 +764,7 @@ namespace CuposCorretajeWeb.Controllers
         int totalAceptadosGrupo = campoCantidadTR == "Cantidad"
           ? g.Sum(x => x.CantidadAceptada)
           : g.Sum(x => x.CantidadFuturoAceptada);
-        string? fechaAceptadosKey = null;
+        string fechaAceptadosKey = null;
 
         foreach (var item in g)
         {
