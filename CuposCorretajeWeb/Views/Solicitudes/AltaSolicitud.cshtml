@@ -570,10 +570,28 @@
                 }
 
                 var filtered = allMatches.filter(function (item) {
-                    var f = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
-                    if (!f) return false;
-                    var ymd = f.getFullYear() + '-' + pad2(f.getMonth() + 1) + '-' + pad2(f.getDate());
-                    return checkedDates.indexOf(ymd) >= 0;
+                    // Filtro por fecha del CUPO: tiene que estar dentro de los
+                    // d&iacute;as tildados (regla de negocio: el operador s&oacute;lo
+                    // quiere ver cupos para los d&iacute;as que seleccion&oacute;).
+                    var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                    if (!fCupo) return false;
+                    var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                    if (checkedDates.indexOf(ymdCupo) < 0) return false;
+
+                    // Filtro por fecha de la SOLICITUD: cada item referencia una
+                    // solicitud con su propio FechaSolicitado. En Pantalla 2 la
+                    // fila de Pantalla 1 puede agrupar varias solicitudes (una
+                    // por fecha) bajo el mismo (grano, vendedor); si el
+                    // operador abre con la primera solicitud del grupo
+                    // (idSolicitud) y tilda el d&iacute;a 10/07, queremos ver
+                    // los matches contra la solicitud del 10/07, no contra la
+                    // del 09/07. Sin este filtro, los cards muestran "Match TR"
+                    // con la cantidad de la solicitud activa (la primera del
+                    // grupo) en vez de la del d&iacute;a tildado.
+                    var fSol = item.Solicitud && parseFechaSIL(item.Solicitud.FechaSolicitado);
+                    if (!fSol) return false;
+                    var ymdSol = fSol.getFullYear() + '-' + pad2(fSol.getMonth() + 1) + '-' + pad2(fSol.getDate());
+                    return checkedDates.indexOf(ymdSol) >= 0;
                 });
 
                 pintarMatches({ Items: filtered });
