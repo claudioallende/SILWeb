@@ -403,9 +403,13 @@
                 var comprador = renderField(c.NombreComprador, item.CompradorCoincide === false);
                 var destino   = renderField(c.NombreDestino, item.DestinoCoincide === false);
 
-                // Cantidad: placeholder con la cantidad de la solicitud
-                // (sigue sin haber disponibles del cupo en el DTO).
-                var disp = (s.Cantidad || 0) + ' TR (solicitado)';
+                // Cantidad a matchear contra este cupo: la cantidad TR de la
+                // solicitud activa que matche&oacute; con este cupo. Cada cupo
+                // es 1 unidad (sin subdivisi&oacute;n hoy), as&iacute; que esta
+                // cantidad representa "para cu&aacute;ntos TR sirve este cupo".
+                // El input num&eacute;rico m&aacute;s abajo le permite al operador
+                // asignar 1 cupo (hoy) o subdividir (en el futuro).
+                var matchTr = (s.Cantidad || 0);
 
                 // Parseo de fecha del cupo. SILData serializa DateTime como
                 // "/Date(…)/" o ISO 8601 según config; contemplamos los dos.
@@ -438,7 +442,7 @@
                     '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Disponibles</span><span>' + escHtml(disp) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
                     '    <div class="sil-cupo-field sil-cupo-cant-row">' +
                     '      <span>Cantidad a asignar</span>' +
                     '      <input type="number" class="sil-cupo-cant" min="1" max="1" value="1"' +
@@ -587,7 +591,34 @@
                 var $noResults = $('#cuposNoResults');
                 var $actions = $('#cuposActions');
 
-                var items = (result && result.Items) || [];
+                var rawItems = (result && result.Items) || [];
+
+                // El backend devuelve 1 item por cada cruce (solicitud, cupo)
+                // compatible, contra TODAS las solicitudes que matchean los
+                // filtros de cat&aacute;logo (grano, vendedor, comprador, destino,
+                // fecha). En Pantalla 2 siempre estamos trabajando con UNA
+                // solicitud activa (la del "ver" desde Pantalla 1), as&iacute;
+                // que primero filtramos a los items que matchean contra ESA
+                // solicitud. Sin este filtro, si hay 3 solicitudes que matchean
+                // y s&oacute;lo 2 cupos, ver&iacute;amos 6 items / 6 cards en vez
+                // de 2 cards (uno por cupo).
+                var items = rawItems.filter(function (i) {
+                    return i && i.SolicitudId === idSolicitud;
+                });
+
+                // Adem&aacute;s agrupamos por CupoId. En teor&iacute;a ya viene 1 item
+                // por cupo (porque filtramos por SolicitudId), pero dejamos
+                // la agrupaci&oacute;n como red de seguridad: si por alguna
+                // raz&oacute;n el backend devuelve varios items para el mismo
+                // par (solicitud, cupo), nos quedamos con el primero.
+                var seenCupos = {};
+                var dedup = [];
+                items.forEach(function (i) {
+                    if (seenCupos[i.CupoId]) return;
+                    seenCupos[i.CupoId] = true;
+                    dedup.push(i);
+                });
+                items = dedup;
 
                 // Sin items para los d&iacute;as seleccionados: empty state.
                 if (items.length === 0) {
