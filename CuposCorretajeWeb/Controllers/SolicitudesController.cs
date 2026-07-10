@@ -78,11 +78,21 @@ namespace CuposCorretajeWeb.Controllers
         //    grilla. Las ya Asignadas/Rechazadas conservan su resumen propio
         //    (CupoAsignadoId / "Rechazo manual"). Las llamadas se hacen en
         //    paralelo para no serializar N requests HTTP.
+        //
+        //    Para no contar como "match disponible" los cupos que la
+        //    solicitud ya tiene aceptados (el operador no los puede volver
+        //    a asignar) traenos todos los cupoIds ya otorgados en una sola
+        //    query batched antes del fan-out.
+        var cuposAceptadosPorSolicitud = await GetCuposAceptadosPorSolicitudesAsync(
+          repo,
+          rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
+
         var cuposCompatiblesPorGrupo = await EnriquecerResumenesMatchingAsync(
           repo,
           contractuales.Concat(futuros).ToList(),
           fechaDesde,
-          filterSolicitud.Dias);
+          filterSolicitud.Dias,
+          cuposAceptadosPorSolicitud);
         foreach (var row in contractuales.Concat(futuros))
         {
           row.CuposCompatibles = cuposCompatiblesPorGrupo.TryGetValue(row, out var c) && c != null
@@ -875,6 +885,55 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
+    /// Trae el conjunto de cupos ya ACEPTADOS para cada solicitud en una sola
+    /// query batched (un POST por página de grilla, no por fila). Se usa
+    /// después para descontar del conteo de matches del motor bulk los cupos
+    /// que la solicitud ya tiene otorgados — sin este descuento la columna
+    /// "Cupos compatibles" muestra un conteo inflado (incluiría cupos ya
+    /// asignados en fechas anteriores que la solicitud ya completó).
+    ///
+    /// Si la llamada falla (timeout, 5xx, etc.), devolvemos un mapa vacío
+    /// para no romper la grilla: el operador vería los counts originales
+    /// (un poco inflados) hasta el pr&oacute;ximo refresh.
+    /// </summary>
+    private static async Task<Dictionary<long, HashSet<long>>> GetCuposAceptadosPorSolicitudesAsync(
+      WebServiceSILRespository repo,
+      List<long> solicitudIds)
+    {
+      var resultado = new Dictionary<long, HashSet<long>>();
+      if (solicitudIds == null || solicitudIds.Count == 0) return resultado;
+
+      try
+      {
+        var resp = await repo.RequestSILDataPostAndDeserializeAsync<List<CupoAceptadoPorSolicitudDto>>(
+          "ShiftRequest", "Cupos/Aceptados/PorSolicitudes", solicitudIds);
+
+        if (resp == null) return resultado;
+        foreach (var item in resp)
+        {
+          if (item == null || item.SolicitudId <= 0) continue;
+          if (!resultado.TryGetValue(item.SolicitudId, out var hash))
+          {
+            hash = new HashSet<long>();
+            resultado[item.SolicitudId] = hash;
+          }
+          if (item.CupoIds != null)
+          {
+            foreach (var cupoId in item.CupoIds)
+              if (cupoId > 0) hash.Add(cupoId);
+          }
+        }
+        return resultado;
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceWarning(
+          "GetCuposAceptadosPorSolicitudesAsync falló: " + ex.Message);
+        return resultado;
+      }
+    }
+
+    /// <summary>
     /// Enriquece cada fila pendiente con el conteo de matches del motor
     /// (Directos / Parciales / Observaciones[=Condicional]). Reutiliza el
     /// endpoint bulk <c>POST /api/ShiftRequest/Matches</c> con los mismos
@@ -883,17 +942,33 @@ namespace CuposCorretajeWeb.Controllers
     /// combinaci&oacute;n (grano, vendedor, comprador, destino) hace 1 llamada
     /// y cuenta <c>Items[].MatchType</c> en buckets.
     ///
+    /// Antes de contar, descuenta los items cuyo <c>CupoId</c> ya figura
+    /// como aceptado para esa solicitud (sale de
+    /// <paramref name="cuposAceptadosPorSolicitud"/>). Sin este descuento el
+    /// motor devolvería matches para TODAS las fechas de la ventana sin
+    /// importar que la solicitud ya haya aceptado cupos en alguna, y la
+    /// columna "Cupos compatibles" mostraría un conteo inflado.
+    ///
     /// Las llamadas se ejecutan en paralelo (<see cref="Task.WhenAll(Task[])"/>)
     /// para no serializar N round-trips HTTP al backend en grillas grandes.
     /// Si la llamada de una fila falla (timeout, 5xx, conflict), esa fila
     /// recibe el placeholder por defecto — el resto no se ve afectada.
     /// </summary>
+    /// <param name="cuposAceptadosPorSolicitud">
+    /// Mapa <c>solicitudId → HashSet&lt;cupoId&gt;</c> con los cupos que ya
+    /// fueron aceptados (vienen de <c>SOLTURNOS_DETALLE</c>). Se trae antes
+    /// en una sola query batched desde
+    /// <c>POST /api/ShiftRequest/Cupos/Aceptados/PorSolicitudes</c>. Si el
+    /// fetch falló, este mapa puede ser null/vacío — en ese caso no se
+    /// descuenta nada (no rompemos la grilla).
+    /// </param>
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
       EnriquecerResumenesMatchingAsync(
         WebServiceSILRespository repo,
         List<SolicitudTurnoGrupoView> rows,
         DateTime fechaDesde,
-        int cantidadDias)
+        int cantidadDias,
+        Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 
@@ -933,6 +1008,21 @@ namespace CuposCorretajeWeb.Controllers
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
+
+              // Sólo contar matches cuyo (solicitudId, cupoId) NO figure
+              // como aceptado en SOLTURNOS_DETALLE. Sin este filtro, cuando
+              // la solicitud ya aceptó cupos en fechas anteriores, el motor
+              // los sigue devolviendo y la columna "Cupos compatibles"
+              // muestra un conteo inflado (N cupos disponibles incluyendo
+              // los que ya están otorgados).
+              if (cuposAceptadosPorSolicitud != null
+                  && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
+                  && aceptados != null
+                  && aceptados.Contains(it.CupoId))
+              {
+                continue;
+              }
+
               switch (it.MatchType)
               {
                 case "Directo": resumen.Directos++; break;
