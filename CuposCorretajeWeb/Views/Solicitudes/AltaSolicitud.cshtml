@@ -464,12 +464,6 @@
                     '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
-                    '    <div class="sil-cupo-field sil-cupo-cant-row">' +
-                    '      <span>Cantidad a asignar</span>' +
-                    '      <input type="number" class="sil-cupo-cant" min="1" max="1" value="1"' +
-                    '             style="width:60px;text-align:right;"' +
-                    '             title="Hoy cada cupo es entero (1). A futuro se habilitar&aacute; subdivisi&oacute;n." />' +
-                    '    </div>' +
                     obsHtml +
                     '  </div>' +
                     '</div>';
@@ -813,9 +807,6 @@
                         // asignar&iacute;a a la solicitud equivocada.
                         solicitudId: $card.data('solicitud-id')
                     };
-                    // Resetear el input de cantidad a 1 cada vez que se tilda
-                    // (defensa contra valores stale de iteraciones previas).
-                    $card.find('.sil-cupo-cant').val(1);
                 } else {
                     delete selectedCupos[id];
                 }
@@ -917,11 +908,13 @@
 
                 // Agrupaci&oacute;n por solicitudId: cada card arrastra su
                 // solicitudId desde data-solicitud-id, as&iacute; que este
-                // armado es 1-1 con lo que se pint&oacute;. Sumamos la
-                // cantidad por cupo (input num&eacute;rico de cada card) y
-                // tambi&eacute;n computamos el TR por solicitud (suma de los
-                // d&iacute;as tildados cuya fecha mapea a esa solicitudId).
-                var asignaciones = {}; // { [sid]: { fecha, tr, cupos: [{id, cant}], cantidadPorCupo: {id:cant} } }
+                // armado es 1-1 con lo que se pint&oacute;. Cada cupo es
+                // siempre 1 unidad (1 card = 1 cupo = 1 asignaci&oacute;n):
+                // la subdivisi&oacute;n por cupo no est&aacute; habilitada
+                // hoy. Por eso la cantidad por cupo va hard-codeada a 1.
+                // El backend igual recibe el mapa CantidadPorCupo para
+                // reservar el hook cuando se habilite la subdivisi&oacute;n.
+                var asignaciones = {}; // { [sid]: { fecha, tr, cupos: [{id, cant:1}], cantidadPorCupo: {id:1} } }
                 Object.keys(selectedCupos).forEach(function (cupoIdStr) {
                     var s = selectedCupos[cupoIdStr];
                     var sid = s.solicitudId;
@@ -935,13 +928,14 @@
                         tr: 0,
                         fecha: null
                     };
-                    var $card = $('.sil-cupo-card[data-cupo-id="' + cupoIdStr + '"]');
-                    var cant = parseInt($card.find('.sil-cupo-cant').val(), 10) || 1;
-                    if (cant < 1) cant = 1;
                     var cupoIdNum = parseInt(cupoIdStr, 10);
                     if (isNaN(cupoIdNum)) cupoIdNum = cupoIdStr;
-                    asignaciones[sid].cupos.push({ id: cupoIdNum, cant: cant });
-                    asignaciones[sid].cantidadPorCupo[cupoIdNum] = cant;
+                    // 1 card = 1 cupo = 1 asignaci&oacute;n. No se permite
+                    // que el operador incremente el valor; si en una iteraci&oacute;n
+                    // futura se habilita subdivisi&oacute;n, este es el &uacute;nico
+                    // punto a modificar.
+                    asignaciones[sid].cupos.push({ id: cupoIdNum, cant: 1 });
+                    asignaciones[sid].cantidadPorCupo[cupoIdNum] = 1;
                 });
 
                 // Cerrar TR y fecha representativa por solicitudId.
