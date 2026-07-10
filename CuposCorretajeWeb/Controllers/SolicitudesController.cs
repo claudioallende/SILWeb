@@ -72,9 +72,23 @@ namespace CuposCorretajeWeb.Controllers
         var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
         var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
 
-        // 3) Enriquecer cada fila con el resumen de matching (placeholder por ahora).
-        contractuales.ForEach(r => r.CuposCompatibles = BuildResumenMatching(r));
-        futuros.ForEach(r => r.CuposCompatibles = BuildResumenMatching(r));
+        // 3) Enriquecer cada fila con el resumen de matching. Las filas pendientes
+        //    piden al motor bulk /ShiftRequest/Matches un conteo por tipo
+        //    (Directo / Parcial / Condicional) usando la misma ventana que la
+        //    grilla. Las ya Asignadas/Rechazadas conservan su resumen propio
+        //    (CupoAsignadoId / "Rechazo manual"). Las llamadas se hacen en
+        //    paralelo para no serializar N requests HTTP.
+        var cuposCompatiblesPorGrupo = await EnriquecerResumenesMatchingAsync(
+          repo,
+          contractuales.Concat(futuros).ToList(),
+          fechaDesde,
+          filterSolicitud.Dias);
+        foreach (var row in contractuales.Concat(futuros))
+        {
+          row.CuposCompatibles = cuposCompatiblesPorGrupo.TryGetValue(row, out var c) && c != null
+            ? c
+            : BuildResumenMatching(row);
+        }
 
         // 4) Armar la respuesta final.
         SolicitudesIndexResponseViewModel response = new SolicitudesIndexResponseViewModel
@@ -835,8 +849,9 @@ namespace CuposCorretajeWeb.Controllers
 
     /// <summary>
     /// Placeholder: arma el resumen de cupos compatibles para la columna "Cupos compatibles".
-    /// En una iteración posterior esto se reemplaza por la consulta al motor de matching real.
-    /// Por ahora devuelve "Sin coincidencia" salvo cuando la fila está Asignada o Rechazada.
+    /// Devuelve el resumen propio de las filas en estado Asignada/Rechazada y
+    /// "Sin coincidencia" para las pendientes (cuando el enriquecimiento bulk
+    /// se saltea o falla).
     /// </summary>
     private static CupoCompatibleResumenViewModel BuildResumenMatching(SolicitudTurnoGrupoView row)
     {
@@ -857,6 +872,104 @@ namespace CuposCorretajeWeb.Controllers
 
       resumen.TextoResumen = "Sin coincidencia";
       return resumen;
+    }
+
+    /// <summary>
+    /// Enriquece cada fila pendiente con el conteo de matches del motor
+    /// (Directos / Parciales / Observaciones[=Condicional]). Reutiliza el
+    /// endpoint bulk <c>POST /api/ShiftRequest/Matches</c> con los mismos
+    /// filtros que aplicar&iacute;a Pantalla 2 (codigoGrano + cuentaVendedor
+    /// + cuentaComprador + zonaGeograficaId + ventana de fechas). Para cada
+    /// combinaci&oacute;n (grano, vendedor, comprador, destino) hace 1 llamada
+    /// y cuenta <c>Items[].MatchType</c> en buckets.
+    ///
+    /// Las llamadas se ejecutan en paralelo (<see cref="Task.WhenAll(Task[])"/>)
+    /// para no serializar N round-trips HTTP al backend en grillas grandes.
+    /// Si la llamada de una fila falla (timeout, 5xx, conflict), esa fila
+    /// recibe el placeholder por defecto — el resto no se ve afectada.
+    /// </summary>
+    private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
+      EnriquecerResumenesMatchingAsync(
+        WebServiceSILRespository repo,
+        List<SolicitudTurnoGrupoView> rows,
+        DateTime fechaDesde,
+        int cantidadDias)
+    {
+      var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
+
+      // 1) Saltamos las filas no pendientes: ya tienen resumen propio.
+      var pendientes = rows
+        .Where(r => r.EstadoBadge == "pending")
+        .ToList();
+
+      if (pendientes.Count == 0)
+        return resultado;
+
+      var tareas = pendientes.Select(async row =>
+      {
+        try
+        {
+          var filter = new
+          {
+            codigoGrano = row.CodigoGrano,
+            cuentaVendedor = row.CuentaVendedor,
+            // cuentaComprador / zonaGeograficaId pueden ser null — el motor
+            // los trata como "cualquiera" en ese caso, lo que es correcto
+            // para solicitudes sin comprador/destino explícito en Pantalla 1.
+            cuentaComprador = row.CuentaComprador,
+            zonaGeograficaId = row.CuentaDestino,
+            fechaDesde = fechaDesde,
+            fechaHasta = fechaDesde.AddDays(cantidadDias - 1),
+            incluirIncompatibles = false
+            // agruparPor se omite: default = Solicitud (= 0) en el DTO.
+          };
+
+          var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
+            "ShiftRequest", "Matches", filter);
+
+          var resumen = new CupoCompatibleResumenViewModel();
+          if (resp != null && resp.Items != null)
+          {
+            foreach (var it in resp.Items)
+            {
+              if (it == null) continue;
+              switch (it.MatchType)
+              {
+                case "Directo": resumen.Directos++; break;
+                case "Parcial": resumen.Parciales++; break;
+                case "Condicional": resumen.Observaciones++; break;
+              }
+            }
+          }
+
+          // Si la fila tenía matchType en algún item, no dejamos TextoResumen
+          // Legacy/placeholder tapando los chips en el render. Cuando los 3
+          // contadores están en 0, "Sin coincidencia" sigue siendo la
+          // leyenda correcta para que el operador sepa que el motor no
+          // encontró cupos compatibles.
+          resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
+            ? null
+            : "Sin coincidencia";
+
+          return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(row, resumen);
+        }
+        catch (Exception ex)
+        {
+          // No rompemos el endpoint entero por una fila fallida: caemos al
+          // placeholder. El backend puede haber devuelto 409/5xx/timeout —
+          // logueamos pero no exponemos el detalle al cliente.
+          Trace.TraceWarning(
+            $"EnriquecerResumenesMatchingAsync fila id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor}: {ex.Message}");
+          return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(
+            row, BuildResumenMatching(row));
+        }
+      }).ToList();
+
+      var pares = await Task.WhenAll(tareas);
+      foreach (var kvp in pares)
+        resultado[kvp.Key] = kvp.Value;
+
+      return resultado;
     }
 
     private static string NombreCentro(string codigo)

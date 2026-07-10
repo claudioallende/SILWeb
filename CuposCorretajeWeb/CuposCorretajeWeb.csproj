@@ -305,6 +305,7 @@
     <Compile Include="Models\Solicitudes\ConfirmarAsignacionResponse.cs" />
     <Compile Include="Models\Solicitudes\Mapping\AcceptPayloadBuilder.cs" />
     <Compile Include="Models\Solicitudes\Mapping\CupoDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\GrillaMatchResumenDto.cs" />
     <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptDataDto.cs" />
     <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptResultDto.cs" />
     <Compile Include="Models\Solicitudes\Mapping\ShiftRequestRejectResultDto.cs" />
