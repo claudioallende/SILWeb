@@ -356,6 +356,7 @@
     </Content>
     <Content Include="Content\table_header_fixed.css" />
     <Content Include="Content\tokenfield-typeahead.min.css" />
+    <Content Include="Content\vendor\font-awesome\all.min.css" />
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="fonts\open-iconic.svg" />
@@ -385,6 +386,10 @@
     <Content Include="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-brands-400.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-regular-400.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-solid-900.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-v4compatibility.woff2" />
     <None Include="NLog.xsd">
       <SubType>Designer</SubType>
     </None>
@@ -434,6 +439,7 @@
     <Content Include="Scripts\Spinner.js" />
     <Content Include="Scripts\TablaContratos.js" />
     <Content Include="Scripts\ValidaCuit.js" />
+    <Content Include="Scripts\vendor\sweetalert2\sweetalert2.min.js" />
     <Content Include="Scripts\_references.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
