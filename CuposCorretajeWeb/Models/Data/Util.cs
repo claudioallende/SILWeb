@@ -87,8 +87,6 @@ namespace CuposCorretajeWeb.Models.Data
         throw new ApiException(await json.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
     }
-
-    public async Task<T> RequestSILDataPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
     {
       //var token = GetTokenAsync();
       var client = new HttpClient();
@@ -105,7 +103,16 @@ namespace CuposCorretajeWeb.Models.Data
         return default(T);
 
       if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
-      if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+      // Defensa: capturamos 400/422 además de 409/500. Si SILData responde con un
+      // ProblemDetails (típicamente por mismatch de contrato — campos faltantes,
+      // case-sensitivity, validación) el wrapper tira ApiException en vez de
+      // tratar de deserializar el ProblemDetails contra el DTO esperado y romper
+      // con un 500 inentendible. ExtractApiMessage en los controllers extrae el
+      // detail del ProblemDetails y lo muestra al operador en un Swal.
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await response.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
     }
@@ -129,7 +136,12 @@ namespace CuposCorretajeWeb.Models.Data
         return default(T);
 
       if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
-      if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+      // Mismo tratamiento que el wrapper POST: capturar 400/422/409/500 para
+      // que el detalle del ProblemDetails llegue al operador en vez de tirar 500.
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await response.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
     }

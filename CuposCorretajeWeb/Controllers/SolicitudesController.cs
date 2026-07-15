@@ -422,11 +422,16 @@ namespace CuposCorretajeWeb.Controllers
         // Reutilizamos el mismo DTO que el endpoint Reject de SILData.
         // No se puede referenciar directamente porque el frontend no tiene
         // project ref a SILData — construimos un JObject equivalente.
+        // IMPORTANTE: las propiedades van en PascalCase para matchear el
+        // modelo ShiftRequestRejectData de SILData. El binding default de
+        // ASP.NET Core es case-sensitive en deserialización, por lo que
+        // mandar camelCase (default de Newtonsoft.Json) deja SolicitudIds
+        // en null y SILData responde 400 BadRequest.
         var payload = new
         {
-          solicitudIds = new List<long> { idSolicitud },
-          motivo = "Rechazo manual desde Pantalla 2.",
-          automatico = false
+          SolicitudIds = new List<long> { idSolicitud },
+          Motivo = "Rechazo manual desde Pantalla 2.",
+          Automatico = false
         };
 
         var repo = new WebServiceSILRespository();
