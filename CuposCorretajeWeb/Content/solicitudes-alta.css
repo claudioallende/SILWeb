@@ -508,6 +508,11 @@
     transition: background .12s, border-color .12s;
 }
 
+.sil-cupo-section-hd,
+.sil-cupo-card {
+    cursor: pointer;
+}
+
 .sil-cupo-section-hd:hover {
     background: rgba(0, 0, 0, .03);
     border-color: var(--sil-border);
@@ -550,6 +555,18 @@
 
 .sil-cupo-section-body {
     padding-top: 6px;
+}
+
+/* Por defecto el cuerpo de la sección está colapsado; la clase
+   sil-cupo-section-open (que se agrega al hacer click en el header)
+   lo muestra. Esto evita que los cards aparezcan visibles al cargar
+   el listado cuando hay muchos matches. */
+.sil-cupo-section-body {
+    display: none;
+}
+
+.sil-cupo-section-open > .sil-cupo-section-body {
+    display: block;
 }
 
 /* ---- card de un cupo ---- */

@@ -880,13 +880,11 @@
 
             // Plegar/desplegar la sección al click sobre el header
             // (excepto si el click fue sobre el checkbox general, que tiene
-            // su propio handler). El indicador &#9662; rota con la clase
-            // sil-cupo-section-hd-open.
+            // su propio handler). La visibilidad del body la maneja el CSS
+            // a través de la clase sil-cupo-section-open.
             $('#cuposListado').on('click', '.sil-cupo-section-hd', function (e) {
                 if ($(e.target).hasClass('sil-cupo-section-chk')) return;
-                var $sec = $(this).closest('.sil-cupo-section');
-                $sec.toggleClass('sil-cupo-section-open');
-                $sec.find('.sil-cupo-section-body').toggle($sec.hasClass('sil-cupo-section-open'));
+                $(this).closest('.sil-cupo-section').toggleClass('sil-cupo-section-open');
             });
 
             // Check general: tilda/des-tilda TODOS los cards del tipo, sin
