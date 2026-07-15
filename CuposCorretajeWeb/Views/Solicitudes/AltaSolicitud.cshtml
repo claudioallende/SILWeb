@@ -934,8 +934,14 @@
 
             function manejarRespuesta(resp) {
                 if (resp && resp.Success) {
-                    Swal.fire({ icon: 'success', title: 'Listo', text: resp.Message, timer: 1500, showConfirmButton: false })
-                        .then(function () { window.location = resp.RedirectUrl || '/Solicitudes/Index'; });
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Listo',
+                        text: resp.Message,
+                        position: 'center',
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    }).then(function () { window.location = resp.RedirectUrl || '/Solicitudes/Index'; });
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.Message) || 'Error desconocido.' });
                 }
@@ -1118,8 +1124,9 @@
                                     title: 'Asignaci&oacute;n parcial',
                                     text: 'Asignaste ' + resp.Asignados + ' de ' + resp.Solicitados + ' cupos. ' +
                                           resp.Pendientes + ' quedaron pendientes.',
-                                    timer: 2500,
-                                    showConfirmButton: false
+                                    position: 'center',
+                                    showConfirmButton: true,
+                                    confirmButtonText: 'OK'
                                 }).then(function () {
                                     manejarRespuesta(resp);
                                 });
