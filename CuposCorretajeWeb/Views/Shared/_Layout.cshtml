@@ -56,6 +56,48 @@
     <!-- SweetAlert2 -->
     <script src="@Url.Content("~/Scripts/vendor/sweetalert2/sweetalert2.min.js")"></script>
     <script type="text/javascript">
+        // Verificaci&oacute;n de carga de SweetAlert2. Si por alg&uacute;n motivo
+        // el archivo local no se sirvi&oacute; (404, MIME type, error de IIS), Swal
+        // queda undefined y todos los Swal.fire() del proyecto degradan a un
+        // toast nativo con texto plano (es lo que vimos en el caso reportado).
+        //
+        // Esto escribe un mensaje claro en la consola del browser para que el
+        // operador pueda diagnosticar sin tener que abrir DevTools.
+        (function () {
+            function checkSwal() {
+                if (typeof Swal !== 'undefined') {
+                    console.log('[SIL] SweetAlert2 OK, version:', Swal.version);
+                } else {
+                    console.error('[SIL] SweetAlert2 NO se carg&oacute;. Revisar Network tab para 404 en /Scripts/vendor/sweetalert2/sweetalert2.min.js. Fallback a alert() nativo.');
+                    // &Uacute;ltimo recurso: si Swal nunca lleg&oacute;, exponer un
+                    // wrapper m&iacute;nimo basado en alert() para que al menos el
+                    // operador VEA el mensaje y no se rompa el flujo. Esto es
+                    // un degradado consciente, no el comportamiento por defecto
+                    // de SweetAlert2 (que muestra texto plano sin formato).
+                    window.Swal = {
+                        fire: function (opts) {
+                            var icon = (opts && opts.icon) || 'info';
+                            var title = (opts && opts.title) || '';
+                            var text = (opts && opts.text) || (opts && opts.html ? '[Contenido HTML]' : '');
+                            var msg = (title ? title + '\n\n' : '') + text;
+                            // try/catch por si el navegador bloquea alert() (caso raro).
+                            try { alert(msg); } catch (e) { console.error('[SIL] alert() bloqueado:', msg); }
+                            // Devolver una Promise resuelta para que .then(...) siga funcionando.
+                            return Promise.resolve({ isConfirmed: true, isDismissed: false });
+                        }
+                    };
+                }
+            }
+            // Si el <script> ya termin&oacute; de parsear, Swal deber&iacute;a estar
+            // definido. Si no lo est&aacute;, es porque fall&oacute; la carga.
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                checkSwal();
+            } else {
+                document.addEventListener('DOMContentLoaded', checkSwal);
+            }
+        })();
+    </script>
+    <script type="text/javascript">
         function ShowLoader() {
             $('#loader').removeClass('d-none').addClass('d-flex');
             $('#loader').fadeIn(300);
