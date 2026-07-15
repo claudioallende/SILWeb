@@ -487,28 +487,69 @@
     overflow-y: auto;
 }
 
-/* ---- t&iacute;tulo de secci&oacute;n (Match directo / parcial / con obs.) ---- */
-.sil-cupo-section-title {
+/* ---- cabecera plegable de secci&oacute;n (Match directo / parcial / con obs.) ---- */
+.sil-cupo-section {
+    margin-bottom: 10px;
+}
+
+.sil-cupo-section + .sil-cupo-section {
+    margin-top: 4px;
+}
+
+.sil-cupo-section-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: background .12s, border-color .12s;
+}
+
+.sil-cupo-section-hd:hover {
+    background: rgba(0, 0, 0, .03);
+    border-color: var(--sil-border);
+}
+
+.sil-cupo-section-hd .sil-cupo-section-chk {
+    cursor: pointer;
+}
+
+.sil-cupo-section-hd .sil-cupo-section-label {
     font-size: 10.5px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .4px;
-    margin: 0 0 6px;
-    padding: 2px 0;
+    flex: 1;
 }
 
-.sil-cupo-section-title.sil-cupo-section-dir {
+.sil-cupo-section-hd .sil-cupo-section-toggle {
+    font-size: 11px;
+    color: var(--sil-text-muted, #6b7280);
+    transition: transform .15s;
+    display: inline-block;
+}
+
+.sil-cupo-section-open .sil-cupo-section-hd .sil-cupo-section-toggle {
+    transform: rotate(180deg);
+}
+
+.sil-cupo-section-hd.sil-cupo-section-dir .sil-cupo-section-label {
     color: var(--sil-green);
 }
 
-.sil-cupo-section-title.sil-cupo-section-par {
+.sil-cupo-section-hd.sil-cupo-section-par .sil-cupo-section-label {
     color: var(--sil-amber);
-    margin-top: 10px;
 }
 
-.sil-cupo-section-title.sil-cupo-section-cond {
+.sil-cupo-section-hd.sil-cupo-section-cond .sil-cupo-section-label {
     color: var(--sil-red);
-    margin-top: 10px;
+}
+
+.sil-cupo-section-body {
+    padding-top: 6px;
 }
 
 /* ---- card de un cupo ---- */
@@ -518,6 +559,7 @@
     margin-bottom: 8px;
     overflow: hidden;
     background: var(--sil-surface);
+    cursor: pointer;
 }
 
 .sil-cupo-card:last-child {

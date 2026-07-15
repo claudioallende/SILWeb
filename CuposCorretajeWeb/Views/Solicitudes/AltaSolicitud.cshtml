@@ -397,6 +397,42 @@
             //   mostramos son los del CUPO (c.CodVendSIL / c.NombreVendedor,
             //   etc.). No necesitamos comparar contra la solicitud: el
             //   nombre es EL del id del cupo.
+            // Render de una sección plegable por tipo de match.
+            //   key   : 'dir' | 'par' | 'cond' (mapea a las clases CSS existentes).
+            //   label : texto a mostrar en el header (sin el conteo).
+            //   items : array de items de match.
+            //
+            // Estructura:
+            //   <div class="sil-cupo-section" data-section-key="dir">
+            //     <div class="sil-cupo-section-hd sil-cupo-section-dir">
+            //       <input type="checkbox" class="sil-cupo-section-chk" />  ← check general
+            //       <span class="sil-cupo-section-label">● Match directo (6)</span>
+            //       <span class="sil-cupo-section-toggle">▾</span>          ← indicador plegado
+            //     </div>
+            //     <div class="sil-cupo-section-body" style="display:none;"> ← arranca plegado
+            //       ... cards ...
+            //     </div>
+            //   </div>
+            //
+            // El check general tilda/des-tilda TODOS los cards del tipo, sin
+            // importar si la sección está colapsada (el operador puede
+            // seleccionar en bloque sin necesidad de expandir).
+            function renderSeccion(key, label, items) {
+                var cardsHtml = '';
+                items.forEach(function (i) { cardsHtml += matchCardHtml(i); });
+                return '' +
+                    '<div class="sil-cupo-section" data-section-key="' + key + '">' +
+                    '  <div class="sil-cupo-section-hd sil-cupo-section-' + key + '">' +
+                    '    <input type="checkbox" class="sil-cupo-section-chk" />' +
+                    '    <span class="sil-cupo-section-label">&#9679; ' + label + ' (' + items.length + ')</span>' +
+                    '    <span class="sil-cupo-section-toggle">&#9662;</span>' +
+                    '  </div>' +
+                    '  <div class="sil-cupo-section-body">' +
+                         cardsHtml +
+                    '  </div>' +
+                    '</div>';
+            }
+
             function matchCardHtml(item) {
                 var tipo = item.MatchType;
                 var isCond = tipo === 'Condicional';
@@ -709,16 +745,13 @@
 
                 var html = '';
                 if (dirs.length) {
-                    html += '<div class="sil-cupo-section-title sil-cupo-section-dir">&#9679; Match directo (' + dirs.length + ')</div>';
-                    dirs.forEach(function (i) { html += matchCardHtml(i); });
+                    html += renderSeccion('dir', 'Match directo', dirs);
                 }
                 if (pars.length) {
-                    html += '<div class="sil-cupo-section-title sil-cupo-section-par">&#9679; Match parcial (' + pars.length + ')</div>';
-                    pars.forEach(function (i) { html += matchCardHtml(i); });
+                    html += renderSeccion('par', 'Match parcial', pars);
                 }
                 if (conds.length) {
-                    html += '<div class="sil-cupo-section-title sil-cupo-section-cond">&#9679; Con observaciones (' + conds.length + ')</div>';
-                    conds.forEach(function (i) { html += matchCardHtml(i); });
+                    html += renderSeccion('cond', 'Con observaciones', conds);
                 }
 
                 $listado.html(html).show();
@@ -733,6 +766,10 @@
                 // vuelva a tildar.
                 selectedCupos = {};
                 $('#btnConfirmarAsignacion').prop('disabled', true);
+                // Inicializa los checks de las cabeceras plegables en estado
+                // "ninguno tildado" (los cards empiezan todos desmarcados
+                // después del reset de selectedCupos).
+                sincronizarCheckSecciones();
             }
 
             // Recalcula el resumen + re-pinta el panel filtrando desde el
@@ -812,6 +849,75 @@
                 }
                 var cnt = Object.keys(selectedCupos).length;
                 $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
+                // Mantener sincronizado el check general de la sección:
+                // si todos los cards del tipo están tildados, el check general
+                // aparece marcado; si ninguno, desmarcado; si hay mezcla,
+                // queda en estado indeterminado.
+                sincronizarCheckSecciones();
+            });
+
+            // Sincroniza el checkbox de cada cabecera plegable con el estado
+            // real de los cards de su tipo. La lógica de tres estados
+            // (ninguno / parcial / todos) usa la propiedad 'indeterminate'
+            // del DOM que jQuery no maneja con prop() — va directo al
+            // elemento nativo.
+            function sincronizarCheckSecciones() {
+                $('#cuposListado .sil-cupo-section').each(function () {
+                    var $sec = $(this);
+                    var $cards = $sec.find('.sil-cupo-card');
+                    var total = $cards.length;
+                    var marcados = $cards.find('.sil-cupo-chk:checked').length;
+                    var $general = $sec.find('.sil-cupo-section-chk');
+                    if (marcados === 0) {
+                        $general.prop('checked', false).prop('indeterminate', false);
+                    } else if (marcados === total) {
+                        $general.prop('checked', true).prop('indeterminate', false);
+                    } else {
+                        $general.prop('checked', false).prop('indeterminate', true);
+                    }
+                });
+            }
+
+            // Plegar/desplegar la sección al click sobre el header
+            // (excepto si el click fue sobre el checkbox general, que tiene
+            // su propio handler). El indicador &#9662; rota con la clase
+            // sil-cupo-section-hd-open.
+            $('#cuposListado').on('click', '.sil-cupo-section-hd', function (e) {
+                if ($(e.target).hasClass('sil-cupo-section-chk')) return;
+                var $sec = $(this).closest('.sil-cupo-section');
+                $sec.toggleClass('sil-cupo-section-open');
+                $sec.find('.sil-cupo-section-body').toggle($sec.hasClass('sil-cupo-section-open'));
+            });
+
+            // Check general: tilda/des-tilda TODOS los cards del tipo, sin
+            // importar si la sección está plegada. Útil para seleccionar
+            // en bloque cuando hay muchos matches.
+            $('#cuposListado').on('change', '.sil-cupo-section-chk', function () {
+                var $sec = $(this).closest('.sil-cupo-section');
+                var tildar = this.checked;
+                $sec.find('.sil-cupo-card').each(function () {
+                    var $card = $(this);
+                    var $chk = $card.find('.sil-cupo-chk');
+                    if ($chk.is(':checked') !== tildar) {
+                        $chk.prop('checked', tildar).trigger('change');
+                    }
+                });
+            });
+
+            // Click en cualquier parte del card tilda/des-tilda el checkbox.
+            // Excluye clicks que ya vienen del checkbox, del label del badge
+            // (que no son interactivos hoy) y de futuros elementos interactivos
+            // que se agreguen dentro del card. Usamos data-card-interactive
+            // como opt-out explícito para casos especiales.
+            $('#cuposListado').on('click', '.sil-cupo-card', function (e) {
+                // Si el click fue sobre el checkbox o cualquier elemento que
+                // explícitamente se marca como interactivo, dejamos que el
+                // browser maneje el evento de forma nativa.
+                var $t = $(e.target);
+                if ($t.is('input, button, a, select, textarea, label')) return;
+                if ($t.closest('[data-card-interactive]').length) return;
+                var $chk = $(this).find('.sil-cupo-chk').first();
+                $chk.prop('checked', !$chk.is(':checked')).trigger('change');
             });
 
             // ---- Botonera ----
