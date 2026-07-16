@@ -87,6 +87,14 @@ namespace CuposCorretajeWeb.Models.Data
         throw new ApiException(await json.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
     }
+
+    /// <summary>
+    /// Wrapper POST contra SILData (sin bearer). El contrato con el backend es
+    /// PascalCase en el body; el binding default de ASP.NET Core es case-sensitive
+    /// en deserialización, por lo que los payloads deben construirse con nombres
+    /// de propiedad PascalCase (ej. SolicitudIds, no solicitudIds).
+    /// </summary>
+    public async Task<T> RequestSILDataPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
     {
       //var token = GetTokenAsync();
       var client = new HttpClient();
