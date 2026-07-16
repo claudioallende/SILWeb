@@ -357,6 +357,7 @@
     <Content Include="Content\table_header_fixed.css" />
     <Content Include="Content\tokenfield-typeahead.min.css" />
     <Content Include="Content\vendor\font-awesome\all.min.css" />
+    <Content Include="Content\vendor\sweetalert2\sweetalert2.min.css" />
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="fonts\open-iconic.svg" />
