@@ -118,7 +118,6 @@ namespace CuposCorretajeWeb.Models.Data
       // con un 500 inentendible. ExtractApiMessage en los controllers extrae el
       // detail del ProblemDetails y lo muestra al operador en un Swal.
       if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
-          response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
           response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
           response.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await response.Content.ReadAsStringAsync());
@@ -147,7 +146,6 @@ namespace CuposCorretajeWeb.Models.Data
       // Mismo tratamiento que el wrapper POST: capturar 400/422/409/500 para
       // que el detalle del ProblemDetails llegue al operador en vez de tirar 500.
       if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
-          response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
           response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
           response.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await response.Content.ReadAsStringAsync());
