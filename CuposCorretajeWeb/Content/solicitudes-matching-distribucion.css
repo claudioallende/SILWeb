@@ -1,0 +1,419 @@
+/* =========================================================
+   SIL — Matching en Distribución de Cupos (Pantalla 3)
+   Hoja de estilos específica para _MatchingDistribucionPartial.cshtml.
+
+   Nota: redefinimos la paleta localmente (en lugar de depender de
+   solicitudes-alta.css) para que MatchingDemo (que no carga esa hoja)
+   y futuras páginas que incluyan el partial sin la Pantalla 2 funcionen
+   idéntico. Si tenés las dos hojas cargadas, las variables se pisan
+   al último valor — sin efecto funcional.
+   ========================================================= */
+:root {
+    /* === PALETA (espejo de solicitudes-alta.css) === */
+    --sil-navy: #1a3a6b;
+    --sil-navy-dark: #122952;
+    --sil-navy-light: #2c4a8a;
+    --sil-teal: #0e7c60;
+    --sil-teal-light: #d4f0e8;
+    --sil-amber: #b37400;
+    --sil-amber-light: #fff3cd;
+    --sil-amber-border: #f0c040;
+    --sil-red: #a93226;
+    --sil-red-light: #fdf0f0;
+    --sil-red-border: #f1a0a6;
+    --sil-green: #155724;
+    --sil-green-light: #d4edda;
+    --sil-green-border: #82c896;
+    --sil-border: #dde3ec;
+    --sil-border-light: #edf0f5;
+    --sil-text-primary: #1a2340;
+    --sil-text-secondary: #5a6680;
+    --sil-text-tertiary: #9aa3b5;
+    --sil-surface: #ffffff;
+    --sil-mono: 'DM Mono', 'Consolas', 'Courier New', monospace;
+}
+
+/* ---- overlay y backdrops ---- */
+.sil-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(26, 35, 64, 0.42);
+    z-index: 1050;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 12px;
+    overflow-y: auto;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--sil-text-primary);
+}
+
+.sil-modal-overlay.is-open {
+    display: flex;
+}
+
+.sil-modal-card {
+    background: var(--sil-surface);
+    border-radius: 10px;
+    border: 1px solid var(--sil-border);
+    width: 100%;
+    max-width: 760px;
+    box-shadow: 0 12px 36px rgba(26, 58, 107, 0.18);
+    overflow: hidden;
+}
+
+.sil-modal-card-hd {
+    padding: 11px 16px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.sil-modal-card-hd .sil-modal-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0;
+}
+
+.sil-modal-card-hd .sil-modal-sub {
+    font-size: 11.5px;
+    opacity: 0.85;
+    margin-top: 1px;
+}
+
+.sil-modal-card-body {
+    padding: 14px 16px 16px;
+}
+
+/* ---- variantes por color de cabecera ---- */
+.sil-modal-card-variant-a .sil-modal-card-hd { background: var(--sil-green); border-bottom: 1px solid var(--sil-green-border); }
+.sil-modal-card-variant-a { border-color: var(--sil-green-border); }
+
+.sil-modal-card-variant-b .sil-modal-card-hd { background: var(--sil-amber); border-bottom: 1px solid var(--sil-amber-border); }
+.sil-modal-card-variant-b { border-color: var(--sil-amber-border); }
+
+.sil-modal-card-confirm-obs .sil-modal-card-hd { background: var(--sil-amber); }
+.sil-modal-card-confirm-obs { border-color: var(--sil-amber-border); }
+
+.sil-modal-card-conflict .sil-modal-card-hd { background: var(--sil-red); }
+.sil-modal-card-conflict { border-color: var(--sil-red-border); }
+
+.sil-modal-card-auto .sil-modal-card-hd { background: #5c3d8f; }
+.sil-modal-card-auto { border-color: #b39ddb; }
+
+/* ---- tabs Variante A ---- */
+.sil-modal-tabs {
+    display: flex;
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.sil-modal-tab {
+    flex: 1;
+    padding: 9px 12px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--sil-surface);
+    color: var(--sil-text-secondary);
+    border-right: 1px solid var(--sil-border);
+    transition: background 0.15s;
+    font-weight: 500;
+}
+
+.sil-modal-tab:last-child { border-right: none; }
+
+.sil-modal-tab.is-active {
+    background: var(--sil-navy);
+    color: #fff;
+    font-weight: 600;
+}
+
+.sil-modal-tab:not(.is-active):hover {
+    background: var(--sil-navy-light);
+    color: #fff;
+}
+
+.sil-modal-tab-step {
+    display: none;
+}
+
+.sil-modal-tab-step.is-active {
+    display: block;
+}
+
+/* ---- match resumen box ---- */
+.sil-modal-summary {
+    background: var(--sil-green-light);
+    border: 1px solid var(--sil-green-border);
+    border-radius: 7px;
+    padding: 10px 13px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--sil-text-primary);
+}
+
+.sil-modal-summary-amber {
+    background: var(--sil-amber-light);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-modal-summary-amber .sil-modal-summary-title { color: var(--sil-amber); }
+
+/* ---- tabla por solicitante (Variante B) ---- */
+.sil-modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.sil-modal-table th {
+    background: #2c4a8a;
+    color: #fff;
+    padding: 7px 10px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.sil-modal-table th.tl { text-align: left; }
+
+.sil-modal-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--sil-border-light);
+    text-align: center;
+    color: var(--sil-text-primary);
+}
+
+.sil-modal-table td.tl { text-align: left; }
+
+.sil-modal-table tbody tr:nth-child(even) td {
+    background: #fafbfd;
+}
+
+/* ---- badges de match reutilizados ---- */
+.sil-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    border-radius: 20px;
+    padding: 2px 9px;
+    border: 1px solid;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sil-badge-dir {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-par {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-obs {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+
+/* ---- progress bar Variante B ---- */
+.sil-modal-progress {
+    margin-bottom: 14px;
+}
+
+.sil-modal-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    margin-bottom: 4px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-modal-progress-label strong { color: var(--sil-navy); }
+
+.sil-modal-progress-track {
+    background: var(--sil-border-light);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.sil-modal-progress-fill {
+    background: var(--sil-navy);
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.25s, background 0.25s;
+    width: 0;
+}
+
+.sil-modal-progress-fill.is-complete { background: var(--sil-green); }
+
+.sil-modal-progress-warn {
+    font-size: 11.5px;
+    color: var(--sil-amber);
+    margin-top: 5px;
+    display: none;
+}
+
+.sil-modal-progress-warn.is-visible { display: block; }
+
+/* ---- counter cards ---- */
+.sil-modal-counters {
+    background: var(--sil-amber-light);
+    border: 1px solid var(--sil-amber-border);
+    border-radius: 7px;
+    padding: 10px 13px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.sil-modal-counter {
+    color: var(--sil-text-secondary);
+}
+
+.sil-modal-counter b {
+    font-size: 17px;
+    color: var(--sil-navy);
+    display: block;
+}
+
+/* ---- inputs numéricos con +/- ---- */
+.sil-modal-qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: center;
+}
+
+.sil-modal-qty button {
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--sil-border);
+    background: var(--sil-surface);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.sil-modal-qty button:disabled {
+    background: #f1f3f5;
+    color: var(--sil-text-tertiary);
+    cursor: not-allowed;
+}
+
+.sil-modal-qty input {
+    width: 46px;
+    text-align: center;
+    border: 1px solid var(--sil-border);
+    border-radius: 5px;
+    padding: 3px;
+    font-size: 12px;
+    font-family: var(--sil-mono);
+    font-weight: 600;
+}
+
+.sil-modal-qty input:disabled {
+    background: #f1f3f5;
+    color: var(--sil-text-tertiary);
+}
+
+/* ---- expandable detail ---- */
+.sil-modal-expanded {
+    background: #f0f7f4;
+    padding: 10px 14px;
+    border-top: 1px solid var(--sil-border-light);
+}
+
+.sil-modal-expanded-obs {
+    background: #fff8f8;
+    border-top: 1px solid var(--sil-red-border);
+}
+
+.sil-modal-obs-callout {
+    background: var(--sil-red-light);
+    border: 1px solid var(--sil-red-border);
+    border-left: 3px solid var(--sil-red);
+    border-radius: 6px;
+    padding: 9px 11px;
+    margin-bottom: 10px;
+    font-size: 11.5px;
+    color: #721c24;
+}
+
+.sil-modal-obs-callout b { font-weight: 600; display: block; margin-bottom: 3px; }
+
+/* ---- footer con acciones ---- */
+.sil-modal-foot {
+    display: flex;
+    gap: 7px;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--sil-border-light);
+}
+
+.sil-modal-foot.is-stacked {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.sil-modal-foot .sil-btn { min-width: 110px; }
+
+.sil-modal-btn-danger {
+    background: var(--sil-red);
+    color: #fff;
+    border-color: var(--sil-red);
+}
+
+.sil-modal-btn-danger:hover {
+    background: #8c2820;
+    color: #fff;
+}
+
+.sil-modal-spacer { flex: 1; }
+
+/* ---- close button top-right ---- */
+.sil-modal-close {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.sil-modal-close:hover { opacity: 1; }
+
+/* ---- variantes responsive ---- */
+@media (max-width: 720px) {
+    .sil-modal-card { max-width: 100%; }
+    .sil-modal-counters { gap: 12px; }
+}
+
+/* ---- selección visual de fila en Variante B ---- */
+.sil-modal-tr-selected td {
+    background: #eef3fc !important;
+}
+
+.sil-modal-tr-disabled td {
+    background: #fafafa !important;
+    color: var(--sil-text-tertiary);
+}

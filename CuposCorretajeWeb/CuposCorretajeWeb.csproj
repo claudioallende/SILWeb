@@ -211,6 +211,7 @@
     <Compile Include="Controllers\ContratoController.cs" />
     <Compile Include="Controllers\CuentaController.cs" />
     <Compile Include="Controllers\CuposController.cs" />
+    <Compile Include="Controllers\CuposMatchingController.cs" />
     <Compile Include="Controllers\DocController.cs" />
     <Compile Include="Controllers\GranoController.cs" />
     <Compile Include="Controllers\LandingController.cs" />
@@ -254,6 +255,8 @@
     <Compile Include="Models\Solicitudes\BuscarMatchesRequest.cs" />
     <Compile Include="Models\Solicitudes\BuscarMatchesResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\CupoCompatibleResumenViewModel.cs" />
+    <Compile Include="Models\Solicitudes\CupoInputDto.cs" />
+    <Compile Include="Models\Solicitudes\CupoParaMatchViewModel.cs" />
     <Compile Include="Models\Solicitudes\CuposDisponibleViewModel.cs" />
     <Compile Include="Models\CuposDist.cs" />
     <Compile Include="Models\CuposPorDiaDTO.cs" />
@@ -303,6 +306,19 @@
     <Compile Include="Models\Solicitudes\SolicitudActionResponseViewModel.cs" />
     <Compile Include="Models\Solicitudes\ConfirmarAsignacionRequest.cs" />
     <Compile Include="Models\Solicitudes\ConfirmarAsignacionResponse.cs" />
+    <Compile Include="Models\Solicitudes\MatchResultDto.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchRequestDto.cs" />
+    <Compile Include="Models\Solicitudes\ZonaGeograficaView.cs" />
+    <Compile Include="Models\Solicitudes\MatchesFilterDto.cs" />
+    <Compile Include="Models\Solicitudes\MatchesResultDto.cs" />
+    <Compile Include="Models\Solicitudes\MatchItemDto.cs" />
+    <Compile Include="Models\Solicitudes\ModalMatchingDistribucionViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestAcceptDataViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestAcceptResultViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestRejectDataViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestRejectResultViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudInputDto.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudParaMatchViewModel.cs" />
     <Compile Include="Models\Solicitudes\Mapping\AcceptPayloadBuilder.cs" />
     <Compile Include="Models\Solicitudes\Mapping\CupoDto.cs" />
     <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptDataDto.cs" />
@@ -350,6 +366,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Content\solicitudes-index.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\solicitudes-matching-distribucion.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Content\table_header_fixed.css" />
@@ -412,6 +431,7 @@
     <Content Include="Scripts\jquery.validate.unobtrusive.js" />
     <Content Include="Scripts\jquery.validate.unobtrusive.min.js" />
     <Content Include="Scripts\landing-main.js" />
+    <Content Include="Scripts\MatchingDistribucion.js" />
     <Content Include="Scripts\MercaderiaSinDestino.js" />
     <Content Include="Scripts\ModalAuditoriaCambiosEstadoCupo.js" />
     <Content Include="Scripts\ModalConsignaciones.js" />
@@ -493,6 +513,8 @@
     <Content Include="Views\Cupos\_ModalMotivosPartial.cshtml" />
     <Content Include="Views\Cupos\_ModalSeleccionConsignacionesPartial.cshtml" />
     <Content Include="Views\Cupos\_InformaCuposPartial.cshtml" />
+    <Content Include="Views\Cupos\_MatchingDistribucionPartial.cshtml" />
+    <Content Include="Views\CuposMatching\MatchingDemo.cshtml" />
     <Content Include="Views\Cupos\AutorizacionCupoSTOP.cshtml" />
     <Content Include="Views\Cupos\AutorizacionesPendientes.cshtml" />
     <Content Include="Views\Cupos\_ListaAlfanumericosSeleccionablesPartialView.cshtml" />
