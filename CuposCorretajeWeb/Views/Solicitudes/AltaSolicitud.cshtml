@@ -1093,6 +1093,31 @@
                     };
                 });
 
+                // Defensa client-side: el flujo SolicitudMatch (v1) no soporta
+                // subdivisión intra-cupo. Hoy cada card se mapea a cant=1
+                // (línea ~1048 más arriba), así que este chequeo es redundante
+                // pero protege contra cambios futuros. Si dispara, el operador
+                // ve un mensaje claro antes del POST en vez del 400 del backend.
+                var excedidosCantidad = [];
+                asignacionesPorSolicitud.forEach(function (as) {
+                    Object.keys(as.cantidadPorCupo).forEach(function (cid) {
+                        if (as.cantidadPorCupo[cid] > 1) {
+                            excedidosCantidad.push({ cupo: cid, cant: as.cantidadPorCupo[cid] });
+                        }
+                    });
+                });
+                if (excedidosCantidad.length > 0) {
+                    var detalle = excedidosCantidad
+                        .map(function (x) { return 'Cupo #' + x.cupo + ': ' + x.cant; })
+                        .join(', ');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Asignación múltiple por cupo no soportada',
+                        text: 'El flujo SolicitudMatch asigna 1 cupo por card. Revisá: ' + detalle
+                    });
+                    return;
+                }
+
                 function doPost() {
                     postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
                         idSolicitud: idSolicitud,                                 // legacy

@@ -204,15 +204,19 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
 function successDistribucion(data, spinner) {
   spinner.ocultarSpinner();
   if (data) {
-    if (data == 1) {
+    // El backend SILApi ahora devuelve ActualizarDistribucionResult con un
+    // campo Codigo (1=OK, 100/200=errores, 300=sin cambios) en lugar de un
+    // int pelado. Antes era data == 1; ahora hay que leer data.Codigo.
+    var codigo = (typeof data === 'number') ? data : data.Codigo;
+    if (codigo == 1) {
       window.location = window.modelData.actionDetalle + "/" + window.modelData.cuentaComprador + "-" + window.modelData.cuentaPuerto + "-" + window.modelData.codigoProducto + window.modelData.filtro;
-    } else if (data == 100) {
+    } else if (codigo == 100) {
       addAlert('Cantidad de cupos excedidos', "alert-danger");
       onAlert();
-    } else if (data == 200) {
+    } else if (codigo == 200) {
       addAlert('Cantidad de cupos excedidos para la consignación seleccionada', "alert-danger");
       onAlert();
-    } else if (data == 300) {
+    } else if (codigo == 300) {
       addAlert('No hubo cambios', "alert-info");
       onAlert();
     } else if (data.Status == 'Error') {

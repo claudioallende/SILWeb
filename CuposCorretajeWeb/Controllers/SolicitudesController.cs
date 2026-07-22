@@ -1,3 +1,4 @@
+using CuposCorretajeWeb.Models;
 using CuposCorretajeWeb.Models.Data;
 using CuposCorretajeWeb.Models.Error;
 using CuposCorretajeWeb.Models.Solicitudes;
@@ -475,9 +476,18 @@ namespace CuposCorretajeWeb.Controllers
     /// CupoCompatibleId se conserva por compatibilidad legacy y se popula con el
     /// primero de CupoIds si está null.
     ///
-    /// Llama a <c>POST /api/ShiftRequest/Accept</c> con la solicitud completa
-    /// (obtenida vía GET a <c>/api/ShiftRequest/{id}</c>) y los cupos completos
-    /// (obtenidos vía POST a <c>/api/ShiftRequest/Cupos/ByIds</c>).
+    /// Si vienen <see cref="ConfirmarAsignacionRequest.AsignacionesPorSolicitud"/>
+    /// (camino multi-solicitud de Pantalla 2), arma un payload
+    /// <see cref="RegistroDistribucionViewModel"/> en modo
+    /// <see cref="ModoActualizacionDistribucion.SolicitudMatch"/> y POSTea a
+    /// <c>SILApi /api/Cupos/ActualizarDistribucion</c>. Esta ruta reemplaza al
+    /// flujo legacy de N calls a SILData <c>/api/ShiftRequest/Accept</c>: SILApi
+    /// ahora persiste CUPOSDIST + CUPOSCORRE + SOLTURNOS + SOLTURNOS_DETALLE en
+    /// una sola transacción NHibernate.
+    ///
+    /// Si NO vienen AsignacionesPorSolicitud, mantiene el flujo legacy
+    /// (ConfirmarSolicitud / Pantallas 1) que sigue yendo a SILData por el
+    /// endpoint Accept legacy.
     /// </summary>
     [HttpPost]
     public async Task<JsonResult> ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
@@ -491,16 +501,11 @@ namespace CuposCorretajeWeb.Controllers
             Message = "Request nulo."
           });
 
-        // Multi-solicitud: si vienen AsignacionesPorSolicitud, iteramos.
-        // Cada entrada es una unidad (solicitudId + cupos a asignar). El
-        // backend Accept es 1-a-N con ShiftRequestAcceptDataDto.ShiftRequest,
-        // pero ac&aacute; mandamos un Accept por entrada y agregamos los
-        // resultados para simplificar el manejo de errores parciales
-        // (si una falla, no abortamos el resto: devolvemos success=false
-        // con detalle por solicitud en el Message).
+        // Multi-solicitud: si vienen AsignacionesPorSolicitud, vamos a SILApi
+        // (SolicitudMatch). Reemplaza al loop legacy de Accepts individuales.
         if (req.AsignacionesPorSolicitud != null && req.AsignacionesPorSolicitud.Count > 0)
         {
-          return await ConfirmarAsignacionesMultiples(req);
+          return await ConfirmarAsignacionesPorSolicitudMatch(req);
         }
 
         if (req.IdSolicitud <= 0)
@@ -585,13 +590,150 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Helper privado: ejecuta la corrida multi-solicitud. Construye un
-    /// ConfirmarAsignacionRequest single por cada AsignacionPorSolicitud
-    /// y reusa el pipeline de AcceptPayloadBuilder (que ya sabe llamar a
-    /// GET /ShiftRequest/{id} + POST /ShiftRequest/Cupos/ByIds + POST
-    /// /ShiftRequest/Accept). Si alguna falla, se reporta en el Message y
-    /// las dem&aacute;s contin&uacute;an. Al final agregamos los resultados.
+    /// Helper privado: ejecuta el flujo SolicitudMatch contra SILApi.
+    /// Toma las <see cref="ConfirmarAsignacionRequest.AsignacionesPorSolicitud"/>
+    /// de Pantalla 2 (multi-solicitud), las traduce a una lista de
+    /// <see cref="AsignacionSolicitudCupoDto"/> con <c>CupoSeleccionadoId</c>
+    /// fijo (1 cupo = 1 asignación) y arma un único payload
+    /// <see cref="RegistroDistribucionViewModel"/> en modo
+    /// <see cref="ModoActualizacionDistribucion.SolicitudMatch"/>.
+    /// SILApi persiste todo en una transacción NHibernate atómica
+    /// (CUPOSCORRE + CUPOSDIST + SOLTURNOS + SOLTURNOS_DETALLE).
+    ///
+    /// Si el request tiene <see cref="ConfirmarAsignacionRequest.CantidadPorCupo"/>
+    /// con algún valor > 1, abortamos: el flujo SolicitudMatch sólo soporta
+    /// 1 asignación por card. La subdivisión intra-cupo queda como hook futuro
+    /// (ver §8 del plan-integracion-solicitudes-distribucion.md).
     /// </summary>
+    private async Task<JsonResult> ConfirmarAsignacionesPorSolicitudMatch(ConfirmarAsignacionRequest req)
+    {
+      // Defensa: la subdivisión intra-cupo (>1 por card) no está habilitada
+      // en SolicitudMatch v1. Bloqueamos cualquier intento de asignar >1 por
+      // cupo para no terminar con un payload inconsistente (la sumatoria de
+      // cantidades excedería lo que el backend sabe distribuir).
+      if (req.CantidadPorCupo != null)
+      {
+        foreach (var kv in req.CantidadPorCupo)
+        {
+          if (kv.Value > 1)
+          {
+            return Json(new ConfirmarAsignacionResponse
+            {
+              Success = false,
+              Message = $"Asignación múltiple por cupo no soportada en este flujo (cupo {kv.Key}: {kv.Value})."
+            });
+          }
+        }
+      }
+
+      var asignaciones = new List<AsignacionSolicitudCupoDto>();
+      foreach (var a in req.AsignacionesPorSolicitud)
+      {
+        if (a == null || a.IdSolicitud <= 0 || a.CupoIds == null || a.CupoIds.Count == 0)
+        {
+          return Json(new ConfirmarAsignacionResponse
+          {
+            Success = false,
+            Message = $"Asignación inválida (solicitud={a?.IdSolicitud}, cupos vacíos)."
+          });
+        }
+
+        foreach (var cupoId in a.CupoIds)
+        {
+          if (cupoId <= 0) continue;
+          asignaciones.Add(new AsignacionSolicitudCupoDto
+          {
+            SolicitudId = a.IdSolicitud,
+            CupoSeleccionadoId = cupoId,
+            Cantidad = 1,
+            MatchType = "Directo"
+          });
+        }
+      }
+
+      if (asignaciones.Count == 0)
+      {
+        return Json(new ConfirmarAsignacionResponse
+        {
+          Success = false,
+          Message = "No hay asignaciones válidas para procesar."
+        });
+      }
+
+      var payload = new RegistroDistribucionViewModel
+      {
+        Modo = ModoActualizacionDistribucion.SolicitudMatch,
+        AsignacionesSolicitudCupo = asignaciones,
+        Confirmacion = true
+      };
+
+      var repo = new WebServiceSILRespository();
+      ActualizarDistribucionResult resultado;
+      try
+      {
+        resultado = await repo.RequestApiPostAndDeserializeAsync<ActualizarDistribucionResult>(
+          "Cupos", "ActualizarDistribucion", payload);
+      }
+      catch (ApiException ex)
+      {
+        // 4xx/5xx de SILApi: el wrapper ya tira ApiException con el body
+        // (mensaje de ExceptionHandlingAttribute o ProblemDetails). Lo
+        // propagamos como mensaje al operador.
+        Trace.TraceError("ConfirmarAsignacionesPorSolicitudMatch SILApi error: " + ex);
+        return Json(new ConfirmarAsignacionResponse
+        {
+          Success = false,
+          Message = ExtractApiMessage(ex)
+        });
+      }
+
+      if (resultado == null)
+      {
+        return Json(new ConfirmarAsignacionResponse
+        {
+          Success = false,
+          Message = "SILApi no devolvió resultado."
+        });
+      }
+
+      // Mapear ActualizarDistribucionResult → ConfirmarAsignacionResponse.
+      // Success se evalúa contra Codigo == 1 (semántica legacy) Y
+      // Success == true. Pendientes > 0 indica asignación parcial.
+      bool ok = resultado.Success && resultado.Codigo == 1;
+      string message;
+      if (ok && resultado.Pendientes > 0)
+      {
+        message = $"Asignaste {resultado.Asignados} de {resultado.Solicitados} cupos. {resultado.Pendientes} quedaron pendientes.";
+      }
+      else if (ok)
+      {
+        message = $"Asignación confirmada: {resultado.Asignados} cupos en {asignaciones.Count} asociación(es).";
+      }
+      else
+      {
+        message = resultado.Message ?? "SILApi rechazó la asignación.";
+      }
+
+      return Json(new ConfirmarAsignacionResponse
+      {
+        Success = ok,
+        Message = message,
+        Solicitados = resultado.Solicitados > 0 ? resultado.Solicitados : asignaciones.Count,
+        Asignados = resultado.Asignados,
+        Pendientes = resultado.Pendientes,
+        RedirectUrl = ok ? Url.Action("Index") : null
+      });
+    }
+
+    /// <summary>
+    /// Helper privado LEGACY: ejecuta la corrida multi-solicitud via SILData
+    /// (un Accept por cada <see cref="AsignacionPorSolicitud"/>). Se conserva
+    /// por compatibilidad con callers externos al flujo SolicitudMatch pero
+    /// ya NO se llama desde <c>ConfirmarAsignacionSeleccionada</c>: el flujo
+    /// standard de Pantalla 2 ahora va a SILApi vía
+    /// <see cref="ConfirmarAsignacionesPorSolicitudMatch"/>.
+    /// </summary>
+    [Obsolete("Reemplazado por ConfirmarAsignacionesPorSolicitudMatch (SILApi). Conservado por compatibilidad.")]
     private async Task<JsonResult> ConfirmarAsignacionesMultiples(ConfirmarAsignacionRequest req)
     {
       var repo = new WebServiceSILRespository();

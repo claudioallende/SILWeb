@@ -29,6 +29,12 @@ namespace CuposCorretajeWeb.Models.Data
 
     public abstract string GetWebSerive { get; internal set; }
     public abstract string GetWebServiceSILData { get; internal set; }
+    /// <summary>
+    /// Base URL del ResourceServer SILApi (D:\ACA\SILApi). Es el back-end
+    /// del flujo SolicitudMatch (AltaSolicitud) — expone
+    /// <c>POST /api/Cupos/ActualizarDistribucion</c>.
+    /// </summary>
+    public abstract string GetApiBaseUrl { get; internal set; }
 
     public string GetPath(string Controller)
     {
@@ -39,6 +45,17 @@ namespace CuposCorretajeWeb.Models.Data
     public string GetPathApiSilData(string Controller)
     {
       return GetWebServiceSILData + Controller + "/";
+    }
+
+    /// <summary>
+    /// Obtiene la URL para conexión al ResourceServer SILApi. Igual a
+    /// <see cref="GetPathApiSilData"/> pero con el base URL
+    /// <see cref="GetApiBaseUrl"/>. Se conserva el sufijo <c>/</c> + Controller + <c>/</c>
+    /// para mantener consistencia con los wrappers existentes.
+    /// </summary>
+    public string GetPathApiSilApi(string Controller)
+    {
+      return GetApiBaseUrl + Controller + "/";
     }
 
     public async Task<string> RequestAsync(string Controller, string Action)
@@ -86,6 +103,34 @@ namespace CuposCorretajeWeb.Models.Data
       if (json.StatusCode == System.Net.HttpStatusCode.InternalServerError || json.StatusCode == System.Net.HttpStatusCode.Conflict)
         throw new ApiException(await json.Content.ReadAsStringAsync());
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// Wrapper POST contra SILApi (ResourceServer) CON bearer. La diferencia
+    /// con <see cref="RequestPostAndDeserializeAsync{T}"/> es la base URL
+    /// (<see cref="GetPathApiSilApi"/> en lugar de <see cref="GetPath"/>).
+    /// Captura 4xx/5xx como ApiException para que el controller pueda extraer
+    /// el detalle del body (ProblemDetails de Web API / exception JSON de
+    /// ExceptionHandlingAttribute) sin romper la deserialización.
+    /// </summary>
+    public async Task<T> RequestApiPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
+    {
+      var token = GetTokenAsync();
+      var client = new HttpClient();
+      client.SetBearerToken(token);
+      var jsonString = JsonConvert.SerializeObject(Data);
+      HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+      var response = await client.PostAsync(GetPathApiSilApi(Controller) + Action, content);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
     }
 
     /// <summary>

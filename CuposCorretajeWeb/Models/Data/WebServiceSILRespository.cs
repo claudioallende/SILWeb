@@ -11,5 +11,9 @@ namespace CuposCorretajeWeb.Models.Data
     public override string GetWebSerive { get { return ConfigurationManager.AppSettings["WebServiceCuposCorretaje"]; } internal set { } }
     // atributo para conexion con API SILData
     public override string GetWebServiceSILData { get { return ConfigurationManager.AppSettings["SILDataApi"]; } internal set { } }
+    // atributo para conexion con API SILApi (Resource Server legacy: hosts CUPOSCORRE,
+    // CUPOSDIST, SOLTURNOS, SOLTURNOS_DETALLE). Es el back-end del flujo
+    // SolicitudMatch (AltaSolicitud).
+    public override string GetApiBaseUrl { get { return ConfigurationManager.AppSettings["SILApi"]; } internal set { } }
   }
 }
