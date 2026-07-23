@@ -29,12 +29,6 @@ namespace CuposCorretajeWeb.Models.Data
 
     public abstract string GetWebSerive { get; internal set; }
     public abstract string GetWebServiceSILData { get; internal set; }
-    /// <summary>
-    /// Base URL del ResourceServer SILApi (D:\ACA\SILApi). Es el back-end
-    /// del flujo SolicitudMatch (AltaSolicitud) — expone
-    /// <c>POST /api/Cupos/ActualizarDistribucion</c>.
-    /// </summary>
-    public abstract string GetApiBaseUrl { get; internal set; }
 
     public string GetPath(string Controller)
     {
@@ -50,12 +44,12 @@ namespace CuposCorretajeWeb.Models.Data
     /// <summary>
     /// Obtiene la URL para conexión al ResourceServer SILApi. Igual a
     /// <see cref="GetPathApiSilData"/> pero con el base URL
-    /// <see cref="GetApiBaseUrl"/>. Se conserva el sufijo <c>/</c> + Controller + <c>/</c>
+    /// <see cref="GetWebServiceSILData"/>. Se conserva el sufijo <c>/</c> + Controller + <c>/</c>
     /// para mantener consistencia con los wrappers existentes.
     /// </summary>
     public string GetPathApiSilApi(string Controller)
     {
-      return GetApiBaseUrl + Controller + "/";
+      return GetWebServiceSILData + Controller + "/";
     }
 
     public async Task<string> RequestAsync(string Controller, string Action)
@@ -120,7 +114,7 @@ namespace CuposCorretajeWeb.Models.Data
       client.SetBearerToken(token);
       var jsonString = JsonConvert.SerializeObject(Data);
       HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
-      var response = await client.PostAsync(GetPathApiSilApi(Controller) + Action, content);
+      var response = await client.PostAsync(GetPath(Controller) + Action, content);
 
       if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
         return default(T);
