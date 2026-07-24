@@ -993,9 +993,12 @@ namespace CuposCorretajeWeb.Controllers
           // el SELECT en SolicitudTurnoStore.
           FechasAceptadas = g
             .Where(x => ventana.Any(v => v.Fecha == x.FechaSolicitado.ToString("yyyy-MM-dd")))
+            .GroupBy(x => x.FechaSolicitado.Date)
             .ToDictionary(
-              x => x.FechaSolicitado.ToString("yyyy-MM-dd"),
-              x => campoCantidadTR == "Cantidad" ? x.CantidadAceptada : x.CantidadFuturoAceptada)
+              gg => gg.Key.ToString("yyyy-MM-dd"),
+              gg => campoCantidadTR == "Cantidad"
+                ? gg.Sum(x => x.CantidadAceptada)
+                : gg.Sum(x => x.CantidadFuturoAceptada))
         };
 
         result.Add(row);
