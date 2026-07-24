@@ -41,17 +41,6 @@ namespace CuposCorretajeWeb.Models.Data
       return GetWebServiceSILData + Controller + "/";
     }
 
-    /// <summary>
-    /// Obtiene la URL para conexión al ResourceServer SILApi. Igual a
-    /// <see cref="GetPathApiSilData"/> pero con el base URL
-    /// <see cref="GetWebServiceSILData"/>. Se conserva el sufijo <c>/</c> + Controller + <c>/</c>
-    /// para mantener consistencia con los wrappers existentes.
-    /// </summary>
-    public string GetPathApiSilApi(string Controller)
-    {
-      return GetWebServiceSILData + Controller + "/";
-    }
-
     public async Task<string> RequestAsync(string Controller, string Action)
     {
       var token = GetTokenAsync();
@@ -99,14 +88,6 @@ namespace CuposCorretajeWeb.Models.Data
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
     }
 
-    /// <summary>
-    /// Wrapper POST contra SILApi (ResourceServer) CON bearer. La diferencia
-    /// con <see cref="RequestPostAndDeserializeAsync{T}"/> es la base URL
-    /// (<see cref="GetPathApiSilApi"/> en lugar de <see cref="GetPath"/>).
-    /// Captura 4xx/5xx como ApiException para que el controller pueda extraer
-    /// el detalle del body (ProblemDetails de Web API / exception JSON de
-    /// ExceptionHandlingAttribute) sin romper la deserialización.
-    /// </summary>
     public async Task<T> RequestApiPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
     {
       var token = GetTokenAsync();
