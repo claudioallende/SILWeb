@@ -483,13 +483,20 @@
                 // cupo), el renderField correspondiente devuelve "No
                 // informado" en cursiva amber. Coherente con el badge
                 // Parcial/Directo y la Razon del motor.
+                // Resoluci&oacute;n robusta de la solicitudId del item: si el
+                // top-level item.SolicitudId viene en 0 (default de long,
+                // t&iacute;pico cuando SILData s&oacute;lo popula el Id embebido
+                // en item.Solicitud.Id), usamos ese. Si ninguno llega, queda en
+                // 0 y el confirm se valida contra idSolicitud legacy.
+                var solicitudIdCard = item.SolicitudId || (item.Solicitud && item.Solicitud.Id) || 0;
+
                 return '' +
                     // data-cupo-id / data-solicitud-id / data-obs / data-match: los consume
                     // el click handler de Confirmar (DLG 2) sin parsear texto.
                     // data-solicitud-id se necesita para que el handler pueda
                     // validar que todos los cupos seleccionados correspondan a la
                     // solicitud activa (idSolicitud) antes de armar el POST.
-                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-solicitud-id="' + item.SolicitudId + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
+                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-solicitud-id="' + solicitudIdCard + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
                     '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
                     '    <input type="checkbox" class="sil-cupo-chk" />' +
                     '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
@@ -594,12 +601,39 @@
                             // de su solicitud. As&iacute; matchesPorSolicitud
                             // queda indexado y el render filtra por la
                             // solicitudId del d&iacute;a tildado.
+                            //
+                            // IMPORTANTE — pivote por Cupo.Fecha, no por
+                            // item.SolicitudId. SILData devuelve TODOS los items
+                            // con el mismo SolicitudId (el de la solicitud pivote
+                            // que analiz&oacute;) aunque los cupos correspondan a
+                            // solicitudes distintas del grupo. Para hacer dispatch
+                            // correcto usamos Cupo.Fecha + solicitudPorFecha como
+                            // fuente de verdad. Si Cupo.Fecha no se puede parsear,
+                            // caemos al SolicitudId original (con fallback a
+                            // item.Solicitud.Id si viene en 0). Adem&aacute;s
+                            // sobrescribimos item.SolicitudId con el real para que
+                            // el data-solicitud-id de las cards refleje la solicitud
+                            // correcta al armar el payload del confirm.
                             items.forEach(function (item) {
                                 if (!item) return;
                                 var sid = item.SolicitudId;
-                                if (sid == null) return;
+                                if ((!sid || sid === 0) && item.Solicitud && item.Solicitud.Id) {
+                                    sid = item.Solicitud.Id;
+                                }
+                                var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                                if (fCupo) {
+                                    var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                                    var sidPorFecha = solicitudPorFecha[ymdCupo];
+                                    if (sidPorFecha) {
+                                        sid = sidPorFecha;
+                                    }
+                                }
+                                if (!sid) return;
                                 if (!matchesPorSolicitud[sid]) matchesPorSolicitud[sid] = [];
                                 matchesPorSolicitud[sid].push(item);
+                                // Reescribir SolicitudId para que las cards
+                                // rendericen data-solicitud-id con el id real.
+                                item.SolicitudId = sid;
                             });
                         } else {
                             // Respuesta con success=false (t&iacute;picamente:
