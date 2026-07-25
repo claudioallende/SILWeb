@@ -526,7 +526,6 @@
     <Content Include="Views\Cupos\_ModalSeleccionConsignacionesPartial.cshtml" />
     <Content Include="Views\Cupos\_InformaCuposPartial.cshtml" />
     <Content Include="Views\Cupos\_MatchingDistribucionPartial.cshtml" />
-    <Content Include="Views\CuposMatching\MatchingDemo.cshtml" />
     <Content Include="Views\Cupos\AutorizacionCupoSTOP.cshtml" />
     <Content Include="Views\Cupos\AutorizacionesPendientes.cshtml" />
     <Content Include="Views\Cupos\_ListaAlfanumericosSeleccionablesPartialView.cshtml" />
