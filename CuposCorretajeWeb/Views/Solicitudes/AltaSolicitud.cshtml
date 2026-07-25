@@ -997,7 +997,7 @@
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
                     if (!res.isConfirmed) return;
-                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', idSolicitud)
+                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', { idSolicitud: idSolicitud })
                         .done(manejarRespuesta)
                         .fail(function (xhr) {
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });

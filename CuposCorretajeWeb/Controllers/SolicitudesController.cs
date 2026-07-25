@@ -409,8 +409,9 @@ namespace CuposCorretajeWeb.Controllers
     /// transacción (ver <c>SolicitudTurnoStore.RejectRequestsAsync</c>).
     /// </summary>
     [HttpPost]
-    public async Task<JsonResult> RechazarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    public async Task<JsonResult> RechazarSolicitud(RechazarSolicitudRequest req)
     {
+      long idSolicitud = req != null ? req.IdSolicitud : 0;
       try
       {
         if (idSolicitud <= 0)
