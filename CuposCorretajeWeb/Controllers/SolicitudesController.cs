@@ -1144,6 +1144,29 @@ namespace CuposCorretajeWeb.Controllers
           var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
             "ShiftRequest", "Matches", filter);
 
+          // Set de fechas (yyyy-MM-dd) donde la fila efectivamente tiene una
+          // solicitud. El motor bulk devuelve matches para TODA la ventana
+          // (7 días), pero Pantalla 1 sólo debería contar matches cuyos
+          // Cupo.Fecha caen en días con TR > 0 — el operador no puede
+          // aceptar cupos para fechas sin solicitud, así que contarlos
+          // inflaría los badges de "Cupos compatibles" (clásico: 54/30 en
+          // lugar de 13/15 cuando la fila sólo tiene solicitudes para 2 de
+          // los 7 días de la ventana).
+          //
+          // Para cada fila: Cantidad > 0 marca solicitudes CONTRACTUAL
+          // (campoCantidadTR="Cantidad") y CantidadFuturo > 0 marca
+          // solicitudes FUTURO (campoCantidadTR="CantidadFuturo"). Una
+          // misma fila nunca mezcla ambos (el split se hace arriba en
+          // GetAllPendingShiftRequests separando rawList por EsFuturo),
+          // así que el filtro correcto es Cantidad + CantidadFuturo > 0
+          // (tomamos el OR para no perder ningún caso borde si en una
+          // iteración futura se permiten filas mixtas).
+          var fechasConSolicitud = new HashSet<string>(
+            (row.CantidadFechas ?? Enumerable.Empty<SolicitudTurnoDetalleGrupoView>())
+              .Where(d => (d.Cantidad + d.CantidadFuturo) > 0)
+              .Select(d => d.Fecha),
+            StringComparer.Ordinal);
+
           var resumen = new CupoCompatibleResumenViewModel();
           if (resp != null && resp.Items != null)
           {
@@ -1161,6 +1184,21 @@ namespace CuposCorretajeWeb.Controllers
                   && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
                   && aceptados != null
                   && aceptados.Contains(it.CupoId))
+              {
+                continue;
+              }
+
+              // Sólo contar matches cuyo Cupo.Fecha cae en un día con
+              // solicitud para esta fila. Ver comentario de fechasConSolicitud
+              // arriba. Sin esto la columna "Cupos compatibles" suma
+              // matches para días sin TR (los días "Sin solicitudes" de la
+              // grilla), inflando los badges. La fila defensiva es para
+              // items sin Cupo.Fecha parseable (no deberían existir pero
+              // el motor podría mandarlos).
+              string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
+                ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
+                : null;
+              if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
               {
                 continue;
               }
