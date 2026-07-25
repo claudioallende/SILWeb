@@ -1131,9 +1131,6 @@ namespace CuposCorretajeWeb.Controllers
           {
             codigoGrano = row.CodigoGrano,
             cuentaVendedor = row.CuentaVendedor,
-            // cuentaComprador / zonaGeograficaId pueden ser null — el motor
-            // los trata como "cualquiera" en ese caso, lo que es correcto
-            // para solicitudes sin comprador/destino explícito en Pantalla 1.
             cuentaComprador = row.CuentaComprador,
             zonaGeograficaId = row.CuentaDestino,
             fechaDesde = fechaDesde,
@@ -1145,23 +1142,6 @@ namespace CuposCorretajeWeb.Controllers
           var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
             "ShiftRequest", "Matches", filter);
 
-          // Set de fechas (yyyy-MM-dd) donde la fila efectivamente tiene una
-          // solicitud. El motor bulk devuelve matches para TODA la ventana
-          // (7 días), pero Pantalla 1 sólo debería contar matches cuyos
-          // Cupo.Fecha caen en días con TR > 0 — el operador no puede
-          // aceptar cupos para fechas sin solicitud, así que contarlos
-          // inflaría los badges de "Cupos compatibles" (clásico: 54/30 en
-          // lugar de 13/15 cuando la fila sólo tiene solicitudes para 2 de
-          // los 7 días de la ventana).
-          //
-          // Para cada fila: Cantidad > 0 marca solicitudes CONTRACTUAL
-          // (campoCantidadTR="Cantidad") y CantidadFuturo > 0 marca
-          // solicitudes FUTURO (campoCantidadTR="CantidadFuturo"). Una
-          // misma fila nunca mezcla ambos (el split se hace arriba en
-          // GetAllPendingShiftRequests separando rawList por EsFuturo),
-          // así que el filtro correcto es Cantidad + CantidadFuturo > 0
-          // (tomamos el OR para no perder ningún caso borde si en una
-          // iteración futura se permiten filas mixtas).
           var fechasConSolicitud = new HashSet<string>(
             (row.CantidadFechas ?? Enumerable.Empty<SolicitudTurnoDetalleGrupoView>())
               .Where(d => (d.Cantidad + d.CantidadFuturo) > 0)
@@ -1171,29 +1151,12 @@ namespace CuposCorretajeWeb.Controllers
           var resumen = new CupoCompatibleResumenViewModel();
           if (resp != null && resp.Items != null)
           {
-            // El motor devuelve 1 item por cruce (solicitudId, cupoId) compatible
-            // — el mismo cupo puede aparecer emparejado con varias solicitudes
-            // del grupo (p.ej. la fila 3 de TRIGO DURO tiene 5 solicitudes TS
-            // sobre 2 fechas y el motor retorna hasta 2x el mismo CupoId).
-            // Para el badge "Cupos compatibles" de la grilla lo que el operador
-            // espera es "cupos únicos disponibles", no tuplas —
-            // exactamente lo que Pantalla 2 muestra al tildar las fechas.
-            // Si un cupo matchea como "Directo" para una solicitud y "Parcial"
-            // para otra, cuenta en ambos buckets (corresponden a relaciones
-            // distintas). Acá .NET 4.6.1 no trae ValueTuple, así que usamos
-            // una clave string "cupoId|matchType".
             var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
 
-              // Sólo contar matches cuyo (solicitudId, cupoId) NO figure
-              // como aceptado en SOLTURNOS_DETALLE. Sin este filtro, cuando
-              // la solicitud ya aceptó cupos en fechas anteriores, el motor
-              // los sigue devolviendo y la columna "Cupos compatibles"
-              // muestra un conteo inflado (N cupos disponibles incluyendo
-              // los que ya están otorgados).
               if (cuposAceptadosPorSolicitud != null
                   && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
                   && aceptados != null
@@ -1202,13 +1165,6 @@ namespace CuposCorretajeWeb.Controllers
                 continue;
               }
 
-              // Sólo contar matches cuyo Cupo.Fecha cae en un día con
-              // solicitud para esta fila. Ver comentario de fechasConSolicitud
-              // arriba. Sin esto la columna "Cupos compatibles" suma
-              // matches para días sin TR (los días "Sin solicitudes" de la
-              // grilla), inflando los badges. La fila defensiva es para
-              // items sin Cupo.Fecha parseable (no deberían existir pero
-              // el motor podría mandarlos).
               string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
                 ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
                 : null;
@@ -1217,11 +1173,6 @@ namespace CuposCorretajeWeb.Controllers
                 continue;
               }
 
-              // Dedupe por (cupoId, matchType): si el motor ya emitió este
-              // par para otra solicitud del grupo, no lo volvemos a contar.
-              // Sin este paso los badges muestran 2x (las N solicitudes del
-              // grupo coinciden con los M cupos, N*M tuplas en vez de M
-              // cupos únicos).
               var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
               if (!cuposContadosPorTipo.Add(dedupKey))
               {
@@ -1237,11 +1188,6 @@ namespace CuposCorretajeWeb.Controllers
             }
           }
 
-          // Si la fila tenía matchType en algún item, no dejamos TextoResumen
-          // Legacy/placeholder tapando los chips en el render. Cuando los 3
-          // contadores están en 0, "Sin coincidencia" sigue siendo la
-          // leyenda correcta para que el operador sepa que el motor no
-          // encontró cupos compatibles.
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
             ? null
             : "Sin coincidencia";
@@ -1250,9 +1196,6 @@ namespace CuposCorretajeWeb.Controllers
         }
         catch (Exception ex)
         {
-          // No rompemos el endpoint entero por una fila fallida: caemos al
-          // placeholder. El backend puede haber devuelto 409/5xx/timeout —
-          // logueamos pero no exponemos el detalle al cliente.
           Trace.TraceWarning(
             $"EnriquecerResumenesMatchingAsync fila id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor}: {ex.Message}");
           return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(

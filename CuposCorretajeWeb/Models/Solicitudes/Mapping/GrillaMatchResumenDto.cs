@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
@@ -23,13 +24,6 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
     public long CupoId { get; set; }
     /// <summary>"Directo" | "Parcial" | "Condicional" | null (Incompatible).</summary>
     public string MatchType { get; set; }
-
-    /// <summary>
-    /// Fecha del cupo. La trae el motor en la respuesta (es parte de
-    /// <c>MatchCupoResumenDto.Fecha</c>); sólo la agregamos al espejo
-    /// recortado para que <c>EnriquecerResumenesMatchingAsync</c> pueda
-    /// contar matches por fecha sin pedirle al backend otro endpoint.
-    /// </summary>
     public GrillaMatchCupoFechaDto Cupo { get; set; } = new GrillaMatchCupoFechaDto();
   }
 
