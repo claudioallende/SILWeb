@@ -1170,6 +1170,19 @@ namespace CuposCorretajeWeb.Controllers
           var resumen = new CupoCompatibleResumenViewModel();
           if (resp != null && resp.Items != null)
           {
+            // El motor devuelve 1 item por cruce (solicitudId, cupoId) compatible
+            // — el mismo cupo puede aparecer emparejado con varias solicitudes
+            // del grupo (p.ej. la fila 3 de TRIGO DURO tiene 5 solicitudes TS
+            // sobre 2 fechas y el motor retorna hasta 2x el mismo CupoId).
+            // Para el badge "Cupos compatibles" de la grilla lo que el operador
+            // espera es "cupos únicos disponibles", no tuplas —
+            // exactamente lo que Pantalla 2 muestra al tildar las fechas.
+            // Si un cupo matchea como "Directo" para una solicitud y "Parcial"
+            // para otra, cuenta en ambos buckets (corresponden a relaciones
+            // distintas). Acá .NET 4.6.1 no trae ValueTuple, así que usamos
+            // una clave string "cupoId|matchType".
+            var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
+
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
@@ -1199,6 +1212,17 @@ namespace CuposCorretajeWeb.Controllers
                 ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
                 : null;
               if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
+              {
+                continue;
+              }
+
+              // Dedupe por (cupoId, matchType): si el motor ya emitió este
+              // par para otra solicitud del grupo, no lo volvemos a contar.
+              // Sin este paso los badges muestran 2x (las N solicitudes del
+              // grupo coinciden con los M cupos, N*M tuplas en vez de M
+              // cupos únicos).
+              var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
+              if (!cuposContadosPorTipo.Add(dedupKey))
               {
                 continue;
               }
