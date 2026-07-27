@@ -27,18 +27,24 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// <summary>Razón textual para Parcial / Condicional / Incompatible.</summary>
     public string Razon { get; set; }
     /// <summary>
-    /// Flag copiado del backend. true = el campo coincide entre solicitud y cupo.
-    /// Se usa en Pantalla 2 para mostrar u ocultar la fila correspondiente en la card.
+    /// Flag copiado del backend que indica si el vendedor de la solicitud
+    /// coincide con el vendedor del cupo. Se conserva como metadata del
+    /// resultado del motor para clasificar el match; no oculta el nombre
+    /// propio del cupo en Pantalla 2.
     /// </summary>
     public bool VendedorCoincide { get; set; }
     /// <summary>
-    /// Flag copiado del backend. true = el campo coincide entre solicitud y cupo
-    /// (o ambos no exigen comprador). Se usa para mostrar/ocultar la fila Comprador.
+    /// Flag copiado del backend que indica si el comprador de la solicitud
+    /// coincide con el comprador del cupo (o ambos no exigen comprador).
+    /// Se conserva como metadata del resultado del motor y no modifica el
+    /// nombre del cupo mostrado en Pantalla 2.
     /// </summary>
     public bool CompradorCoincide { get; set; }
     /// <summary>
-    /// Flag copiado del backend. true = el campo coincide entre solicitud y cupo
-    /// (o ambos no exigen destino). Se usa para mostrar/ocultar la fila Destino.
+    /// Flag copiado del backend que indica si el destino de la solicitud
+    /// coincide con el destino del cupo (o ambos no exigen destino). Se
+    /// conserva como metadata del resultado del motor y no modifica el
+    /// nombre del cupo mostrado en Pantalla 2.
     /// </summary>
     public bool DestinoCoincide { get; set; }
     public MatchSolicitudResumenViewModel Solicitud { get; set; } = new MatchSolicitudResumenViewModel();
