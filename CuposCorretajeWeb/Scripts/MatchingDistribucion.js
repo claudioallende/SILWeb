@@ -488,6 +488,7 @@
     var fallos = 0;
     var cuposAsignados = 0;
     var cuposPendientes = 0;
+    var excedeLimite = false;
 
     solicitudesAsignadas.forEach(function (pair) {
       var match = (cupo.Matches || []).find(function (m) { return m.Id === pair.solicitudId; });
@@ -496,10 +497,14 @@
       var cantidad = (typeof pair.cantidad === 'number' && pair.cantidad > 0) ? pair.cantidad : 1;
 
       // Intentar reflejar el incremento en la celda correspondiente
-      // de la tabla legacy de distribuciones. Si no hay match (otro cupo,
-      // rango de días fuera, etc.), igualmente guardamos el estado para
-      // que la siguiente etapa lo persista.
+      // de la tabla legacy de distribuciones. actualizarCeldaDistribucion
+      // corre la validación de cupos disponibles y devuelve false si la
+      // asignación excede el máximo por día o por contrato.
       var cellUpdated = actualizarCeldaDistribucion(cupo, match, cantidad);
+      if (cellUpdated === 'excede') {
+        cellUpdated = false;
+        excedeLimite = true;
+      }
 
       // Guardar/actualizar el estado del modal.
       var cupoId = pair.cupoId || cupo.Id || 0;
@@ -521,13 +526,21 @@
 
     console.log('[Matching] Asignaciones aplicadas:', hits, 'fallos:', fallos,
       'cupos asignados:', cuposAsignados, 'cupos pendientes:', cuposPendientes,
+      'excedeLimite:', excedeLimite,
       '(total solicitudes:', solicitudesAsignadas.length, ')');
 
     // Feedback al operador (sin cerrar el modal — el usuario puede seguir
     // ajustando celdas o confirmar con múltiples solicitudes).
     if (typeof Swal !== 'undefined') {
+      var icon = excedeLimite ? 'warning' : 'info';
+      var titulo = excedeLimite ? 'Cupos excedidos' : 'Asignaciones registradas';
       var msg = '';
-      if (hits > 0 && fallos === 0) {
+      if (excedeLimite && hits > 0) {
+        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s), pero la validación detectó que se exceden los cupos disponibles para algún día o contrato. Revisá la alerta en la tabla.';
+      } else if (excedeLimite) {
+        msg = 'No se pudieron asignar ' + cuposPendientes +
+              ' cupo(s): la cantidad excede los cupos disponibles para el día o contrato. Su asignación quedó guardada para procesar después.';
+      } else if (hits > 0 && fallos === 0) {
         msg = 'Se asignaron ' + cuposAsignados + ' cupo(s) de ' +
               hits + ' solicitud(es) a las celdas de la tabla de distribuciones.';
       } else if (hits > 0 && fallos > 0) {
@@ -540,11 +553,11 @@
               ' cupo(s) en la tabla (las fechas pueden estar fuera del rango de 20 días o no haber fila para esa combinación). Su asignación quedó guardada para procesar después.';
       }
       Swal.fire({
-        icon: 'info',
-        title: 'Asignaciones registradas',
+        icon: icon,
+        title: titulo,
         text: msg,
-        timer: 3500,
-        showConfirmButton: false
+        timer: excedeLimite ? 5000 : 3500,
+        showConfirmButton: excedeLimite
       });
     }
 
@@ -635,9 +648,27 @@
       var newVal = currentVal + cantidad;
       $cellDiv.text(String(newVal));
 
-      // Disparar change para que AjaxDistribucion.js actualice su matriz y el
-      // operador pueda continuar con la distribución normal.
-      $cellDiv.trigger('change');
+      // Disparar keyup (mismo evento que escucha EstadoGrilla.handleEvents)
+      // para que recalcule diferencias, valide cupos y refresque el total por
+      // día del footer de la tabla. Disparar 'change' sobre un contentEditable
+      // no reproduce el flujo de los inputs nativos.
+      $cellDiv.trigger('keyup');
+
+      // Refrescar explícitamente el total del footer y validar cupos disponibles.
+      // DataTables clona el footer y en algunos navegadores el .trigger('keyup')
+      // no propaga al handler legacy cuando se dispara sobre el original.
+      // Devolvemos 'excede' cuando la validación falla para que el caller
+      // pueda advertirle al operador (la celda ya tiene el valor escrito pero
+      // el controlEstados muestra el addAlert rojo de "Cantidad de cupos excedidos").
+      if (window.controlEstados && typeof controlEstados.setTotalPorDia === 'function') {
+        try {
+          var validacionOK = controlEstados.getDiferenciasYValidar();
+          controlEstados.setTotalPorDia();
+          return validacionOK ? true : 'excede';
+        } catch (ex) {
+          console.warn('[Matching] No se pudo refrescar el total del footer:', ex);
+        }
+      }
 
       return true;
     }
