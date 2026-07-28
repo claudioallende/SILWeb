@@ -535,9 +535,9 @@
    * `#TablaDistribuciones`.
    *
    * Reglas:
-   *  - Encuentra la fila cuyo `data-vendedor`, `data-destino` y `data-cosecha`
-   *    coincidan con los valores del cupo (CodVendSIL, CodDestino) de la
-   *    solicitud en el orden recibido.
+   *  - Encuentra la fila cuyo `data-vendedor` coincida con el del cupo
+   *    (CodVendSIL) o, si el cupo no tiene vendedor, con el de la
+   *    solicitud (match.Vendedor). Sin importar destino ni cosecha.
    *  - Determina la columna de día a partir de `FechaSolicitado` de la
    *    solicitud: `diasDiff = (FechaSolicitado - baseDate).Days`, donde
    *    baseDate es hoy en horario local. Col 0 = `.dia0`, col 1 = `.dia1`, etc.
@@ -585,28 +585,16 @@
       // Fallback para filas legacy de cupos sin vendedor.
       if (vendedoresBuscables.length === 0) vendedoresBuscables.push('');
 
-      var destinoCupo = normalizarValor(cupo.CodDestino);
-      var cosechaCupo = normalizarValor(getCosechaDelCupo(cupo, match));
-
-      // Filtramos sobre las filas de la tabla original. La cosecha sólo se
-      // compara si el backend la informa; hoy el DTO puede no traerla.
+      // Filtramos sólo por vendedor. No comparamos destino ni cosecha: si hay
+      // varias filas para el mismo vendedor, tomamos la primera (mejor esfuerzo).
       var $fila = $tabla.find('tbody tr').filter(function () {
-        var $filaActual = $(this);
-        var vendedorFila = normalizarVendedor($filaActual.attr('data-vendedor'));
-        var destinoFila = normalizarValor($filaActual.attr('data-destino'));
-        var cosechaFila = normalizarValor($filaActual.attr('data-cosecha'));
-
-        var vendedorCoincide = vendedoresBuscables.indexOf(vendedorFila) !== -1;
-        var destinoCoincide = destinoFila === destinoCupo;
-        var cosechaCoincide = !cosechaCupo || cosechaFila === cosechaCupo;
-        return vendedorCoincide && destinoCoincide && cosechaCoincide;
+        var vendedorFila = normalizarVendedor($(this).attr('data-vendedor'));
+        return vendedoresBuscables.indexOf(vendedorFila) !== -1;
       }).first();
 
       if ($fila.length === 0) {
         console.warn('[Matching] No se encontró fila para actualizar.', {
           vendedoresBuscables: vendedoresBuscables,
-          destino: destinoCupo,
-          cosecha: cosechaCupo,
           filas: $tabla.find('tbody tr').length
         });
         return false;
@@ -617,8 +605,7 @@
       if ($cellDiv.length === 0) {
         console.warn('[Matching] Se encontró la fila pero no la celda de día.', {
           diasDiff: diasDiff,
-          vendedor: vendedoresBuscables,
-          destino: destinoCupo
+          vendedor: vendedoresBuscables
         });
         return false;
       }
@@ -672,16 +659,6 @@
   // Helper: CSS.escape para selectores jQuery seguros.
   function cssEscape(value) {
     return String(value == null ? '' : value).replace(/["\\]/g, '\\$&');
-  }
-
-  // Helper: la "cosecha" del cupo. Hoy viene vacía en MatchItemDto.Cupo,
-  // así que dejamos que la fila se matchee por vacío y la regla más
-  // específica la ponga el operador a mano si hay duplicados.
-  function getCosechaDelCupo(cupo, match) {
-    // Si el backend lo expone en el futuro, leer de ahí. Hoy MatchItemDto
-    // no lo trae, así que devolvemos vacío (selector matchea cualquier fila
-    // que tenga data-cosecha faltante o vacío).
-    return '';
   }
 
   // ============================================================
