@@ -302,6 +302,7 @@
     <Compile Include="Models\ServicioGrano.cs" />
     <Compile Include="Models\Solicitudes\FilterCuposDisponible.cs" />
     <Compile Include="Models\Solicitudes\IndexModel.cs" />
+    <Compile Include="Models\Solicitudes\RechazarSolicitudRequest.cs" />
     <Compile Include="Models\Solicitudes\ShiftRequestPendingViewModel.cs" />
     <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
@@ -525,7 +526,6 @@
     <Content Include="Views\Cupos\_ModalSeleccionConsignacionesPartial.cshtml" />
     <Content Include="Views\Cupos\_InformaCuposPartial.cshtml" />
     <Content Include="Views\Cupos\_MatchingDistribucionPartial.cshtml" />
-    <Content Include="Views\CuposMatching\MatchingDemo.cshtml" />
     <Content Include="Views\Cupos\AutorizacionCupoSTOP.cshtml" />
     <Content Include="Views\Cupos\AutorizacionesPendientes.cshtml" />
     <Content Include="Views\Cupos\_ListaAlfanumericosSeleccionablesPartialView.cshtml" />

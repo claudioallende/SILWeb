@@ -3,10 +3,10 @@
    Hoja de estilos específica para _MatchingDistribucionPartial.cshtml.
 
    Nota: redefinimos la paleta localmente (en lugar de depender de
-   solicitudes-alta.css) para que MatchingDemo (que no carga esa hoja)
-   y futuras páginas que incluyan el partial sin la Pantalla 2 funcionen
-   idéntico. Si tenés las dos hojas cargadas, las variables se pisan
-   al último valor — sin efecto funcional.
+   solicitudes-alta.css) para que futuras páginas que incluyan el
+   partial sin la Pantalla 2 funcionen idéntico. Si tenés las dos
+   hojas cargadas, las variables se pisan al último valor — sin
+   efecto funcional.
    ========================================================= */
 :root {
     /* === PALETA (espejo de solicitudes-alta.css) === */

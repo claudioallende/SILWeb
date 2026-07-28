@@ -446,16 +446,14 @@
                 var s = item.Solicitud || {};
                 var c = item.Cupo || {};
 
-                // Render de cada campo: sólo el nombre (Catálogo).
-                // Cada render devuelve { text, missing }; cuando el
-                // catálogo no tiene el código o el flag de coincidencia
-                // viene en false (el criterio no coincide entre la
-                // solicitud y el cupo), aplicamos la clase
-                // sil-cupo-comprador-na al <span> para que se vea en
-                // cursiva amber como "No informado". Ver renderField().
-                var vendedor  = renderField(c.NombreVendedor, item.VendedorCoincide === false);
-                var comprador = renderField(c.NombreComprador, item.CompradorCoincide === false);
-                var destino   = renderField(c.NombreDestino, item.DestinoCoincide === false);
+                // Render de cada campo usando los nombres propios del CUPO.
+                // Si SILData no pudo resolver el nombre en el catálogo, se
+                // muestra "No informado". El resultado de coincidencia no
+                // reemplaza los datos del cupo: los flags sólo clasifican el
+                // match y no deben ocultar un nombre válido.
+                var vendedor  = renderField(c.NombreVendedor);
+                var comprador = renderField(c.NombreComprador);
+                var destino   = renderField(c.NombreDestino);
 
                 // Cantidad a matchear contra este cupo: la cantidad TR de la
                 // solicitud activa que matche&oacute; con este cupo. Cada cupo
@@ -478,15 +476,15 @@
                       '</div>'
                     : '';
 
-                // Cada fila se renderiza siempre; cuando el flag de coincidencia viene
-                // en false (el criterio no coincide entre la solicitud y el
-                // cupo), el renderField correspondiente devuelve "No
-                // informado" en cursiva amber. Coherente con el badge
-                // Parcial/Directo y la Razon del motor.
-                // Resoluci&oacute;n robusta de la solicitudId del item: si el
+                // Cada fila se renderiza siempre. El valor se toma del cupo;
+                // cuando el catálogo no resolvió su nombre, renderField
+                // devuelve "No informado" en cursiva amber. Los flags de
+                // coincidencia se reflejan en el tipo de match y la razón,
+                // pero no sustituyen los datos propios del cupo.
+                // Resolución robusta de la solicitudId del item: si el
                 // top-level item.SolicitudId viene en 0 (default de long,
-                // t&iacute;pico cuando SILData s&oacute;lo popula el Id embebido
-                // en item.Solicitud.Id), usamos ese. Si ninguno llega, queda en
+                // típico cuando SILData sólo popula el Id embebido en
+                // item.Solicitud.Id), usamos ese. Si ninguno llega, queda en
                 // 0 y el confirm se valida contra idSolicitud legacy.
                 var solicitudIdCard = item.SolicitudId || (item.Solicitud && item.Solicitud.Id) || 0;
 
@@ -514,21 +512,20 @@
 
             // Resuelve el texto a mostrar en un campo del card (Vendedor /
             // Comprador / Destino). Regla: en la card NO se muestran IDs.
-            // El operador quiere ver nombres del catálogo; si el catálogo
-            // no tiene el código (o el cupo no trae el id), mostramos la
-            // leyenda "No informado" en cursiva amber para que se
+            // El operador quiere ver nombres del catálogo del CUPO; si el
+            // catálogo no tiene el código o el cupo no trae el id, mostramos
+            // la leyenda "No informado" en cursiva amber para que se
             // distinga del resto.
             //
             // Devuelve { text, missing }.
-            //   - text:    el texto a mostrar (sólo el nombre, o "No
-            //              informado").
-            //   - missing: true si el catálogo no resolvió el nombre o si
-            //              el flag de coincidencia del motor está en false
-            //              (el criterio no coincide entre solicitud y cupo).
-            //              El render aplica la clase sil-cupo-comprador-na
-            //              cuando missing es true.
-            function renderField(name, forceMissing) {
-                if (!forceMissing && name) {
+            //   - text:    el nombre del cupo, o "No informado".
+            //   - missing: true sólo si el catálogo no resolvió el nombre.
+            //
+            // Los flags de coincidencia no se usan aquí: describen la
+            // relación entre solicitud y cupo, pero no cambian los datos
+            // propios del cupo que se muestran en la card.
+            function renderField(name) {
+                if (name) {
                     return { text: name, missing: false };
                 }
                 return { text: 'No informado', missing: true };
@@ -997,7 +994,7 @@
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
                     if (!res.isConfirmed) return;
-                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', idSolicitud)
+                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', { idSolicitud: idSolicitud })
                         .done(manejarRespuesta)
                         .fail(function (xhr) {
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });

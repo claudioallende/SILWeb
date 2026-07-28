@@ -409,8 +409,9 @@ namespace CuposCorretajeWeb.Controllers
     /// transacción (ver <c>SolicitudTurnoStore.RejectRequestsAsync</c>).
     /// </summary>
     [HttpPost]
-    public async Task<JsonResult> RechazarSolicitud([System.Web.Http.FromBody] long idSolicitud)
+    public async Task<JsonResult> RechazarSolicitud(RechazarSolicitudRequest req)
     {
+      long idSolicitud = req != null ? req.IdSolicitud : 0;
       try
       {
         if (idSolicitud <= 0)
@@ -1130,9 +1131,6 @@ namespace CuposCorretajeWeb.Controllers
           {
             codigoGrano = row.CodigoGrano,
             cuentaVendedor = row.CuentaVendedor,
-            // cuentaComprador / zonaGeograficaId pueden ser null — el motor
-            // los trata como "cualquiera" en ese caso, lo que es correcto
-            // para solicitudes sin comprador/destino explícito en Pantalla 1.
             cuentaComprador = row.CuentaComprador,
             zonaGeograficaId = row.CuentaDestino,
             fechaDesde = fechaDesde,
@@ -1144,23 +1142,39 @@ namespace CuposCorretajeWeb.Controllers
           var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
             "ShiftRequest", "Matches", filter);
 
+          var fechasConSolicitud = new HashSet<string>(
+            (row.CantidadFechas ?? Enumerable.Empty<SolicitudTurnoDetalleGrupoView>())
+              .Where(d => (d.Cantidad + d.CantidadFuturo) > 0)
+              .Select(d => d.Fecha),
+            StringComparer.Ordinal);
+
           var resumen = new CupoCompatibleResumenViewModel();
           if (resp != null && resp.Items != null)
           {
+            var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
+
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
 
-              // Sólo contar matches cuyo (solicitudId, cupoId) NO figure
-              // como aceptado en SOLTURNOS_DETALLE. Sin este filtro, cuando
-              // la solicitud ya aceptó cupos en fechas anteriores, el motor
-              // los sigue devolviendo y la columna "Cupos compatibles"
-              // muestra un conteo inflado (N cupos disponibles incluyendo
-              // los que ya están otorgados).
               if (cuposAceptadosPorSolicitud != null
                   && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
                   && aceptados != null
                   && aceptados.Contains(it.CupoId))
+              {
+                continue;
+              }
+
+              string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
+                ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
+                : null;
+              if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
+              {
+                continue;
+              }
+
+              var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
+              if (!cuposContadosPorTipo.Add(dedupKey))
               {
                 continue;
               }
@@ -1174,11 +1188,6 @@ namespace CuposCorretajeWeb.Controllers
             }
           }
 
-          // Si la fila tenía matchType en algún item, no dejamos TextoResumen
-          // Legacy/placeholder tapando los chips en el render. Cuando los 3
-          // contadores están en 0, "Sin coincidencia" sigue siendo la
-          // leyenda correcta para que el operador sepa que el motor no
-          // encontró cupos compatibles.
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
             ? null
             : "Sin coincidencia";
@@ -1187,9 +1196,6 @@ namespace CuposCorretajeWeb.Controllers
         }
         catch (Exception ex)
         {
-          // No rompemos el endpoint entero por una fila fallida: caemos al
-          // placeholder. El backend puede haber devuelto 409/5xx/timeout —
-          // logueamos pero no exponemos el detalle al cliente.
           Trace.TraceWarning(
             $"EnriquecerResumenesMatchingAsync fila id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor}: {ex.Message}");
           return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(
@@ -1216,23 +1222,9 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Enriquece cada <see cref="MatchItemViewModel"/> de la lista con los
-    /// nombres hidratados del catálogo de SILData (<c>SolicitudTurnoView</c>).
-    ///
-    /// Estrategia: 1 sola llamada GET a <c>/api/ShiftRequest/GetByVendedorAsync/{cuentaVendedor}</c>
-    /// que devuelve TODAS las solicitudes del vendedor con nombres resueltos.
-    /// Después indexamos por <c>Id</c> en un diccionario y copiamos los nombres
-    /// a los items de match que correspondan.
-    ///
-    /// Notas:
-    /// - La pantalla 2 siempre trabaja con un único vendedor activo
-    ///   (el de la solicitud en TempData), as&iacute; que con 1 llamada alcanza.
-    /// - Los nombres son de la SOLICITUD. Para campos del CUPO (Comprador /
-    ///   Destino) el nombre puede NO coincidir con el id del cupo cuando el
-    ///   match es Parcial/Condicional. La UI muestra el nombre cuando est&aacute;
-    ///   disponible y el id del cupo como contexto.
-    /// - Si la llamada falla (timeout, 5xx, etc.) NO rompemos el flujo:
-    ///   dejamos los nombres null y la card cae al fallback de IDs.
+    /// Método legado sin uso. La respuesta actual de Matches ya trae los
+    /// nombres hidratados dentro de <c>MatchCupoResumen</c> desde SILData,
+    /// por lo que no se realiza una llamada adicional desde este controller.
     /// </summary>
     [Obsolete("Reemplazado por hidrataci&oacute;n directa en MatchCupoResumen (SILData).")]
     private static async Task HidratarNombres(List<MatchItemViewModel> items, long cuentaVendedor)

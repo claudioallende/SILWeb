@@ -429,20 +429,6 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    /// <summary>
-    /// GET /CuposMatching/MatchingDemo
-    ///
-    /// Página standalone para QA/dev. No consume ningún backend: abre los
-    /// modales de matching con datos hardcodeados para inspección visual
-    /// de las variantes A/B y de los diálogos operativos (confirm-obs,
-    /// conflicto, rechazo automático).
-    /// </summary>
-    [HttpGet]
-    public ActionResult MatchingDemo()
-    {
-      return View();
-    }
-
     // =====================================================================
     // Helpers privados
     // =====================================================================

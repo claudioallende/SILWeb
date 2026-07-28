@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
@@ -23,6 +24,12 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
     public long CupoId { get; set; }
     /// <summary>"Directo" | "Parcial" | "Condicional" | null (Incompatible).</summary>
     public string MatchType { get; set; }
+    public GrillaMatchCupoFechaDto Cupo { get; set; } = new GrillaMatchCupoFechaDto();
+  }
+
+  public class GrillaMatchCupoFechaDto
+  {
+    public DateTime? Fecha { get; set; }
   }
 
   public class GrillaMatchResumenResumenDto
