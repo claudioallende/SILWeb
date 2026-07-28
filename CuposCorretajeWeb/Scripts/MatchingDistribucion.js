@@ -147,16 +147,24 @@
       headline = '<b>' + dirs.length + '</b> solicitud(es) con match directo de ' + cupo.CuposTotales + ' cupos disponibles.';
       $('#va-step1-headline').html(headline);
       var list = dirs.map(function (m) {
-        return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 9px; background:#fff; border-radius:5px; border:1px solid var(--sil-green-border); margin-bottom:4px;">' +
-          '  <span style="font-weight:600; font-size:12px;">' + escapeHtml(m.Vendedor) + '</span>' +
-          '  <span style="font-size:11px; color:var(--sil-text-secondary);">' + formatFechaCorta(m.FechaSolicitado) + ' &middot; ' + m.Cantidad + ' solicitud(es)</span>' +
+        var maxDirect = m.Cantidad || 1;
+        return '<div class="sil-match-row is-direct">' +
+          '  <div class="sil-match-row-info">' +
+          '    <b>' + escapeHtml(m.Vendedor) + '</b>' +
+          '    <span>' + formatFechaCorta(m.FechaSolicitado) + ' &middot; ' + maxDirect + ' cupo(s) solicitado(s)</span>' +
+          '  </div>' +
+          '  <div class="sil-modal-qty">' +
+          '    <button type="button" data-va-step1-decr data-solicitud="' + m.Id + '">&minus;</button>' +
+          '    <input type="number" min="0" max="' + maxDirect + '" value="' + maxDirect + '" data-va-step1-input data-solicitud="' + m.Id + '" />' +
+          '    <button type="button" data-va-step1-incr data-solicitud="' + m.Id + '">&plus;</button>' +
+          '  </div>' +
           '  <span class="sil-badge sil-badge-dir">Match directo</span>' +
           '</div>';
       }).join('');
       $('#va-step1-list').html(list);
     } else {
       $('#va-step1-headline').html('<b>0</b> solicitudes con match directo');
-      $('#va-step1-list').html('<em style="color: var(--sil-text-tertiary);">No se detectaron solicitudes con match directo.</em>');
+      $('#va-step1-list').html('<em style="color: var(--sil-fg-muted);">No se detectaron solicitudes con match directo.</em>');
     }
 
     // STEP 2 — confirmación.
@@ -185,13 +193,13 @@
         partialHtml += '      <input type="number" min="0" max="' + (m.Cantidad || 1) + '" value="' + (m.Cantidad || 1) + '" data-va-step3-input data-solicitud="' + m.Id + '" />';
         partialHtml += '      <button type="button" data-va-step3-incr data-solicitud="' + m.Id + '">&plus;</button>';
         partialHtml += '    </div>';
-        partialHtml += '    <div style="font-size: 10px; color: var(--sil-text-tertiary);">m&aacute;x. ' + (m.Cantidad || 1) + '</div>';
+        partialHtml += '    <div style="font-size: 10px; color: var(--sil-fg-muted);">m&aacute;x. ' + (m.Cantidad || 1) + '</div>';
         partialHtml += '  </td>';
         partialHtml += '</tr>';
       });
       partialHtml += '</tbody></table>';
     } else {
-      partialHtml = '<em style="color: var(--sil-text-tertiary);">No hay matches parciales disponibles.</em>';
+      partialHtml = '<em style="color: var(--sil-fg-muted);">No hay matches parciales disponibles.</em>';
     }
     $('#va-step3-table-wrap').html(partialHtml);
 
@@ -274,15 +282,15 @@
       tableHtml += '<tr style="background:#fff;">';
       tableHtml += '  <td><input type="checkbox" checked id="' + chkId + '" data-vb-grp="' + idx + '" /></td>';
       tableHtml += '  <td class="tl"><div style="font-weight:600;">' + escapeHtml(g.solicitante) + '</div>';
-      tableHtml += '    <div style="font-size:10.5px; color:var(--sil-text-secondary);">Zona: ' + escapeHtml(cupo.NomDestino || '') + '</div></td>';
+      tableHtml += '    <div style="font-size:10.5px; color:var(--sil-fg-muted);">Zona: ' + escapeHtml(cupo.NomDestino || '') + '</div></td>';
       tableHtml += '  <td>' + g.sols.length + '</td>';
       tableHtml += '  <td>' + formatFechaCorta(g.oldestFecha) + '</td>';
       tableHtml += '  <td>' + badge + '</td>';
       tableHtml += '  <td>';
       tableHtml += '    <strong id="' + totalId + '" style="font-size:14px; font-family: var(--sil-mono); color: var(--sil-navy);">' + maxAsignar + '</strong>';
-      tableHtml += '    <div style="font-size:10px; color:var(--sil-text-tertiary);">m&aacute;x. ' + maxAsignar + '</div>';
+      tableHtml += '    <div style="font-size:10px; color:var(--sil-fg-muted);">m&aacute;x. ' + maxAsignar + '</div>';
       tableHtml += '  </td>';
-      tableHtml += '  <td><button type="button" class="sil-btn" data-vb-toggle data-idx="' + idx + '" style="background:none; border:1px solid var(--sil-border); padding:3px 8px; font-size:11px; color:var(--sil-navy);">&#9662; ver</button></td>';
+      tableHtml += '  <td><button type="button" class="sil-btn" data-vb-toggle data-idx="' + idx + '" style="background:none; border:1px solid var(--sil-border); padding:3px 8px; font-size:11px; color:var(--sil-fg);">&#9662; ver</button></td>';
       tableHtml += '</tr>';
 
       // Detalle expandible.
@@ -478,10 +486,12 @@
 
     var hits = 0;
     var fallos = 0;
+    var cuposAsignados = 0;
+    var cuposPendientes = 0;
 
     solicitudesAsignadas.forEach(function (pair) {
       var match = (cupo.Matches || []).find(function (m) { return m.Id === pair.solicitudId; });
-      if (!match) { fallos++; return; }
+      if (!match) { fallos++; cuposPendientes += (pair.cantidad || 1); return; }
 
       var cantidad = (typeof pair.cantidad === 'number' && pair.cantidad > 0) ? pair.cantidad : 1;
 
@@ -500,23 +510,34 @@
         cellUpdated: cellUpdated
       };
 
-      if (cellUpdated) hits++; else fallos++;
+      if (cellUpdated) {
+        hits++;
+        cuposAsignados += cantidad;
+      } else {
+        fallos++;
+        cuposPendientes += cantidad;
+      }
     });
 
     console.log('[Matching] Asignaciones aplicadas:', hits, 'fallos:', fallos,
-      '(total cupos:', solicitudesAsignadas.length, ')');
+      'cupos asignados:', cuposAsignados, 'cupos pendientes:', cuposPendientes,
+      '(total solicitudes:', solicitudesAsignadas.length, ')');
 
     // Feedback al operador (sin cerrar el modal — el usuario puede seguir
     // ajustando celdas o confirmar con múltiples solicitudes).
     if (typeof Swal !== 'undefined') {
       var msg = '';
       if (hits > 0 && fallos === 0) {
-        msg = 'Se asignaron ' + hits + ' solicitud(es) a las celdas de la tabla de distribuciones.';
+        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s) de ' +
+              hits + ' solicitud(es) a las celdas de la tabla de distribuciones.';
       } else if (hits > 0 && fallos > 0) {
-        msg = hits + ' solicitud(es) actualizadas. ' + fallos +
-              ' no encontraron celda (pueden estar fuera del rango de 20 días o no haber fila para ese vendedor/destino). Su asignación quedó guardada para procesar después.';
+        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s) de ' +
+              hits + ' solicitud(es). ' + cuposPendientes +
+              ' cupo(s) de ' + fallos + ' solicitud(es) no encontraron celda ' +
+              '(pueden estar fuera del rango de 20 días o no haber fila para ese vendedor). Su asignación quedó guardada para procesar después.';
       } else {
-        msg = 'No se pudieron reflejar las cantidades en la tabla (las fechas pueden estar fuera del rango de 20 días o no haber fila para esta combinación). Su asignación quedó guardada para procesar después.';
+        msg = 'No se pudieron reflejar ' + cuposPendientes +
+              ' cupo(s) en la tabla (las fechas pueden estar fuera del rango de 20 días o no haber fila para esa combinación). Su asignación quedó guardada para procesar después.';
       }
       Swal.fire({
         icon: 'info',
@@ -718,6 +739,18 @@
     $(document).on('click', '[data-action="va-ir-a-paso-2"]', function () { irATab('va-step2'); });
     $(document).on('click', '[data-action="va-ir-a-paso-3"]', function () { irATab('va-step3'); });
 
+    // ± en step1 (directo) y step3 (parcial).
+    $(document).on('click', '[data-va-step1-decr], [data-va-step1-incr]', function () {
+      var $b = $(this);
+      var solId = $b.data('solicitud');
+      var $inp = $('[data-va-step1-input][data-solicitud="' + solId + '"]');
+      var max = parseInt($inp.attr('max'), 10) || 0;
+      var cur = parseInt($inp.val(), 10) || 0;
+      var inc = $b.data('vaStep1Incr') !== undefined ? +1 : -1;
+      cur = Math.max(0, Math.min(max, cur + inc));
+      $inp.val(cur);
+    });
+
     // ± en step3.
     $(document).on('click', '[data-va-step3-decr], [data-va-step3-incr]', function () {
       var $b = $(this);
@@ -734,14 +767,22 @@
     $(document).on('click', '[data-action="va-confirmar-directo"]', function () {
       var cupo = estado.cupoActual;
       if (!cupo || !cupo.Matches) return;
-      var dirs = cupo.Matches.filter(function (m) { return m.MatchType === 'Directo'; });
-      if (dirs.length === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Sin directos', text: 'No hay solicitudes con match directo. Usá el paso 3 para parciales.' });
+      var solicitudes = [];
+      $('[data-va-step1-input]').each(function () {
+        var $i = $(this);
+        var solId = parseInt($i.data('solicitud'), 10);
+        var cant = parseInt($i.val(), 10) || 0;
+        if (cant > 0) {
+          var m = (cupo.Matches || []).find(function (mm) { return mm.Id === solId; });
+          if (m) solicitudes.push({ cupoId: cupo.Id || 0, solicitudId: solId, matchType: 'Directo', cantidad: cant });
+        }
+      });
+      if (solicitudes.length === 0) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ajustá las cantidades en el paso 1 antes de confirmar.' });
         return;
       }
       prepararYMostrarConfirmacionObs(function () {
-        var pairs = dirs.map(function (m) { return { cupoId: cupo.Id || 0, solicitudId: m.Id, matchType: 'Directo' }; });
-        doAccept(pairs);
+        doAccept(solicitudes);
       });
     });
 
