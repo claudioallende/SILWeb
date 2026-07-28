@@ -104,7 +104,8 @@
 
   // ── Decidir variante ─────────────────────────────────────
   function decidirVariante(cupo) {
-    var conVendedor = !!(cupo.CodVendSIL && String(cupo.CodVendSIL).trim() !== '');
+    var vendedorCupo = normalizarVendedor(cupo.CodVendSIL);
+    var conVendedor = !!vendedorCupo;
     estado.variant = conVendedor ? 'A' : 'B';
 
     if (conVendedor) {
@@ -561,30 +562,71 @@
       var diasDiff = Math.round((sol - today) / (1000 * 60 * 60 * 24));
       if (diasDiff < 0 || diasDiff > 20) return false;
 
-      var $tabla = $('#TablaDistribuciones');
+      // Con scroll + fixedColumns DataTables puede crear tablas clonadas. La
+      // tabla original es la que vive dentro de dataTables_scrollBody y es la
+      // única que contiene todas las celdas diaN editables.
+      var $tabla = $('.container_table_distribucion .dataTables_scrollBody table').first();
+      if ($tabla.length === 0) {
+        $tabla = $('.container_table_distribucion table#TablaDistribuciones').first();
+      }
       if ($tabla.length === 0) return false;
 
-      // Selector de fila: buscar por data-vendedor, data-destino, data-cosecha.
-      // Sin data-grano / data-comprador en el DOM histórico, no podemos ser
-      // más específicos. Si hay varias filas que matchean, tomamos la
-      // primera (mejor esfuerzo).
-      var selFila = '#TablaDistribuciones tbody tr' +
-        '[data-vendedor="' + cssEscape(cupo.CodVendSIL || '') + '"]' +
-        '[data-destino="' + cssEscape(cupo.CodDestino || '') + '"]' +
-        '[data-cosecha="' + cssEscape(getCosechaDelCupo(cupo, match)) + '"]';
-      var $fila = $(selFila).first();
-      if ($fila.length === 0) return false;
+      // Para un cupo sin vendedor, la fila legacy se identifica por el vendedor
+      // de la solicitud (match.Vendedor), no por cupo.CodVendSIL que es vacío/0.
+      var vendedorCupo = normalizarVendedor(cupo.CodVendSIL);
+      var vendedorSolicitud = normalizarVendedor(match.Vendedor);
+      var vendedoresBuscables = [];
+      if (vendedorCupo) vendedoresBuscables.push(vendedorCupo);
+      if (vendedorSolicitud && vendedoresBuscables.indexOf(vendedorSolicitud) === -1) {
+        vendedoresBuscables.push(vendedorSolicitud);
+      }
+      // Fallback para filas legacy de cupos sin vendedor.
+      if (vendedoresBuscables.length === 0) vendedoresBuscables.push('');
 
-      // Selector de celda: el div.editable dentro del td con clase `.diaN`.
+      var destinoCupo = normalizarValor(cupo.CodDestino);
+      var cosechaCupo = normalizarValor(getCosechaDelCupo(cupo, match));
+
+      // Filtramos sobre las filas de la tabla original. La cosecha sólo se
+      // compara si el backend la informa; hoy el DTO puede no traerla.
+      var $fila = $tabla.find('tbody tr').filter(function () {
+        var $filaActual = $(this);
+        var vendedorFila = normalizarVendedor($filaActual.attr('data-vendedor'));
+        var destinoFila = normalizarValor($filaActual.attr('data-destino'));
+        var cosechaFila = normalizarValor($filaActual.attr('data-cosecha'));
+
+        var vendedorCoincide = vendedoresBuscables.indexOf(vendedorFila) !== -1;
+        var destinoCoincide = destinoFila === destinoCupo;
+        var cosechaCoincide = !cosechaCupo || cosechaFila === cosechaCupo;
+        return vendedorCoincide && destinoCoincide && cosechaCoincide;
+      }).first();
+
+      if ($fila.length === 0) {
+        console.warn('[Matching] No se encontró fila para actualizar.', {
+          vendedoresBuscables: vendedoresBuscables,
+          destino: destinoCupo,
+          cosecha: cosechaCupo,
+          filas: $tabla.find('tbody tr').length
+        });
+        return false;
+      }
+
+      // Selector de celda: el div editable dentro del td con clase .diaN.
       var $cellDiv = $fila.find('td .dia' + diasDiff).first();
-      if ($cellDiv.length === 0) return false;
+      if ($cellDiv.length === 0) {
+        console.warn('[Matching] Se encontró la fila pero no la celda de día.', {
+          diasDiff: diasDiff,
+          vendedor: vendedoresBuscables,
+          destino: destinoCupo
+        });
+        return false;
+      }
 
       var currentVal = parseInt($cellDiv.text(), 10) || 0;
       var newVal = currentVal + cantidad;
       $cellDiv.text(String(newVal));
 
-      // Disparar change en el elemento para que AjaxDistribucion.js
-      // actualice su state y el operador pueda mandar la distribución.
+      // Disparar change para que AjaxDistribucion.js actualice su matriz y el
+      // operador pueda continuar con la distribución normal.
       $cellDiv.trigger('change');
 
       return true;
@@ -593,6 +635,15 @@
       console.warn('actualizarCeldaDistribucion error:', ex);
       return false;
     }
+  }
+
+  function normalizarValor(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function normalizarVendedor(value) {
+    var vendedor = normalizarValor(value);
+    return vendedor === '0' ? '' : vendedor;
   }
 
   // Helper: CSS.escape para selectores jQuery seguros.
