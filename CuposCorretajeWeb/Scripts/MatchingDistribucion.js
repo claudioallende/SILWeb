@@ -6,8 +6,8 @@
    el flujo legacy).
 
    Stack: jQuery 1.10.2 + Bootstrap 3 + Swal.fire (CDN).
-   Reutiliza ShowLoader() / HideLoader() si están disponibles
-   globalmente en la app.
+   No utiliza el loader global: la tabla y la grilla permanecen disponibles
+   mientras se consulta el matching.
    ========================================================= */
 
 (function ($) {
@@ -54,10 +54,6 @@
     }
   }
 
-  // ── Loader (usa el global si existe, si no fallback simple) ──
-  function showLoader() { if (typeof ShowLoader === 'function') ShowLoader(); }
-  function hideLoader() { if (typeof HideLoader === 'function') HideLoader(); }
-
   // ── API expuesta ─────────────────────────────────────────
   window.SILMatching = {
     /**
@@ -83,13 +79,12 @@
      * `filtroForm` es el FilterCuposDisponible armado desde Distribucion.
      */
     buscar: function (filtroForm) {
-      showLoader();
       return $.ajax({
         url: '/CuposMatching/BuscarCuposConMatch',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(filtroForm)
-      }).always(function () { hideLoader(); });
+      });
     },
 
     cerrar: hideAllOverlays,

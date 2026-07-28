@@ -84,7 +84,7 @@
   <div class="row">
     <div class="col-md-12">
       <div class="form-group">
-        <button type="submit" id="btnBuscar" class="btn btn-primary">Buscar</button>
+        <button type="submit" id="btnBuscar" class="btn btn-primary"><span id="btnBuscarTexto">Buscar</span></button>
       </div>
     </div>
   </div>
@@ -469,8 +469,8 @@
 
 @* Modal de matching en distribución de cupos (Pantalla 3):
    Variante A (cupo con vendedor) + Variante B (sin vendedor) + diálogos operativos.
-   El contenido se hidrata por JS (Scripts/MatchingDistribucion.js) a partir del
-   btnBuscar existente. No modifica la lógica del POST legacy del form. *@
+   El contenido se hidrata por JS (Scripts/MatchingDistribucion.js) a partir
+   del flujo AJAX de Buscar. *@
 @{
   Html.RenderPartial("_MatchingDistribucionPartial");
 }
@@ -595,25 +595,45 @@
   </script>
 
   @* ──────────────────────────────────────────────────────────
-       Hook de btnBuscar → Matching (Pantalla 3).
-       El POST legacy del form sigue ejecutándose (no hacemos
-       preventDefault): este handler es una capa opt-in que
-       abre el modal de matching con datos de ACA_SILData.
+       Buscar: actualiza primero la tabla y luego consulta matching.
+       El flujo es AJAX para evitar la navegación completa del form.
      ────────────────────────────────────────────────────────── *@
   <script type="text/javascript">
     $(function () {
-      // Sólo enganchamos si la página tiene el botón "Buscar" Y el módulo SILMatching.
+      var $form = $('#FormFiltro');
       var $btn = $('#btnBuscar');
-      if (!$btn.length || !window.SILMatching) return;
+      var $btnTexto = $('#btnBuscarTexto');
+      var busquedaActual = 0;
+      var tablaRequest = null;
+      var matchingRequest = null;
+      var textoBuscar = $btnTexto.text();
 
-      $btn.on('click', function (e) {
-        // Sin preventDefault: el form hace su POST legacy también.
+      if (!$form.length || !$btn.length || !window.SILMatching ||
+          typeof actualizarTablaContratos !== 'function') return;
 
-        // Leemos los filtros directamente del VM del Distribucion.
-        // Pasamos CuentaPuerto al backend y dejamos que el motor resuelva
-        // las zonas a las que pertenece ese puerto (vía PUERTOPORZONA +
-        // ZONASGEOGRAFICAS). El frontend ya NO hace una llamada separada
-        // para resolver la zona.
+      function esBusquedaActual(id) {
+        return id === busquedaActual;
+      }
+
+      function cambiarEstadoBuscar(texto) {
+        $btnTexto.text(texto);
+        if (window.spinnerBtnBuscar) spinnerBtnBuscar.mostrarSpinner();
+      }
+
+      function restaurarEstadoBuscar(id) {
+        if (!esBusquedaActual(id)) return;
+        $btnTexto.text(textoBuscar);
+        if (window.spinnerBtnBuscar) spinnerBtnBuscar.ocultarSpinner();
+      }
+
+      $form.off('submit.silMatching').on('submit.silMatching', function (e) {
+        e.preventDefault();
+
+        var id = ++busquedaActual;
+        if (tablaRequest && tablaRequest.readyState !== 4) tablaRequest.abort();
+        if (matchingRequest && matchingRequest.readyState !== 4) matchingRequest.abort();
+        if (typeof SILMatching.cerrar === 'function') SILMatching.cerrar();
+
         var filtro = {
           CuentaVendedor: @(Model.CuentaVendedor),
           CuentaComprador: @(Model.CuentaComprador),
@@ -622,26 +642,43 @@
           Fecha: new Date()
         };
 
-        // El vendedor es opcional para el matching. El backend acepta null/0 como
-        // wildcard y el motor puede devolver matches parciales para cupos sin vendedor.
+        cambiarEstadoBuscar('Actualizando tabla...');
+        mostrarEstadoTabla('Actualizando tabla de distribución...', false);
 
-        // Una sola llamada: el backend hace el resto (resolución puerto→zona + matching).
-        SILMatching.buscar(filtro).done(function (resp) {
-          if (resp && resp.success && resp.cupos && resp.cupos.length > 0) {
-            SILMatching.abrir(resp.cupos);
-          } else if (resp && resp.cupos && resp.cupos.length === 0) {
-            if (window.Swal) {
-              Swal.fire({
-                icon: 'info',
-                title: 'Sin cupos',
-                text: resp.message || 'No se encontraron cupos disponibles en ACA_SILData con esos filtros.'
-              });
+        tablaRequest = actualizarTablaContratos({ mostrarEstado: true });
+        tablaRequest.done(function () {
+          if (!esBusquedaActual(id)) return;
+
+          ocultarEstadoTabla();
+          cambiarEstadoBuscar('Buscando matches...');
+          matchingRequest = SILMatching.buscar(filtro);
+
+          matchingRequest.done(function (resp) {
+            if (!esBusquedaActual(id)) return;
+
+            if (resp && resp.success && resp.cupos && resp.cupos.length > 0) {
+              SILMatching.abrir(resp.cupos);
+            } else if (resp && resp.cupos && resp.cupos.length === 0) {
+              if (window.Swal) {
+                Swal.fire({
+                  icon: 'info',
+                  title: 'Sin matches',
+                  text: resp.message || 'No se encontraron solicitudes compatibles con los filtros.'
+                });
+              }
+            } else if (!resp || !resp.success) {
+              console.warn('Matching: respuesta sin success', resp);
             }
-          } else if (!resp || !resp.success) {
-            console.warn('Matching: respuesta sin success', resp);
-          }
-        }).fail(function (xhr) {
-          console.warn('Matching: fallo en la llamada AJAX', xhr && xhr.statusText);
+          }).fail(function (xhr, textStatus) {
+            if (!esBusquedaActual(id) || textStatus === 'abort') return;
+            console.warn('Matching: fallo en la llamada AJAX', xhr && xhr.statusText);
+          }).always(function () {
+            restaurarEstadoBuscar(id);
+          });
+        }).fail(function (xhr, textStatus) {
+          if (!esBusquedaActual(id) || textStatus === 'abort') return;
+          mostrarEstadoTabla('No se pudo actualizar la tabla de distribución.', true);
+          restaurarEstadoBuscar(id);
         });
       });
     });

@@ -343,7 +343,7 @@ function obtenerFila(fila) {
 }
 
 //Form submit
-$("#FormFiltro").submit(function () {
+$("#FormFiltro").on("submit.distribucionLegacy", function () {
   spinnerBtnBuscar.mostrarSpinner();
 });
 
