@@ -622,17 +622,8 @@
           Fecha: new Date()
         };
 
-        // Si no hay vendedor, advertimos al operador y dejamos que use el flujo legacy.
-        if (!filtro.CuentaVendedor || filtro.CuentaVendedor === 0) {
-          if (window.Swal) {
-            Swal.fire({
-              icon: 'info',
-              title: 'Sin vendedor para matching',
-              text: 'Para abrir el modal de matching hace falta un vendedor asociado al cupo. El flujo de distribución clásico sigue disponible.'
-            });
-          }
-          return;
-        }
+        // El vendedor es opcional para el matching. El backend acepta null/0 como
+        // wildcard y el motor puede devolver matches parciales para cupos sin vendedor.
 
         // Una sola llamada: el backend hace el resto (resolución puerto→zona + matching).
         SILMatching.buscar(filtro).done(function (resp) {
