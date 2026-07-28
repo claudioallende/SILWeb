@@ -550,8 +550,10 @@
    */
   function actualizarCeldaDistribucion(cupo, match, cantidad) {
     try {
-      // Tomamos FechaSolicitado (puede venir como string ISO o Date).
-      var fechaSol = match.FechaSolicitado ? new Date(match.FechaSolicitado) : null;
+      // Tomamos FechaSolicitado: puede llegar como ISO 8601 ("2026-07-30T00:00:00"),
+      // como Date, como número (ms) o como el formato WCF /Date(1234567890123)/ que
+      // devuelve SILData cuando no se configura un JsonConverter ISO 8601.
+      var fechaSol = parsearFechaJSON(match.FechaSolicitado);
       if (!fechaSol || isNaN(fechaSol.getTime())) return false;
 
       var today = new Date();
@@ -644,6 +646,27 @@
   function normalizarVendedor(value) {
     var vendedor = normalizarValor(value);
     return vendedor === '0' ? '' : vendedor;
+  }
+
+  function parsearFechaJSON(value) {
+    if (value == null) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') return new Date(value);
+    if (typeof value === 'string') {
+      var s = value.trim();
+      if (s === '') return null;
+      // Formato WCF/Microsoft: /Date(1234567890123)/ o /Date(1234567890123+0200)/
+      var m = /^\/Date\((-?\d+)([+\-]\d+)?\)\/$/.exec(s);
+      if (m) {
+        var ms = parseInt(m[1], 10);
+        if (!isNaN(ms)) return new Date(ms);
+      }
+      // ISO 8601 u otros formatos estándar. Si no se puede parsear, devolver null
+      // y dejar que el llamador trate la fecha como faltante.
+      var d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
   }
 
   // Helper: CSS.escape para selectores jQuery seguros.
