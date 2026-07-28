@@ -28,22 +28,19 @@ namespace CuposCorretajeWeb.Models
         /// </summary>
         public IList<AsignacionSolicitudCupoDto> AsignacionesSolicitudCupo { get; set; }
 
-        [Required]
+        // Los campos legacy quedan sin [Required] para permitir que en modo
+        // SolicitudMatch viajen nulos. SILApi ya hace la validación runtime
+        // cuando Modo == DistribucionManual.
         public IList<VistaCuposDistribuidos> cupos { get; set; }
-        [Required]
         public Cupos nuevo { get; set; }
-        [Required]
         public Cupos anterior { get; set; }
-        [Required]
         public string puerto { get; set; }
-        [Required]
         [Display(Name="Consignacion")]
         public Consignacion ConsignacionSeleccionada { get; set; }
         public string CosechaDesde { get; set; }
         public string CosechaHasta { get; set; }
         public DateTime? fecha { get; set; }
         public bool tieneVendedor { get; set; }
-        [Required]
         [Display(Name = "Centro")]
         public string CentroSeleccionado { get; set; }
         public DateTime? fechaDesde { get; set; }

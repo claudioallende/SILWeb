@@ -236,9 +236,47 @@ namespace CuposCorretajeWeb.Controllers
         {
           using (WebServiceSILRespository repo = new WebServiceSILRespository())
           {
-            model.nuevo.ContactoComercial = string.IsNullOrEmpty(model.nuevo.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+            // Si llega un nuevo con datos de contacto, normalizar antes de enviar.
+            if (model.nuevo != null)
+            {
+              model.nuevo.ContactoComercial = string.IsNullOrEmpty(model.nuevo.ContactoComercial)
+                ? string.Empty
+                : string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+            }
             model.Confirmacion = Confirmacion;
-            return Json(await repo.RequestPostAndDeserializeAsync<int>("Cupos", "ActualizarDistribucion", model));
+
+            // Si el cliente no envía Modo, default a DistribucionManual para
+            // mantener compatibilidad con callers que no informan el modo.
+            if (!model.Modo.HasValue)
+            {
+              model.Modo = ModoActualizacionDistribucion.DistribucionManual;
+            }
+
+            // En modo SolicitudMatch SILApi devuelve ActualizarDistribucionResult;
+            // en DistribucionManual sigue devolviendo un int legacy. Detectamos
+            // el modo para deserializar correctamente.
+            if (model.Modo == ModoActualizacionDistribucion.SolicitudMatch)
+            {
+              ActualizarDistribucionResult resultado =
+                await repo.RequestPostAndDeserializeAsync<ActualizarDistribucionResult>(
+                  "Cupos", "ActualizarDistribucion", model);
+
+              if (resultado == null)
+              {
+                return Json(new ActualizarDistribucionResult
+                {
+                  Codigo = 0,
+                  Success = false,
+                  Message = "Respuesta vacía del backend."
+                }, JsonRequestBehavior.AllowGet);
+              }
+
+              return Json(resultado, JsonRequestBehavior.AllowGet);
+            }
+
+            int legacyResultado = await repo.RequestPostAndDeserializeAsync<int>(
+              "Cupos", "ActualizarDistribucion", model);
+            return Json(legacyResultado, JsonRequestBehavior.AllowGet);
           }
         }
         else

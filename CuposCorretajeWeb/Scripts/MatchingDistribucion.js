@@ -90,6 +90,51 @@
     cerrar: hideAllOverlays,
     mostrarRechazoAutomatico: mostrarRechazoAutomatico,
     mostrarConflicto: mostrarConflicto,
+
+    /**
+     * Devuelve la lista de AsignacionesSolicitudCupo que SILApi espera en
+     * modo SolicitudMatch. Cada asociación es un objeto:
+     *   { SolicitudId, CupoSeleccionadoId, Cantidad, MatchType,
+     *     Compcta, Vendcta, Codproducto, Ctadestino, Cosecha, Centro, Fechaent, Dia }
+     * `Cantidad` refleja la cantidad aceptada del match, NO la suma acumulada
+     * de la celda. Si la celda tenía 1 y el match suma 3, la celda pasa a 4
+     * pero esta asociación dice Cantidad=3 (sólo el incremento del match).
+     */
+    getAsignacionesSolicitudCupo: function () {
+      var mapa = window.SILMatching && window.SILMatching.estadoAsignaciones;
+      if (!mapa) return [];
+
+      var out = [];
+      Object.keys(mapa).forEach(function (cupoId) {
+        Object.keys(mapa[cupoId]).forEach(function (solId) {
+          var a = mapa[cupoId][solId];
+          if (!a || !a.cellUpdated) return;
+          out.push({
+            SolicitudId: parseInt(solId, 10),
+            CupoSeleccionadoId: parseInt(cupoId, 10),
+            Cantidad: a.cantidad || 1,
+            MatchType: a.matchType || 'Parcial',
+            Compcta: 0,
+            Vendcta: 0,
+            Codproducto: 0,
+            Ctadestino: 0,
+            Cosecha: '',
+            Centro: '',
+            Fechaent: 0,
+            Dia: -1
+          });
+        });
+      });
+      return out;
+    },
+
+    /**
+     * Vacía la tabla de asignaciones persistidas. Se llama después de un
+     * ActualizarDistribucion exitoso para no reenviar las mismas asociaciones.
+     */
+    clearAsignaciones: function () {
+      window.SILMatching.estadoAsignaciones = {};
+    },
     mostrarConfirmacionObs: function (solicitante, observacion) {
       // Disparador explícito (útil para QA y demo). Si no se pasan args,
       // muestra un placeholder.
@@ -498,9 +543,13 @@
 
       // Intentar reflejar el incremento en la celda correspondiente
       // de la tabla legacy de distribuciones. actualizarCeldaDistribucion
-      // corre la validación de cupos disponibles y devuelve false si la
-      // asignación excede el máximo por día o por contrato.
-      var cellUpdated = actualizarCeldaDistribucion(cupo, match, cantidad);
+      // corre la validación de cupos disponibles y devuelve
+      // { updated, cellValue, diasDiff, rowKey }.
+      var cellResult = actualizarCeldaDistribucion(cupo, match, cantidad);
+      var cellUpdated = (cellResult && cellResult.updated) || false;
+      var postMatchCellValue = (cellResult && typeof cellResult.cellValue === 'number') ? cellResult.cellValue : null;
+      var postMatchDiasDiff = (cellResult && typeof cellResult.diasDiff === 'number') ? cellResult.diasDiff : null;
+      var postMatchRowKey = (cellResult && cellResult.rowKey) || '';
       if (cellUpdated === 'excede') {
         cellUpdated = false;
         excedeLimite = true;
@@ -509,10 +558,16 @@
       // Guardar/actualizar el estado del modal.
       var cupoId = pair.cupoId || cupo.Id || 0;
       if (!asignPorCupo[cupoId]) asignPorCupo[cupoId] = {};
+      var cellValuePostMatch = (cellUpdated && cellUpdated !== 'excede' && postMatchCellValue != null)
+        ? postMatchCellValue
+        : null;
       asignPorCupo[cupoId][match.Id] = {
         cantidad: cantidad,
         matchType: pair.matchType || match.MatchType,
-        cellUpdated: cellUpdated
+        cellUpdated: cellUpdated,
+        cellValueAfterMatch: cellValuePostMatch,
+        diasDiff: postMatchDiasDiff,
+        rowKey: postMatchRowKey
       };
 
       if (cellUpdated) {
@@ -657,20 +712,27 @@
       // Refrescar explícitamente el total del footer y validar cupos disponibles.
       // DataTables clona el footer y en algunos navegadores el .trigger('keyup')
       // no propaga al handler legacy cuando se dispara sobre el original.
-      // Devolvemos 'excede' cuando la validación falla para que el caller
-      // pueda advertirle al operador (la celda ya tiene el valor escrito pero
-      // el controlEstados muestra el addAlert rojo de "Cantidad de cupos excedidos").
+      // Devolvemos { updated, cellValue, diasDiff, rowKey } para que el caller
+      // pueda saber cuánto quedó en la celda, qué día es y a qué fila
+      // corresponde (necesario para mapear ediciones manuales posteriores).
+      var rowKey = $fila.attr('data-vendedor') || '';
+
       if (window.controlEstados && typeof controlEstados.setTotalPorDia === 'function') {
         try {
           var validacionOK = controlEstados.getDiferenciasYValidar();
           controlEstados.setTotalPorDia();
-          return validacionOK ? true : 'excede';
+          return {
+            updated: validacionOK ? true : 'excede',
+            cellValue: newVal,
+            diasDiff: diasDiff,
+            rowKey: rowKey
+          };
         } catch (ex) {
           console.warn('[Matching] No se pudo refrescar el total del footer:', ex);
         }
       }
 
-      return true;
+      return { updated: true, cellValue: newVal, diasDiff: diasDiff, rowKey: rowKey };
     }
     catch (ex) {
       console.warn('actualizarCeldaDistribucion error:', ex);
