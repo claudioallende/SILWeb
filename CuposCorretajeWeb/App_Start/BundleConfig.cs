@@ -61,6 +61,7 @@ namespace CuposCorretajeWeb
                 "~/Scripts/ControlMaximosDistribucion.js",
                 "~/Scripts/AjaxDistribucion.js",
                 "~/Scripts/TablaContratos.js",
+                "~/Scripts/MatchingDistribucion.js",
                 "~/Scripts/datatables.tabulacion-input.js"));
 
       bundles.Add(new ScriptBundle("~/bundles/ControlaInputs").Include(
