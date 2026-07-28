@@ -102,6 +102,9 @@ namespace CuposCorretajeWeb
                 "~/Content/tokenfield-typeahead.min.css",
                 "~/Content/bootstrap-tokenfield.min.css"));
 
+      bundles.Add(new StyleBundle("~/Content/solicitudes-matching").Include(
+                "~/Content/solicitudes-matching-distribucion.css"));
+
       bundles.Add(new ScriptBundle("~/bundles/skeleton").Include(
                 "~/Scripts/skeleton.js"));
 

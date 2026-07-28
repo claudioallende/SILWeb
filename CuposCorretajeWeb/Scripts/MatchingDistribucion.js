@@ -754,7 +754,7 @@
         var cant = parseInt($i.val(), 10) || 0;
         if (cant > 0) {
           var m = (cupo.Matches || []).find(function (mm) { return mm.Id === solId; });
-          if (m) solicitudes.push({ cupoId: cupo.Id || 0, solicitudId: solId, matchType: m.MatchType });
+          if (m) solicitudes.push({ cupoId: cupo.Id || 0, solicitudId: solId, matchType: m.MatchType, cantidad: cant });
         }
       });
       if (solicitudes.length === 0) {
@@ -783,7 +783,8 @@
         solicitudes.push({
           cupoId: s.cupoId || 0,
           solicitudId: firstSol.Id,
-          matchType: firstSol.MatchType
+          matchType: firstSol.MatchType,
+          cantidad: s.sum
         });
       });
       if (solicitudes.length === 0) {
