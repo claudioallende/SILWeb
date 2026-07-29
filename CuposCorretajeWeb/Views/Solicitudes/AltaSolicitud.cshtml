@@ -131,10 +131,21 @@
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th style="text-align:left; padding-left:10px;">Fecha</th>
-                  <th style="text-align:center;">Sol. TR</th>
-                  <th style="text-align:center;">Sol. TO</th>
-                  <th style="text-align:center;">Estado</th>
+                  <th style="text-align:left; padding-left:10px;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Fecha del turno solicitado.">Fecha</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TR &mdash; cantidad de cupos/turnos requeridos para esta fecha (lo que pidi&oacute; el solicitante).">Sol. TR</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TO &mdash; cupos/turnos que ya fueron otorgados (asignados a un cupo) en esta fecha.">Sol. TO</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TP &mdash; cupos pendientes de asignar = TR - TO. Es lo que queda por aceptar/rechazar.">Sol. TP</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Estado de la fila: Seleccionado, Pendiente o Sin solicitudes.">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,6 +164,9 @@
                   // el dict (caso legacy sin el campo), queda en 0.
                   var dictTO = (Model != null) ? Model.FechasAceptadas : null;
                   var toFuturas = (dictTO != null && dictTO.ContainsKey(fechaKey)) ? dictTO[fechaKey] : 0;
+                  // TP = pendientes = TR - TO (clamped a 0 para que la UI
+                  // nunca muestre negativos cuando hay back legacy).
+                  var tp = tr > toFuturas ? tr - toFuturas : 0;
                   var sinSolicitudes = (tr == 0 && toFuturas == 0);
                   <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
                     <td>
@@ -167,6 +181,7 @@
                     </td>
                     <td style="text-align:center;">@tr</td>
                     <td style="text-align:center;">@toFuturas</td>
+                    <td style="text-align:center;">@tp</td>
                     <td style="text-align:center;">
                       <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
                         @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
@@ -187,7 +202,7 @@
           <div class="sil-actions-block">
             <div class="sil-action-label">Acciones sobre la solicitud</div>
             <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
-              Rechazar solicitud completa
+              Rechazar solicitud
             </button>
             <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
               + Crear nuevo cupo
@@ -300,6 +315,31 @@
             // Lee el TO (columna 3) de la fila como n&uacute;mero entero.
             function toDeFila($tr) {
                 return parseInt($tr.find('td').eq(3).text(), 10) || 0;
+            }
+
+            // Lee el TP (columna 4) de la fila como n&uacute;mero entero.
+            function tpDeFila($tr) {
+                return parseInt($tr.find('td').eq(4).text(), 10) || 0;
+            }
+
+            // Devuelve un array de objetos { fechaKey, fechaDisplay, tr, to, tp }
+            // para los d&iacute;as tildados (excluyendo filas sin solicitudes).
+            // Se usa en el SWAL de rechazo para mostrar cu&aacute;les son los
+            // d&iacute;as afectados y cu&aacute;ntos cupos pendientes se van a rechazar.
+            function resumenDiasSeleccionados() {
+                var out = [];
+                $('.chkDia:checked').each(function () {
+                    var $tr = $(this).closest('tr');
+                    if ($tr.hasClass('sil-day-row-disabled')) return;
+                    var fechaKey = $tr.data('fecha');
+                    var parts = (fechaKey || '').split('-');
+                    var fechaDisplay = parts.length === 3 ? (parts[2] + '/' + parts[1]) : fechaKey;
+                    var tr = trDeFila($tr);
+                    var toFuturas = toDeFila($tr);
+                    var tp = Math.max(0, tr - toFuturas);
+                    out.push({ fechaKey: fechaKey, fechaDisplay: fechaDisplay, tr: tr, to: toFuturas, tp: tp });
+                });
+                return out;
             }
 
             // Devuelve la cantidad de d&iacute;as chequeados y el total de TR sumando
@@ -978,16 +1018,62 @@
                 }
             }
 
-            // "Rechazar solicitud completa"
+            // "Rechazar solicitud"
+            //
+            // Recolecta los d&iacute;as tildados y construye un SWAL que muestra:
+            //   1) el total de cupos pendientes que se rechazar&aacute;n
+            //      (suma de TP para los d&iacute;as seleccionados);
+            //   2) el listado de d&iacute;as afectadas con su propio TP;
+            // El POST sigue siendo a nivel de solicitud (el back rechaza el
+            // remanente de la solicitud completa). El SWAL s&oacute;lo refleja
+            // el subconjunto que el operador seleccion&oacute; para no generar
+            // confusi&oacute;n.
             $('#btnRechazarCompleta').on('click', function () {
                 if (idSolicitud <= 0) {
                     Swal.fire({ icon: 'error', title: 'Sin id de solicitud' });
                     return;
                 }
+
+                var seleccionadas = resumenDiasSeleccionados();
+
+                if (seleccionadas.length === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Seleccion&aacute; d&iacute;as',
+                        text: 'Tild&aacute; uno o m&aacute;s d&iacute;as del panel izquierdo antes de rechazar.'
+                    });
+                    return;
+                }
+
+                // D&iacute;as con TP &gt; 0 (los que efectivamente se rechazan).
+                var conPendientes = seleccionadas.filter(function (s) { return s.tp > 0; });
+                var totalPendientes = conPendientes.reduce(function (acc, s) { return acc + s.tp; }, 0);
+
+                if (totalPendientes === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Los d&iacute;as seleccionados ya tienen todos sus cupos otorgados, no hay nada para rechazar.'
+                    });
+                    return;
+                }
+
+                var plural = totalPendientes !== 1;
+                var listadoHtml = conPendientes.map(function (s) {
+                    return '<li><strong>' + s.fechaDisplay + '</strong> &mdash; ' +
+                        s.tp + ' pendiente' + (s.tp !== 1 ? 's' : '') + '</li>';
+                }).join('');
+
+                var bodyHtml = 'Vas a rechazar <strong>' + totalPendientes +
+                    '</strong> cupo' + (plural ? 's' : '') + ' pendiente' + (plural ? 's' : '') +
+                    ' en los siguientes d&iacute;as:' +
+                    '<ul style="text-align:left; font-size:13px; line-height:1.6; margin: 8px 0 0; padding-left: 20px;">' +
+                    listadoHtml + '</ul>';
+
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Rechazar solicitud completa?',
-                    text: 'Esta acción rechaza la solicitud para todos los días.',
+                    title: 'Rechazar solicitud?',
+                    html: bodyHtml,
                     showCancelButton: true,
                     confirmButtonText: 'Rechazar',
                     cancelButtonText: 'Cancelar',
@@ -1000,6 +1086,14 @@
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
                         });
                 });
+            });
+
+            // Inicializa los tooltips de Bootstrap sobre los &lt;th&gt; con
+            // data-toggle="tooltip". Necesario porque delegamos la activaci&oacute;n
+            // a este script (no hay un auto-init global en la master page).
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                html: true
             });
 
             // "+ Crear nuevo cupo" (placeholder)
