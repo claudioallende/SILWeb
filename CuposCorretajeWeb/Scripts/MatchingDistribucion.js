@@ -577,8 +577,11 @@
         CuentaVendedor: match.Vendedor ? parseInt(match.Vendedor, 10) || 0 : 0,
         CuentaComprador: match.Comprador ? parseInt(match.Comprador, 10) || null : null,
         CodigoEstado: 0,
-        FechaCreacion: match.FechaSolicitado || new Date().toISOString(),
-        FechaSolicitado: match.FechaSolicitado || new Date().toISOString(),
+        // Normalizamos a ISO 8601 para que System.Text.Json del backend acepte
+        // los campos sin chocar con el formato WCF /Date(...)/ que devuelve
+        // SILData cuando no se configura un JsonConverter ISO.
+        FechaCreacion: serializarFechaISO(match.FechaSolicitado) || new Date().toISOString(),
+        FechaSolicitado: serializarFechaISO(match.FechaSolicitado) || new Date().toISOString(),
         CodigoCentro: ''
       });
 
@@ -592,7 +595,7 @@
         NomCompSIL: cupo.NomCompSIL || '',
         CodDestino: cupo.CodDestino || '',
         NomDestino: cupo.NomDestino || '',
-        Fecha: cupo.Fecha || null,
+        Fecha: serializarFechaISO(cupo.Fecha),
         CentroCupo: ''
       });
     });
@@ -816,6 +819,16 @@
       return isNaN(d.getTime()) ? null : d;
     }
     return null;
+  }
+
+  // Serializa un valor de fecha a ISO 8601 que System.Text.Json del
+  // backend acepta. Acepta Date, número en ms, ISO 8601 o el formato
+  // WCF /Date(...)/. Devuelve null si no se puede parsear.
+  function serializarFechaISO(value) {
+    var d = parsearFechaJSON(value);
+    if (!d || isNaN(d.getTime())) return null;
+    // toISOString devuelve "YYYY-MM-DDTHH:mm:ss.sssZ" (UTC).
+    return d.toISOString();
   }
 
   // Helper: CSS.escape para selectores jQuery seguros.
