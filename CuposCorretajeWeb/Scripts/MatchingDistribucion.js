@@ -524,7 +524,7 @@
       if (s.checked) asignado += (s.cupoIdsSeleccionados || []).length;
     });
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
-    var pct = max > 0 ? Math.Min(100, Math.round(asignado / max * 100)) : 0;
+    var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
     $('#vb-progress-fill').css({ width: pct + '%', background: asignado >= max ? 'var(--sil-green)' : 'var(--sil-navy)' });
     $('#vb-progress-label').text(asignado + ' / ' + max);
     $('#vb-counter-asignados').text(asignado);
