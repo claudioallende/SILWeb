@@ -100,12 +100,16 @@ namespace CuposCorretajeWeb.Controllers
           AgruparPor = MatchesAgrupacion.Ninguno
         };
 
-        // 2) Llamar al endpoint bulk (motor real).
+        // 2) Llamar al endpoint bulk específico de Distribución. Soporta
+        // correctamente los casos parciales donde la solicitud no tiene
+        // comprador o destino: el motor los marca como Parcial en vez de
+        // ser descartados por el WHERE. Pantalla 2 (Solicitudes) sigue
+        // usando el endpoint /Matches legacy, sin cambios.
         MatchesResultDto result;
         try
         {
           result = await repo.RequestSILDataPostAndDeserializeAsync<MatchesResultDto>(
-            "ShiftRequest", "Matches", bulkFilter);
+            "ShiftRequest", "MatchesDistribucion", bulkFilter);
         }
         catch (Models.Error.ApiException apiEx)
         {
