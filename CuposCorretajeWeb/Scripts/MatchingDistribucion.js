@@ -571,58 +571,77 @@
     // Envía las asociaciones al backend (/CuposMatching/AceptarMatch).
     // Muestra overlay bloqueante, refresca la tabla al recibir respuesta OK.
     //
-    // solicitudesAsignadas: Array<{ cupoId, solicitudId, matchType, cantidad? }>
+    // solicitudesAsignadas: Array<{ solicitudId, matchType, cantidad? }>
+    //
+    // Cada entrada representa una solicitud aceptada por el operador con
+    // una cantidad N = número de cupos físicos a asociar. Como cada
+    // asociación con SILApi exige Cantidad=1 y un CupoSeleccionadoId
+    // distinto (1 fila de CUPOSCORRE = 1 cupo), expandimos cada solicitud
+    // en N pares (solicitudId, cupoId_i, cantidad=1) usando los CupoId
+    // que el matching devolvió para esa solicitud.
 
     var cupo = estado.cupoActual;
     if (!cupo) return;
 
-    // Si no hay solicitudes válidas, no hacer nada.
     if (!Array.isArray(solicitudesAsignadas) || solicitudesAsignadas.length === 0) return;
 
-    var totalCupos = solicitudesAsignadas.reduce(function (acc, p) {
-      return acc + (typeof p.cantidad === 'number' && p.cantidad > 0 ? p.cantidad : 1);
-    }, 0);
+    // Agrupar matches por SolicitudId para tomar CupoIds distintos por solicitud.
+    var cuposPorSolicitud = {};
+    (cupo.Matches || []).forEach(function (m) {
+      var key = String(m.Id);
+      if (!cuposPorSolicitud[key]) cuposPorSolicitud[key] = [];
+      if (cuposPorSolicitud[key].indexOf(m.CupoId) === -1) {
+        cuposPorSolicitud[key].push(m.CupoId);
+      }
+    });
 
-    // Construir payload ShiftRequestAcceptDataViewModel con los pares
-    // solicitud-cupo. Cada match → 1 entry en ShiftRequest y 1 en
-    // CuposToBeDistributed (Cantidad=1 por constraint del backend).
+    // Construir payload: N pares solicitud-cupo por cada solicitud aceptada.
     var shiftRequest = [];
     var cuposToBeDistributed = [];
+    var totalCupos = 0;
 
     solicitudesAsignadas.forEach(function (pair) {
-      var match = (cupo.Matches || []).find(function (m) { return m.Id === pair.solicitudId; });
+      var solicitudId = pair.solicitudId;
+      var match = (cupo.Matches || []).find(function (m) { return m.Id === solicitudId });
       if (!match) return;
 
       var cantidad = (typeof pair.cantidad === 'number' && pair.cantidad > 0) ? pair.cantidad : 1;
+      var cupoIds = cuposPorSolicitud[String(solicitudId)] || [];
+      if (cupoIds.length === 0) return;
 
-      shiftRequest.push({
-        Id: match.Id,
-        CodigoGrano: match.CodigoGrano || (cupo.CodGrano ? parseInt(cupo.CodGrano, 10) || 0 : 0),
-        Cantidad: cantidad,
-        CuentaVendedor: match.Vendedor ? parseInt(match.Vendedor, 10) || 0 : 0,
-        CuentaComprador: match.Comprador ? parseInt(match.Comprador, 10) || null : null,
-        CodigoEstado: 0,
-        // Normalizamos a ISO 8601 para que System.Text.Json del backend acepte
-        // los campos sin chocar con el formato WCF /Date(...)/ que devuelve
-        // SILData cuando no se configura un JsonConverter ISO.
-        FechaCreacion: serializarFechaISO(match.FechaSolicitado) || new Date().toISOString(),
-        FechaSolicitado: serializarFechaISO(match.FechaSolicitado) || new Date().toISOString(),
-        CodigoCentro: ''
-      });
+      // Tomar los primeros N cupoIds distintos del matching para esta solicitud.
+      var aAsociar = Math.min(cantidad, cupoIds.length);
+      var fechaSolISO = serializarFechaISO(match.FechaSolicitado);
 
-      cuposToBeDistributed.push({
-        Id: cupo.Id,
-        CodGrano: cupo.CodGrano || '',
-        NomGrano: cupo.NomGrano || '',
-        CodVendSIL: cupo.CodVendSIL || '',
-        NomVendSIL: cupo.NomVendSIL || '',
-        CodCompSIL: cupo.CodCompSIL || '',
-        NomCompSIL: cupo.NomCompSIL || '',
-        CodDestino: cupo.CodDestino || '',
-        NomDestino: cupo.NomDestino || '',
-        Fecha: serializarFechaISO(cupo.Fecha),
-        CentroCupo: ''
-      });
+      for (var i = 0; i < aAsociar; i++) {
+        shiftRequest.push({
+          Id: solicitudId,
+          CodigoGrano: match.CodigoGrano || (cupo.CodGrano ? parseInt(cupo.CodGrano, 10) || 0 : 0),
+          Cantidad: 1,
+          CuentaVendedor: match.Vendedor ? parseInt(match.Vendedor, 10) || 0 : 0,
+          CuentaComprador: match.Comprador ? parseInt(match.Comprador, 10) || null : null,
+          CodigoEstado: 0,
+          FechaCreacion: fechaSolISO || new Date().toISOString(),
+          FechaSolicitado: fechaSolISO || new Date().toISOString(),
+          CodigoCentro: ''
+        });
+
+        cuposToBeDistributed.push({
+          Id: cupoIds[i],
+          CodGrano: cupo.CodGrano || '',
+          NomGrano: cupo.NomGrano || '',
+          CodVendSIL: cupo.CodVendSIL || '',
+          NomVendSIL: cupo.NomVendSIL || '',
+          CodCompSIL: cupo.CodCompSIL || '',
+          NomCompSIL: cupo.NomCompSIL || '',
+          CodDestino: cupo.CodDestino || '',
+          NomDestino: cupo.NomDestino || '',
+          Fecha: serializarFechaISO(cupo.Fecha),
+          CentroCupo: ''
+        });
+
+        totalCupos++;
+      }
     });
 
     if (shiftRequest.length === 0) return;
