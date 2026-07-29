@@ -54,6 +54,40 @@
     }
   }
 
+  // ── Overlay bloqueante (mientras se ejecuta AceptarMatch) ─────
+  function showBlockingOverlay(subtitulo) {
+    var $overlay = $('#sil-blocking-overlay');
+    if ($overlay.length === 0) return;
+    $('#sil-blocking-overlay-sub').text(subtitulo || 'Aceptando match y actualizando tabla.');
+    $overlay.addClass('is-open');
+  }
+
+  function hideBlockingOverlay() {
+    var $overlay = $('#sil-blocking-overlay');
+    if ($overlay.length === 0) return;
+    $overlay.removeClass('is-open');
+  }
+
+  // Notificación previa a la distribución. Devuelve una Promise que se
+  // resuelve true si el operador confirma, false si cancela.
+  function confirmarDistribucion(totalCupos, totalSolicitudes) {
+    if (typeof Swal === 'undefined') return $.Deferred().resolve(true).promise();
+
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Aceptar este match distribuirá los cupos',
+      html: 'Se asignarán <b>' + (totalCupos || 0) + '</b> cupo(s) a ' +
+            '<b>' + (totalSolicitudes || 0) + '</b> solicitud(es) y se actualizará la tabla. ' +
+            'Esta acción no se puede deshacer desde esta pantalla.',
+      showCancelButton: true,
+      confirmButtonText: 'Aceptar y distribuir',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(function (r) { return !!(r && r.isConfirmed); });
+  }
+
   // ── API expuesta ─────────────────────────────────────────
   window.SILMatching = {
     /**
@@ -509,114 +543,128 @@
   }
 
   function doAccept(solicitudesAsignadas) {
-    // Iteración 1 (decidida por el usuario en este turno):
-    //   - NO llama al endpoint /CuposMatching/AceptarMatch (queda fuera de scope).
-    //   - Solo escribe las cantidades en las celdas correspondientes de la tabla
-    //     legacy #TablaDistribuciones, que el operador acaba de aceptar en el modal.
-    //   - Guarda el mapa (cupoId → { solicitudId: cantidad }) en
-    //     window.SILMatching.estadoAsignaciones para consumo posterior
-    //     (otro feature, fuera de esta iteración, puede leerlo y disparar
-    //     un Accept real).
+    // Envía las asociaciones al backend (/CuposMatching/AceptarMatch).
+    // Muestra overlay bloqueante, refresca la tabla al recibir respuesta OK.
     //
     // solicitudesAsignadas: Array<{ cupoId, solicitudId, matchType, cantidad? }>
 
     var cupo = estado.cupoActual;
     if (!cupo) return;
 
-    // Acumular estadoAsignaciones para quien lo quiera consumir después.
-    if (!window.SILMatching.estadoAsignaciones) {
-      window.SILMatching.estadoAsignaciones = {};
-    }
-    var asignPorCupo = window.SILMatching.estadoAsignaciones;
+    // Si no hay solicitudes válidas, no hacer nada.
+    if (!Array.isArray(solicitudesAsignadas) || solicitudesAsignadas.length === 0) return;
 
-    var hits = 0;
-    var fallos = 0;
-    var cuposAsignados = 0;
-    var cuposPendientes = 0;
-    var excedeLimite = false;
+    var totalCupos = solicitudesAsignadas.reduce(function (acc, p) {
+      return acc + (typeof p.cantidad === 'number' && p.cantidad > 0 ? p.cantidad : 1);
+    }, 0);
+
+    // Construir payload ShiftRequestAcceptDataViewModel con los pares
+    // solicitud-cupo. Cada match → 1 entry en ShiftRequest y 1 en
+    // CuposToBeDistributed (Cantidad=1 por constraint del backend).
+    var shiftRequest = [];
+    var cuposToBeDistributed = [];
 
     solicitudesAsignadas.forEach(function (pair) {
       var match = (cupo.Matches || []).find(function (m) { return m.Id === pair.solicitudId; });
-      if (!match) { fallos++; cuposPendientes += (pair.cantidad || 1); return; }
+      if (!match) return;
 
       var cantidad = (typeof pair.cantidad === 'number' && pair.cantidad > 0) ? pair.cantidad : 1;
 
-      // Intentar reflejar el incremento en la celda correspondiente
-      // de la tabla legacy de distribuciones. actualizarCeldaDistribucion
-      // corre la validación de cupos disponibles y devuelve
-      // { updated, cellValue, diasDiff, rowKey }.
-      var cellResult = actualizarCeldaDistribucion(cupo, match, cantidad);
-      var cellUpdated = (cellResult && cellResult.updated) || false;
-      var postMatchCellValue = (cellResult && typeof cellResult.cellValue === 'number') ? cellResult.cellValue : null;
-      var postMatchDiasDiff = (cellResult && typeof cellResult.diasDiff === 'number') ? cellResult.diasDiff : null;
-      var postMatchRowKey = (cellResult && cellResult.rowKey) || '';
-      if (cellUpdated === 'excede') {
-        cellUpdated = false;
-        excedeLimite = true;
-      }
+      shiftRequest.push({
+        Id: match.Id,
+        CodigoGrano: match.CodigoGrano || (cupo.CodGrano ? parseInt(cupo.CodGrano, 10) || 0 : 0),
+        Cantidad: cantidad,
+        CuentaVendedor: match.Vendedor ? parseInt(match.Vendedor, 10) || 0 : 0,
+        CuentaComprador: match.Comprador ? parseInt(match.Comprador, 10) || null : null,
+        CodigoEstado: 0,
+        FechaCreacion: match.FechaSolicitado || new Date().toISOString(),
+        FechaSolicitado: match.FechaSolicitado || new Date().toISOString(),
+        CodigoCentro: ''
+      });
 
-      // Guardar/actualizar el estado del modal.
-      var cupoId = pair.cupoId || cupo.Id || 0;
-      if (!asignPorCupo[cupoId]) asignPorCupo[cupoId] = {};
-      var cellValuePostMatch = (cellUpdated && cellUpdated !== 'excede' && postMatchCellValue != null)
-        ? postMatchCellValue
-        : null;
-      asignPorCupo[cupoId][match.Id] = {
-        cantidad: cantidad,
-        matchType: pair.matchType || match.MatchType,
-        cellUpdated: cellUpdated,
-        cellValueAfterMatch: cellValuePostMatch,
-        diasDiff: postMatchDiasDiff,
-        rowKey: postMatchRowKey
-      };
-
-      if (cellUpdated) {
-        hits++;
-        cuposAsignados += cantidad;
-      } else {
-        fallos++;
-        cuposPendientes += cantidad;
-      }
+      cuposToBeDistributed.push({
+        Id: cupo.Id,
+        CodGrano: cupo.CodGrano || '',
+        NomGrano: cupo.NomGrano || '',
+        CodVendSIL: cupo.CodVendSIL || '',
+        NomVendSIL: cupo.NomVendSIL || '',
+        CodCompSIL: cupo.CodCompSIL || '',
+        NomCompSIL: cupo.NomCompSIL || '',
+        CodDestino: cupo.CodDestino || '',
+        NomDestino: cupo.NomDestino || '',
+        Fecha: cupo.Fecha || null,
+        CentroCupo: ''
+      });
     });
 
-    console.log('[Matching] Asignaciones aplicadas:', hits, 'fallos:', fallos,
-      'cupos asignados:', cuposAsignados, 'cupos pendientes:', cuposPendientes,
-      'excedeLimite:', excedeLimite,
-      '(total solicitudes:', solicitudesAsignadas.length, ')');
+    if (shiftRequest.length === 0) return;
 
-    // Feedback al operador (sin cerrar el modal — el usuario puede seguir
-    // ajustando celdas o confirmar con múltiples solicitudes).
-    if (typeof Swal !== 'undefined') {
-      var icon = excedeLimite ? 'warning' : 'info';
-      var titulo = excedeLimite ? 'Cupos excedidos' : 'Asignaciones registradas';
-      var msg = '';
-      if (excedeLimite && hits > 0) {
-        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s), pero la validación detectó que se exceden los cupos disponibles para algún día o contrato. Revisá la alerta en la tabla.';
-      } else if (excedeLimite) {
-        msg = 'No se pudieron asignar ' + cuposPendientes +
-              ' cupo(s): la cantidad excede los cupos disponibles para el día o contrato. Su asignación quedó guardada para procesar después.';
-      } else if (hits > 0 && fallos === 0) {
-        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s) de ' +
-              hits + ' solicitud(es) a las celdas de la tabla de distribuciones.';
-      } else if (hits > 0 && fallos > 0) {
-        msg = 'Se asignaron ' + cuposAsignados + ' cupo(s) de ' +
-              hits + ' solicitud(es). ' + cuposPendientes +
-              ' cupo(s) de ' + fallos + ' solicitud(es) no encontraron celda ' +
-              '(pueden estar fuera del rango de 20 días o no haber fila para ese vendedor). Su asignación quedó guardada para procesar después.';
+    showBlockingOverlay('Distribuyendo ' + totalCupos + ' cupo(s)...');
+
+    return $.ajax({
+      url: '/CuposMatching/AceptarMatch',
+      method: 'POST',
+      contentType: 'application/json',
+      dataType: 'json',
+      data: JSON.stringify({
+        ShiftRequest: shiftRequest,
+        CuposToBeDistributed: cuposToBeDistributed
+      })
+    }).done(function (resp) {
+      hideBlockingOverlay();
+      if (resp && resp.success) {
+        if (window.SILMatching && typeof window.SILMatching.clearAsignaciones === 'function') {
+          window.SILMatching.clearAsignaciones();
+        }
+        hideAllOverlays();
+
+        // Refrescar tabla de distribución para reflejar el estado real del backend.
+        if (typeof actualizarTablaContratos === 'function') {
+          actualizarTablaContratos({ mostrarEstado: true });
+        }
+
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: 'Distribución realizada',
+            text: resp.message || 'La distribución se aplicó correctamente.',
+            timer: 3500,
+            showConfirmButton: false
+          });
+        }
+      } else if (resp && resp.status === 409) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Conflicto de concurrencia',
+            text: resp.message || 'La solicitud ya fue procesada por otro operador.',
+            showConfirmButton: true
+          });
+        }
       } else {
-        msg = 'No se pudieron reflejar ' + cuposPendientes +
-              ' cupo(s) en la tabla (las fechas pueden estar fuera del rango de 20 días o no haber fila para esa combinación). Su asignación quedó guardada para procesar después.';
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'No se pudo distribuir',
+            text: (resp && resp.message) ? resp.message : 'El backend rechazó la distribución.',
+            showConfirmButton: true
+          });
+        }
       }
-      Swal.fire({
-        icon: icon,
-        title: titulo,
-        text: msg,
-        timer: excedeLimite ? 5000 : 3500,
-        showConfirmButton: excedeLimite
-      });
-    }
-
-    hideAllOverlays();
+    }).fail(function (xhr) {
+      hideBlockingOverlay();
+      console.warn('[Matching] AceptarMatch error:', xhr && xhr.statusText);
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error al distribuir',
+          text: (xhr && xhr.responseJSON && xhr.responseJSON.message)
+              ? xhr.responseJSON.message
+              : 'No se pudo comunicar con el servidor.',
+          showConfirmButton: true
+        });
+      }
+    });
   }
 
   /**
@@ -874,8 +922,12 @@
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ajustá las cantidades en el paso 1 antes de confirmar.' });
         return;
       }
-      prepararYMostrarConfirmacionObs(function () {
-        doAccept(solicitudes);
+      var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
+      confirmarDistribucion(totalCupos, solicitudes.length).then(function (ok) {
+        if (!ok) return;
+        prepararYMostrarConfirmacionObs(function () {
+          doAccept(solicitudes);
+        });
       });
     });
 
@@ -895,8 +947,12 @@
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ajustá las cantidades en el paso 3 antes de confirmar.' });
         return;
       }
-      prepararYMostrarConfirmacionObs(function () {
-        doAccept(solicitudes);
+      var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
+      confirmarDistribucion(totalCupos, solicitudes.length).then(function (ok) {
+        if (!ok) return;
+        prepararYMostrarConfirmacionObs(function () {
+          doAccept(solicitudes);
+        });
       });
     });
 
@@ -925,8 +981,12 @@
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Tildá al menos un solicitante o ajustá las cantidades.' });
         return;
       }
-      prepararYMostrarConfirmacionObs(function () {
-        doAccept(solicitudes);
+      var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
+      confirmarDistribucion(totalCupos, solicitudes.length).then(function (ok) {
+        if (!ok) return;
+        prepararYMostrarConfirmacionObs(function () {
+          doAccept(solicitudes);
+        });
       });
     });
 

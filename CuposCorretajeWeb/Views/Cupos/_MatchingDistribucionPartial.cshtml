@@ -226,3 +226,19 @@
     </div>
   </div>
 </div>
+
+@* ============================================================
+     OVERLAY BLOQUEANTE
+     Se muestra mientras se ejecuta AceptarMatch contra el backend
+     (POST /CuposMatching/AceptarMatch). Evita que el operador haga
+     otra acción hasta recibir respuesta. .is-open lo activa JS.
+     ============================================================ *@
+<div id="sil-blocking-overlay" class="sil-blocking-overlay" role="dialog" aria-modal="true" aria-labelledby="sil-blocking-overlay-title">
+  <div class="sil-blocking-overlay-card">
+    <div class="sil-blocking-overlay-spinner spinner-border" role="status">
+      <span class="visually-hidden">Distribuyendo...</span>
+    </div>
+    <div class="sil-blocking-overlay-title" id="sil-blocking-overlay-title">Distribuyendo...</div>
+    <div class="sil-blocking-overlay-sub" id="sil-blocking-overlay-sub">Aceptando match y actualizando tabla.</div>
+  </div>
+</div>
