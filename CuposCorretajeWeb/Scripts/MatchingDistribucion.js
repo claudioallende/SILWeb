@@ -76,9 +76,7 @@
     return Swal.fire({
       icon: 'warning',
       title: 'Aceptar este match distribuirá los cupos',
-      html: 'Se asignarán <b>' + (totalCupos || 0) + '</b> cupo(s) a ' +
-            '<b>' + (totalSolicitudes || 0) + '</b> solicitud(es) y se actualizará la tabla. ' +
-            'Esta acción no se puede deshacer desde esta pantalla.',
+      html: 'Se asignarán <b>' + (totalCupos || 0) + '</b> cupo(s) a ',
       showCancelButton: true,
       confirmButtonText: 'Aceptar y distribuir',
       cancelButtonText: 'Cancelar',

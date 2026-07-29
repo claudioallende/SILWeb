@@ -84,12 +84,14 @@
     padding: 20px 24px 22px;
 }
 
-/* === VARIANTES: una sola línea de acento en la cabecera === */
-.sil-modal-card-variant-a { border-top: 2px solid var(--sil-state-direct); }
-.sil-modal-card-variant-b { border-top: 2px solid var(--sil-state-partial); }
-.sil-modal-card-confirm-obs { border-top: 2px solid var(--sil-state-partial); }
-.sil-modal-card-conflict { border-top: 2px solid var(--sil-state-cond); }
-.sil-modal-card-auto { border-top: 2px solid var(--sil-accent); }
+/* === VARIANTES: una sola línea de acento en la cabecera ===
+   Usamos valores literales para evitar que la minificación del bundle
+   pierda las variables CSS o que otro stylesheet las pise. */
+.sil-modal-card-variant-a    { border-top: 3px solid #0e7c60; }
+.sil-modal-card-variant-b    { border-top: 3px solid #b37400; }
+.sil-modal-card-confirm-obs  { border-top: 3px solid #b37400; }
+.sil-modal-card-conflict    { border-top: 3px solid #a93226; }
+.sil-modal-card-auto        { border-top: 3px solid #111827; }
 
 /* === TABS VARIANTE A === */
 .sil-modal-tabs {
@@ -594,10 +596,24 @@
     min-width: 260px;
 }
 
-.sil-blocking-overlay-spinner {
-    width: 2.5rem;
-    height: 2.5rem;
-    color: var(--sil-fg);
+/* Spinner circular independiente (no depende de Bootstrap spinner-border) */
+.sil-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(31, 41, 55, 0.18);
+    border-top-color: #1f2937;
+    border-radius: 50%;
+    animation: sil-spinner-rotate 0.85s linear infinite;
+    box-sizing: border-box;
+    display: inline-block;
+}
+
+@keyframes sil-spinner-rotate {
+    to { transform: rotate(360deg); }
+}
+
+@-webkit-keyframes sil-spinner-rotate {
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
 }
 
 .sil-blocking-overlay-title {
