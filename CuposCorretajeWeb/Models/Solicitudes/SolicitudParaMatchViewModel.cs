@@ -20,7 +20,16 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string Destino { get; set; }
     public string Zona { get; set; }
     public DateTime FechaSolicitado { get; set; }
+    /// <summary>Cantidad total pedida por la solicitud (SOLTURNOS.CANTIDAD).</summary>
     public int Cantidad { get; set; }
+    /// <summary>
+    /// Cantidad disponible para asignar en este Accept
+    /// (Cantidad - CantidadAceptada - CantidadRechazada, según backend).
+    /// La UI muestra este valor como "disponibles" y valida contra este límite.
+    /// </summary>
+    public int CantidadDisponible { get; set; }
+    /// <summary>Cantidad rechazada acumulada (SOLTURNOS.CANTIDAD_RECHAZADA).</summary>
+    public int CantidadRechazada { get; set; }
     public int CantidadFuturo { get; set; }
     public string Observacion { get; set; }
     /// <summary>Días enteros desde el ingreso de la solicitud hasta hoy (heurística simple).</summary>

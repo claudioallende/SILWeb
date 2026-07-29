@@ -197,82 +197,71 @@
   // ============================================================
   // VARIANTE A — Cupo con vendedor (3 tabs)
   // ============================================================
+
+  // Agrupa los matches por SolicitudId. Devuelve una lista de solicitudes
+  // únicas con los cupos disponibles para matchear.
+  function agruparMatchesPorSolicitud(matches) {
+    var grupos = {};
+    (matches || []).forEach(function (m) {
+      var key = String(m.Id);
+      if (!grupos[key]) {
+        grupos[key] = {
+          solicitud: m,
+          cupoIds: [],
+          matchTypes: []
+        };
+      }
+      grupos[key].cupoIds.push(m.CupoId);
+      grupos[key].matchTypes.push(m.MatchType);
+    });
+    return Object.values(grupos);
+  }
+
   function renderVarianteA(cupo) {
     // Subtítulo del cupo.
-    $('#va-title-cupo').text('Match directo detectado');
+    $('#va-title-cupo').text('Match detectado');
     var subtitleParts = [];
-    if (cupo.CuposTotales) subtitleParts.push(cupo.CuposTotales + ' cupos');
+    if (cupo.CuposTotales) subtitleParts.push(cupo.CuposTotales + ' cupos disponibles');
     if (cupo.NomGrano) subtitleParts.push(cupo.NomGrano);
     if (cupo.NomCompSIL) subtitleParts.push(cupo.NomCompSIL);
     if (cupo.NomVendSIL) subtitleParts.push('Vendedor: ' + cupo.NomVendSIL);
     $('#va-subtitle-cupo').text(subtitleParts.join(' · ') || 'Cupo distribuido');
 
-    // Clasificar matches.
-    var dirs = [];
-    var pars = [];
-    var conds = [];
-    (cupo.Matches || []).forEach(function (m) {
-      var tipo = m.MatchType || 'Parcial';
-      if (tipo === 'Directo') dirs.push(m);
-      else if (tipo === 'Condicional') conds.push(m);
-      else pars.push(m);
+    var grupos = agruparMatchesPorSolicitud(cupo.Matches || []);
+    var dirs = grupos.filter(function (g) {
+      return g.matchTypes.every(function (t) { return t === 'Directo'; });
+    });
+    var parciales = grupos.filter(function (g) {
+      return !g.matchTypes.every(function (t) { return t === 'Directo'; });
     });
 
-    // STEP 1 — match directo detectado.
+    // STEP 1 — solicitudes únicas con match (mayormente directos).
     var headline = '';
-    if (dirs.length > 0) {
-      headline = '<b>' + dirs.length + '</b> solicitud(es) con match directo de ' + cupo.CuposTotales + ' cupos disponibles.';
+    if (grupos.length > 0) {
+      var totalSolicitudes = grupos.length;
+      var totalCuposMatch = grupos.reduce(function (a, g) { return a + g.cupoIds.length; }, 0);
+      headline = '<b>' + totalSolicitudes + '</b> solicitud(es) detectada(s) para ' + totalCuposMatch + ' cupo(s).';
       $('#va-step1-headline').html(headline);
-      var list = dirs.map(function (m) {
-        var maxDirect = m.Cantidad || 1;
-        return '<div class="sil-match-row is-direct">' +
-          '  <div class="sil-match-row-info">' +
-          '    <b>' + escapeHtml(m.Vendedor) + '</b>' +
-          '    <span>' + formatFechaCorta(m.FechaSolicitado) + ' &middot; ' + maxDirect + ' cupo(s) solicitado(s)</span>' +
-          '  </div>' +
-          '  <div class="sil-modal-qty">' +
-          '    <button type="button" data-va-step1-decr data-solicitud="' + m.Id + '">&minus;</button>' +
-          '    <input type="number" min="0" max="' + maxDirect + '" value="' + maxDirect + '" data-va-step1-input data-solicitud="' + m.Id + '" />' +
-          '    <button type="button" data-va-step1-incr data-solicitud="' + m.Id + '">&plus;</button>' +
-          '  </div>' +
-          '  <span class="sil-badge sil-badge-dir">Match directo</span>' +
-          '</div>';
+
+      var list = grupos.map(function (g) {
+        return renderFilaSolicitud(g, 'va-step1');
       }).join('');
       $('#va-step1-list').html(list);
     } else {
-      $('#va-step1-headline').html('<b>0</b> solicitudes con match directo');
-      $('#va-step1-list').html('<em style="color: var(--sil-fg-muted);">No se detectaron solicitudes con match directo.</em>');
+      $('#va-step1-headline').html('<b>0</b> solicitudes detectadas');
+      $('#va-step1-list').html('<em style="color: var(--sil-fg-muted);">No se detectaron solicitudes para los cupos disponibles.</em>');
     }
 
     // STEP 2 — confirmación.
-    $('#va-step2-warning-headline').text('Los ' + dirs.length + ' cupos disponibles comparten vendedor y grano con solicitudes detectadas.');
+    $('#va-step2-warning-headline').text('Los ' + (cupo.CuposTotales || 0) + ' cupos disponibles pueden asignarse a ' + grupos.length + ' solicitud(es).');
 
     // STEP 3 — matches parciales (incluye Condicionales como "con obs").
-    var parciales = pars.concat(conds);
     var partialHtml = '';
     if (parciales.length > 0) {
       partialHtml += '<table class="sil-modal-table">';
-      partialHtml += '<thead><tr><th class="tl">Solicitante</th><th>Sols.</th><th>Match</th><th>Comprador en solicitud</th><th>M&aacute;s antigua</th><th>Cupos a asignar</th></tr></thead><tbody>';
-      parciales.forEach(function (m) {
-        var compradorTxt = m.Comprador ? m.Comprador : '<i style="color:var(--sil-amber);">&mdash; vac&iacute;o</i>';
-        var matchBadge = m.MatchType === 'Condicional'
-          ? '<span class="sil-badge sil-badge-obs">Con obs.</span>'
-          : '<span class="sil-badge sil-badge-par">Parcial</span>';
-        partialHtml += '<tr style="background:#fff;">';
-        partialHtml += '  <td class="tl"><div style="font-weight:600;">' + escapeHtml(m.Vendedor) + '</div></td>';
-        partialHtml += '  <td>' + (m.Cantidad || 1) + '</td>';
-        partialHtml += '  <td>' + matchBadge + '</td>';
-        partialHtml += '  <td>' + compradorTxt + '</td>';
-        partialHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
-        partialHtml += '  <td>';
-        partialHtml += '    <div class="sil-modal-qty">';
-        partialHtml += '      <button type="button" data-va-step3-decr data-solicitud="' + m.Id + '">&minus;</button>';
-        partialHtml += '      <input type="number" min="0" max="' + (m.Cantidad || 1) + '" value="' + (m.Cantidad || 1) + '" data-va-step3-input data-solicitud="' + m.Id + '" />';
-        partialHtml += '      <button type="button" data-va-step3-incr data-solicitud="' + m.Id + '">&plus;</button>';
-        partialHtml += '    </div>';
-        partialHtml += '    <div style="font-size: 10px; color: var(--sil-fg-muted);">m&aacute;x. ' + (m.Cantidad || 1) + '</div>';
-        partialHtml += '  </td>';
-        partialHtml += '</tr>';
+      partialHtml += '<thead><tr><th class="tl">Solicitud</th><th>Grano</th><th>Fecha</th><th>Tipo match</th><th>Disponibles</th><th>Cupos a asignar</th></tr></thead><tbody>';
+      parciales.forEach(function (g) {
+        partialHtml += renderFilaTablaSolicitud(g, 'va-step3');
       });
       partialHtml += '</tbody></table>';
     } else {
@@ -282,6 +271,80 @@
 
     // Reset tab.
     irATab('va-step1');
+  }
+
+  // Renderiza una fila de solicitud para los listados en cards (Variante A step 1).
+  function renderFilaSolicitud(g, prefix) {
+    var m = g.solicitud;
+    // m.Cantidad = total pedido. m.CantidadDisponible = lo que se puede aceptar
+    // (Cantidad - CantidadAceptada - CantidadRechazada), según backend.
+    var disponibles = Math.max(0, m.CantidadDisponible || 0);
+    var total = Math.max(0, m.Cantidad || 0);
+    var cupoIdsCount = g.cupoIds.length;
+    var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
+    var cssTipo = tipoMatch === 'Directo' ? 'is-direct'
+      : (tipoMatch === 'Condicional' ? 'is-cond' : 'is-partial');
+    var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
+      : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
+    var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
+      : (tipoMatch === 'Condicional' ? 'Con obs.' : 'Parcial');
+    var initialQty = Math.min(disponibles, cupoIdsCount);
+
+    return '<div class="sil-match-row ' + cssTipo + '">' +
+      '  <div class="sil-match-row-info">' +
+      '    <b>Solicitud #' + m.Id + '</b>' +
+      '    <span>Vendedor: ' + escapeHtml(m.Vendedor || '—') +
+                ' &middot; ' + escapeHtml(m.NomGrano || ('Grano ' + (m.CodigoGrano || ''))) +
+                ' &middot; ' + formatFechaCorta(m.FechaSolicitado) + '</span>' +
+      '    <span style="font-size:11px; color:var(--sil-fg-muted);">' +
+                '<b>' + disponibles + '</b> disponibles de ' + total + ' pedido(s) &middot; ' +
+                (m.CantidadRechazada || 0) + ' rechazado(s) &middot; ' +
+                cupoIdsCount + ' cupo(s) matchean</span>' +
+      '  </div>' +
+      '  <div class="sil-modal-qty">' +
+      '    <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '">&minus;</button>' +
+      '    <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
+                  '" data-' + prefix + '-input data-solicitud="' + m.Id +
+                  '" data-cupo-count="' + cupoIdsCount + '" />' +
+      '    <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '">&plus;</button>' +
+      '  </div>' +
+      '  <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+      '</div>';
+  }
+
+  // Renderiza una fila de solicitud para la tabla de Variante A step 3 (parciales).
+  function renderFilaTablaSolicitud(g, prefix) {
+    var m = g.solicitud;
+    var disponibles = Math.max(0, m.CantidadDisponible || 0);
+    var total = Math.max(0, m.Cantidad || 0);
+    var cupoIdsCount = g.cupoIds.length;
+    var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
+    var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
+      : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
+    var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
+      : (tipoMatch === 'Condicional' ? 'Con obs.' : 'Parcial');
+    var initialQty = Math.min(disponibles, cupoIdsCount);
+
+    var html = '';
+    html += '<tr style="background:#fff;">';
+    html += '  <td class="tl"><div style="font-weight:600;">#' + m.Id + '</div>';
+    html += '    <div style="font-size:11px; color:var(--sil-fg-muted);">' + escapeHtml(m.Vendedor || '—') + '</div></td>';
+    html += '  <td>' + escapeHtml(m.NomGrano || '') + '</td>';
+    html += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
+    html += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
+    html += '  <td>' + disponibles + ' <span style="font-size:11px; color:var(--sil-fg-muted);">/ ' + total + '</span></td>';
+    html += '  <td>';
+    html += '    <div class="sil-modal-qty">';
+    html += '      <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '">&minus;</button>';
+    html += '      <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
+                  '" data-' + prefix + '-input data-solicitud="' + m.Id +
+                  '" data-cupo-count="' + cupoIdsCount + '" />';
+    html += '      <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '">&plus;</button>';
+    html += '    </div>';
+    html += '    <div style="font-size: 10px; color: var(--sil-fg-muted);">m&aacute;x. ' + disponibles + '</div>';
+    html += '  </td>';
+    html += '</tr>';
+    return html;
   }
 
   function irATab(tabId) {
@@ -299,73 +362,53 @@
       (cupo.CuposTotales || 0) + ' cupos · ' + (cupo.NomGrano || '') +
       ' · ' + (cupo.NomCompSIL || 'Sin comprador') + ' · Sin vendedor');
 
-    // Agrupar matches por vendedor (el solicitante).
-    var groups = {};   // { vendedor: { solicitante, sols, oldestFecha, matches, matchTypeAggregated } }
-    (cupo.Matches || []).forEach(function (m) {
-      var key = m.Vendedor || '(sin solicitante)';
-      if (!groups[key]) {
-        groups[key] = {
-          solicitante: key,
-          sols: [],
-          oldestFecha: m.FechaSolicitado,
-          matches: [],
-          hayCondicional: false,
-          hayDirecto: false
-        };
-      }
-      groups[key].sols.push(m);
-      groups[key].matches.push(m);
-      if ((m.FechaSolicitado || new Date(2099, 0, 1)) < groups[key].oldestFecha) {
-        groups[key].oldestFecha = m.FechaSolicitado;
-      }
-      if (m.MatchType === 'Condicional') groups[key].hayCondicional = true;
-      if (m.MatchType === 'Directo') groups[key].hayDirecto = true;
-    });
-
-    var groupList = Object.values(groups);
-    var totalSols = groupList.reduce(function (acc, g) { return acc + g.sols.length; }, 0);
+    // Agrupar matches por solicitud (dedup) y construir la tabla expandible
+    // por solicitud. Variante B se enfoca en solicitudes sin vendedor.
+    var grupos = agruparMatchesPorSolicitud(cupo.Matches || []);
     var totalCuposAsignar = cupo.CuposTotales || 0;
 
     $('#vb-counter-total').text(totalCuposAsignar);
-    $('#vb-counter-solicitantes').text(groupList.length);
-    $('#vb-counter-total-sols').text(totalSols);
+    $('#vb-counter-solicitantes').text(grupos.length);
+    $('#vb-counter-total-sols').text(grupos.length);
     $('#vb-counter-asignados-max').text(totalCuposAsignar);
 
-    // Tabla principal.
     var tableHtml = '<table class="sil-modal-table"><thead><tr>';
-    tableHtml += '<th class="tl"></th><th class="tl">Solicitante (posible vendedor)</th>';
-    tableHtml += '<th>Sols.</th><th>M&aacute;s antigua</th><th>Match</th>';
+    tableHtml += '<th class="tl"></th><th class="tl">Solicitud</th>';
+    tableHtml += '<th>Solicitante</th><th>Fecha</th><th>Match</th>';
     tableHtml += '<th>Total a asignar</th><th></th>';
     tableHtml += '</tr></thead><tbody>';
 
     estado.seleccionados = {};
 
-    groupList.forEach(function (g, idx) {
-      var tipoAg = g.hayCondicional ? 'Condicional' : (g.hayDirecto ? 'Directo' : 'Parcial');
-      var badge = tipoAg === 'Directo'
-        ? '<span class="sil-badge sil-badge-dir">Match directo</span>'
-        : (tipoAg === 'Condicional'
-          ? '<span class="sil-badge sil-badge-obs">Con obs.</span>'
-          : '<span class="sil-badge sil-badge-par">Parcial</span>');
+    grupos.forEach(function (g, idx) {
+      var m = g.solicitud;
+      var disponibles = Math.max(0, m.CantidadDisponible || 0);
+      var cupoIdsCount = g.cupoIds.length;
+      var maxAsignar = Math.min(disponibles, cupoIdsCount);
+      var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
+      var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
+        : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
+      var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
+        : (tipoMatch === 'Condicional' ? 'Con obs.' : 'Parcial');
+      var tipoCss = tipoMatch === 'Directo' ? 'is-direct'
+        : (tipoMatch === 'Condicional' ? 'is-cond' : 'is-partial');
 
       var detalleId = 'vb-detail-' + idx;
       var chkId = 'vb-chk-' + idx;
-      var inputId = 'vb-qty-' + idx;
       var totalId = 'vb-total-' + idx;
-
-      var sumSolsCantidad = g.sols.reduce(function (a, s) { return a + (s.Cantidad || 1); }, 0);
-      var maxAsignar = Math.min(sumSolsCantidad, totalCuposAsignar);
+      var inputId = 'vb-qty-' + idx;
 
       tableHtml += '<tr style="background:#fff;">';
       tableHtml += '  <td><input type="checkbox" checked id="' + chkId + '" data-vb-grp="' + idx + '" /></td>';
-      tableHtml += '  <td class="tl"><div style="font-weight:600;">' + escapeHtml(g.solicitante) + '</div>';
-      tableHtml += '    <div style="font-size:10.5px; color:var(--sil-fg-muted);">Zona: ' + escapeHtml(cupo.NomDestino || '') + '</div></td>';
-      tableHtml += '  <td>' + g.sols.length + '</td>';
-      tableHtml += '  <td>' + formatFechaCorta(g.oldestFecha) + '</td>';
-      tableHtml += '  <td>' + badge + '</td>';
+      tableHtml += '  <td class="tl"><div style="font-weight:600;">Solicitud #' + m.Id + '</div>';
+      tableHtml += '    <div style="font-size:10.5px; color:var(--sil-fg-muted);">' +
+                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos matchean</div></td>';
+      tableHtml += '  <td>' + escapeHtml(m.Vendedor || '—') + '</td>';
+      tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
+      tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
       tableHtml += '  <td>';
-      tableHtml += '    <strong id="' + totalId + '" style="font-size:14px; font-family: var(--sil-mono); color: var(--sil-navy);">' + maxAsignar + '</strong>';
-      tableHtml += '    <div style="font-size:10px; color:var(--sil-fg-muted);">m&aacute;x. ' + maxAsignar + '</div>';
+      tableHtml += '    <strong id="' + totalId + '" style="font-size:14px; font-family: var(--sil-mono); color: var(--sil-fg);">' + maxAsignar + '</strong>';
+      tableHtml += '    <div style="font-size:10px; color:var(--sil-fg-muted);">m&aacute;x. ' + disponibles + '</div>';
       tableHtml += '  </td>';
       tableHtml += '  <td><button type="button" class="sil-btn" data-vb-toggle data-idx="' + idx + '" style="background:none; border:1px solid var(--sil-border); padding:3px 8px; font-size:11px; color:var(--sil-fg);">&#9662; ver</button></td>';
       tableHtml += '</tr>';
@@ -374,9 +417,8 @@
       tableHtml += '<tr id="' + detalleId + '" style="display:none;">';
       tableHtml += '  <td colspan="7" style="padding:0; border-bottom: 1px solid var(--sil-border-light);">';
 
-      if (g.hayCondicional) {
-        var obs = g.sols.find(function (s) { return s.MatchType === 'Condicional' && s.Observacion; });
-        var obsTxt = obs && obs.Observacion ? obs.Observacion : 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
+      if (tipoMatch === 'Condicional') {
+        var obsTxt = m.Observacion || 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
         tableHtml += '    <div class="sil-modal-expanded sil-modal-expanded-obs">';
         tableHtml += '      <div class="sil-modal-obs-callout">';
         tableHtml += '        <b>&#9888; Observaciones:</b>';
@@ -387,24 +429,18 @@
         tableHtml += '    <div class="sil-modal-expanded">';
       }
 
-      // Tabla de días con +/-.
+      // Tabla con los cuposIds disponibles y la cantidad a asignar.
       tableHtml += '      <div style="padding: 10px 14px;">';
       tableHtml += '        <table class="sil-modal-table">';
-      tableHtml += '          <thead><tr><th class="tl">Fecha sol.</th><th>Ingresada</th><th>Sols. TR</th><th>Cupos a asignar</th></tr></thead><tbody>';
-      g.sols.forEach(function (s, sidx) {
-        var sidChk = chkId;
+      tableHtml += '          <thead><tr><th class="tl">Cupo ID</th><th>Fecha</th><th>Match</th><th>Aceptar</th></tr></thead><tbody>';
+      g.cupoIds.forEach(function (cupoId, sidx) {
         var sgId = 'vb-sg-' + idx + '-' + sidx;
-        var maxDia = s.Cantidad || 1;
         tableHtml += '<tr style="background:#fff;">';
-        tableHtml += '  <td class="tl">' + formatFechaCorta(s.FechaSolicitado) + '</td>';
-        tableHtml += '  <td style="text-align:center; font-size:11px;">' + (s.AntiguedadDias || 0) + ' d&iacute;a(s)</td>';
-        tableHtml += '  <td>' + maxDia + '</td>';
+        tableHtml += '  <td class="tl">' + cupoId + '</td>';
+        tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
+        tableHtml += '  <td>' + g.matchTypes[sidx] + '</td>';
         tableHtml += '  <td>';
-        tableHtml += '    <div class="sil-modal-qty">';
-        tableHtml += '      <button type="button" data-vb-day-decr data-grp="' + idx + '" data-sg="' + sgId + '">&minus;</button>';
-        tableHtml += '      <input type="number" min="0" max="' + maxDia + '" value="' + maxDia + '" id="' + sgId + '" data-vb-day-input data-grp="' + idx + '" />';
-        tableHtml += '      <button type="button" data-vb-day-incr data-grp="' + idx + '" data-sg="' + sgId + '">&plus;</button>';
-        tableHtml += '    </div>';
+        tableHtml += '    <input type="checkbox" checked data-vb-cupo-grp="' + idx + '" data-vb-cupo-id="' + cupoId + '" data-vb-sg="' + sgId + '" />';
         tableHtml += '  </td>';
         tableHtml += '</tr>';
       });
@@ -417,6 +453,11 @@
       // Estado inicial.
       estado.seleccionados[idx] = {
         checked: true,
+        solicitudId: m.Id,
+        cupoIds: g.cupoIds.slice(),
+        cupoIdsSeleccionados: g.cupoIds.slice(),
+        matchType: tipoMatch,
+        disponibles: disponibles,
         max: maxAsignar,
         sum: maxAsignar,
         g: g,
@@ -427,14 +468,28 @@
     tableHtml += '</tbody></table>';
     $('#vb-table-wrap').html(tableHtml);
 
-    // Aplicar clases CSS a filas según estado.
+    // Aplicar handlers.
     Object.keys(estado.seleccionados).forEach(function (k) {
       var s = estado.seleccionados[k];
       var chkId = 'vb-chk-' + k;
       var totalId = 'vb-total-' + k;
+
       $(document).on('change', '#' + chkId, function () {
         s.checked = this.checked;
-        if (!s.checked) s.sum = 0; else s.sum = s.max;
+        s.sum = s.checked ? s.cupoIds.length : 0;
+        s.cupoIdsSeleccionados = s.checked ? s.cupoIds.slice() : [];
+        $('#' + totalId).text(s.sum);
+        actualizarBarraVB();
+      });
+
+      $(document).on('change', '[data-vb-cupo-grp="' + k + '"]', function () {
+        var cupoId = parseInt($(this).data('vbCupoId'), 10);
+        if (this.checked) {
+          if (s.cupoIdsSeleccionados.indexOf(cupoId) === -1) s.cupoIdsSeleccionados.push(cupoId);
+        } else {
+          s.cupoIdsSeleccionados = s.cupoIdsSeleccionados.filter(function (x) { return x !== cupoId; });
+        }
+        s.sum = s.cupoIdsSeleccionados.length;
         $('#' + totalId).text(s.sum);
         actualizarBarraVB();
       });
@@ -449,41 +504,13 @@
       $(this).html(open ? '&#9662; ver' : '&#9652; cerrar');
     });
 
-    // +/− por día.
-    $(document).off('click', '[data-vb-day-decr], [data-vb-day-incr]')
-      .on('click', '[data-vb-day-decr], [data-vb-day-incr]', function () {
-        var $b = $(this);
-        var grp = $b.data('grp');
-        var sg = $b.data('sg');
-        var $inp = $('#' + sg);
-        var max = parseInt($inp.attr('max'), 10) || 0;
-        var cur = parseInt($inp.val(), 10) || 0;
-        var inc = $b.data('vbDayIncr') !== undefined ? +1 : -1;
-        cur = Math.max(0, Math.min(max, cur + inc));
-        $inp.val(cur);
-        recalcularGrupoVB(grp);
-      });
-
-    $(document).off('change', '[data-vb-day-input]').on('change', '[data-vb-day-input]', function () {
-      var $inp = $(this);
-      var max = parseInt($inp.attr('max'), 10) || 0;
-      var cur = parseInt($inp.val(), 10) || 0;
-      cur = Math.max(0, Math.min(max, cur));
-      $inp.val(cur);
-      recalcularGrupoVB($(this).data('grp'));
-    });
-
     actualizarBarraVB();
   }
 
   function recalcularGrupoVB(grp) {
     var s = estado.seleccionados[grp];
     if (!s) return;
-    var sum = 0;
-    s.g.sols.forEach(function (_, idx) {
-      var sgId = 'vb-sg-' + grp + '-' + idx;
-      sum += parseInt($('#' + sgId).val(), 10) || 0;
-    });
+    var sum = (s.cupoIdsSeleccionados || s.cupoIds || []).length;
     s.sum = sum;
     if (s.checked) $('#vb-total-' + grp).text(sum);
     else $('#vb-total-' + grp).text(0);
@@ -494,10 +521,10 @@
     var asignado = 0;
     Object.keys(estado.seleccionados).forEach(function (k) {
       var s = estado.seleccionados[k];
-      if (s.checked) asignado += s.sum;
+      if (s.checked) asignado += (s.cupoIdsSeleccionados || []).length;
     });
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
-    var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
+    var pct = max > 0 ? Math.Min(100, Math.round(asignado / max * 100)) : 0;
     $('#vb-progress-fill').css({ width: pct + '%', background: asignado >= max ? 'var(--sil-green)' : 'var(--sil-navy)' });
     $('#vb-progress-label').text(asignado + ' / ' + max);
     $('#vb-counter-asignados').text(asignado);

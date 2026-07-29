@@ -214,7 +214,9 @@ namespace CuposCorretajeWeb.Controllers
             Destino = s.CuentaDestino.HasValue ? s.CuentaDestino.Value.ToString() : null,
             Zona = cupoBackend.NombreDestino,
             FechaSolicitado = s.FechaSolicitado,
-            Cantidad = s.Cantidad > 0 ? s.Cantidad : 1,
+            Cantidad = s.Cantidad,
+            CantidadDisponible = s.CantidadDisponible,
+            CantidadRechazada = s.CantidadRechazada,
             CantidadFuturo = 0,
             Observacion = s.Observacion,
             AntiguedadDias = antiguedad,
@@ -225,7 +227,7 @@ namespace CuposCorretajeWeb.Controllers
               new MatchDiaItem
               {
                 Fecha = s.FechaSolicitado,
-                Cantidad = s.Cantidad > 0 ? s.Cantidad : 1
+                Cantidad = s.CantidadDisponible
               }
             }
           });

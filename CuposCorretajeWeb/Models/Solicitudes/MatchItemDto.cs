@@ -32,7 +32,16 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public int CodigoGrano { get; set; }
     public long? CuentaDestino { get; set; }
     public string TipoDestino { get; set; }
+    /// <summary>Cantidad total pedida por la solicitud (SOLTURNOS.CANTIDAD).</summary>
     public int Cantidad { get; set; }
+    /// <summary>
+    /// Cantidad disponible de la solicitud para asignar en este Accept
+    /// (Cantidad - CantidadAceptada - CantidadRechazada).
+    /// La UI la muestra como "disponibles" y valida contra este límite.
+    /// </summary>
+    public int CantidadDisponible { get; set; }
+    /// <summary>Cantidad rechazada acumulada (SOLTURNOS.CANTIDAD_RECHAZADA).</summary>
+    public int CantidadRechazada { get; set; }
     public DateTime FechaSolicitado { get; set; }
     public string Observacion { get; set; }
     public CuposAsociadosDesgloseDto CuposAsociados { get; set; } = new CuposAsociadosDesgloseDto();
