@@ -82,11 +82,38 @@ namespace CuposCorretajeWeb.Controllers
         WebServiceSILRespository repo = new WebServiceSILRespository();
         Stopwatch sw = Stopwatch.StartNew();
 
+        // Resolver la fecha exacta del cupo. El matching compara el día
+        // del cupo con la FechaSolicitado de cada solicitud: si no
+        // coinciden, no se muestra nada. Si el cliente no envía CupoId
+        // (caso legacy), caemos al comportamiento anterior con la ventana
+        // de hoy a hoy+14.
+        DateTime? cupoFecha = null;
+        if (filter.CupoId > 0)
+        {
+          try
+          {
+            var cupos = await repo.RequestPostAndDeserializeAsync<IList<Models.Cupos>>(
+              "CuposData", "GetCupos", new { ids = new List<long> { filter.CupoId } });
+            if (cupos != null && cupos.Count > 0 && cupos[0].Fecha.HasValue)
+            {
+              cupoFecha = cupos[0].Fecha.Value.Date;
+            }
+          }
+          catch (Exception ex)
+          {
+            Trace.TraceWarning("BuscarCuposConMatch: no se pudo obtener la fecha del cupo " +
+                                filter.CupoId + " — " + ex.Message);
+          }
+        }
+
         // 1) Construir el filtro que entiende el motor.
         //    Pasamos el destino del cupo (CuentaPuerto) y dejamos que el
         //    backend resuelva las zonas a las que pertenece (vía
         //    PUERTOPORZONA + ZONASGEOGRAFICAS). El frontend ya no necesita
         //    conocer la zona explícita.
+        DateTime? fechaDesde = cupoFecha ?? (filter.Fecha == default ? (DateTime?)null : filter.Fecha);
+        DateTime? fechaHasta = cupoFecha ?? (filter.Fecha == default ? (DateTime?)null : filter.Fecha.AddDays(14));
+
         MatchesFilterDto bulkFilter = new MatchesFilterDto
         {
           CodigoGrano = filter.CodigoGrano,
@@ -94,8 +121,8 @@ namespace CuposCorretajeWeb.Controllers
           CuentaVendedor = filter.CuentaVendedor > 0 ? (long?)filter.CuentaVendedor : null,
           CuentaComprador = filter.CuentaComprador > 0 ? (long?)filter.CuentaComprador : null,
           CuentaPuerto = filter.CuentaPuerto > 0 ? (long?)filter.CuentaPuerto : null,
-          FechaDesde = filter.Fecha == default ? (DateTime?)null : filter.Fecha,
-          FechaHasta = filter.Fecha == default ? (DateTime?)null : filter.Fecha.AddDays(14),
+          FechaDesde = fechaDesde,
+          FechaHasta = fechaHasta,
           IncluirIncompatibles = false,
           AgruparPor = MatchesAgrupacion.Ninguno
         };

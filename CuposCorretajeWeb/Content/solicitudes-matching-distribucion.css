@@ -1,31 +1,70 @@
 /* =========================================================
    SIL — Matching en Distribución de Cupos (Pantalla 3)
    Hoja de estilos específica para _MatchingDistribucionPartial.cshtml.
-   Estilo minimalista: pocos colores, mucho espacio, sin sombras
-   ni animaciones pesadas. Solo lo necesario para leer y operar.
+   Mantiene la paleta del resto de Solicitudes y encapsula el modal
+   para no modificar la grilla legacy de Distribución.
    ========================================================= */
 :root {
-    --sil-fg: #1f2937;
-    --sil-fg-muted: #6b7280;
-    --sil-fg-subtle: #9ca3af;
-    --sil-bg: #ffffff;
-    --sil-bg-soft: #f8f9fb;
-    --sil-border: #e5e7eb;
-    --sil-border-strong: #d1d5db;
-    --sil-accent: #1f2937;
-    --sil-accent-bg: #111827;
-    --sil-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --sil-navy: #1a3a6b;
+    --sil-navy-dark: #122952;
+    --sil-navy-light: #2c4a8a;
+    --sil-teal: #0e7c60;
+    --sil-teal-dark: #096249;
+    --sil-teal-light: #d4f0e8;
+    --sil-amber: #b37400;
+    --sil-amber-dark: #865700;
+    --sil-amber-light: #fff3cd;
+    --sil-amber-border: #f0c040;
+    --sil-red: #a93226;
+    --sil-red-dark: #84261e;
+    --sil-red-light: #fdf0f0;
+    --sil-red-border: #f1a0a6;
+    --sil-green: #155724;
+    --sil-green-light: #eafaf1;
+    --sil-green-border: #82c896;
+    --sil-purple: #5c3d8f;
+    --sil-purple-dark: #472e70;
+    --sil-purple-light: #f5f0fb;
+    --sil-purple-border: #b39ddb;
 
-    /* === COLORES DE ESTADO (mantiene el resto minimalista) === */
-    --sil-state-direct: #0e7c60;
-    --sil-state-direct-bg: #d4f0e8;
-    --sil-state-direct-border: #b6e0d1;
+    --sil-fg: #1a2340;
+    --sil-fg-muted: #5a6680;
+    --sil-fg-subtle: #9aa3b5;
+    --sil-text-primary: #1a2340;
+    --sil-text-secondary: #5a6680;
+    --sil-text-tertiary: #9aa3b5;
+    --sil-bg: #ffffff;
+    --sil-bg-soft: #f6f8fb;
+    --sil-surface: #ffffff;
+    --sil-border: #dde3ec;
+    --sil-border-light: #edf0f5;
+    --sil-border-strong: #c5cedb;
+    --sil-accent: #1a3a6b;
+    --sil-accent-bg: #1a3a6b;
+    --sil-focus: rgba(44, 74, 138, 0.28);
+    --sil-shadow: 0 20px 55px rgba(18, 41, 82, 0.22), 0 3px 12px rgba(18, 41, 82, 0.10);
+    --sil-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --sil-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+    --sil-radius-sm: 6px;
+    --sil-radius-md: 10px;
+    --sil-radius-lg: 14px;
+
+    --sil-state-direct: #155724;
+    --sil-state-direct-bg: #eafaf1;
+    --sil-state-direct-border: #82c896;
     --sil-state-partial: #b37400;
-    --sil-state-partial-bg: #fff3cd;
+    --sil-state-partial-bg: #fff8df;
     --sil-state-partial-border: #f0c040;
     --sil-state-cond: #a93226;
     --sil-state-cond-bg: #fdf0f0;
     --sil-state-cond-border: #f1a0a6;
+}
+
+.sil-modal-overlay,
+.sil-modal-overlay *,
+.sil-blocking-overlay,
+.sil-blocking-overlay * {
+    box-sizing: border-box;
 }
 
 /* === OVERLAY === */
@@ -33,198 +72,465 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(17, 24, 39, 0.45);
     z-index: 1050;
     align-items: flex-start;
     justify-content: center;
-    padding: 48px 16px;
+    padding: 42px 20px;
     overflow-y: auto;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: rgba(18, 41, 82, 0.58);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    color: var(--sil-fg);
+    font-family: var(--sil-font);
     font-size: 14px;
     line-height: 1.5;
-    color: var(--sil-fg);
 }
 
-.sil-modal-overlay.is-open { display: flex; }
+.sil-modal-overlay.is-open {
+    display: flex;
+}
 
 /* === CARD === */
 .sil-modal-card {
-    background: var(--sil-bg);
-    border-radius: 8px;
-    border: 1px solid var(--sil-border);
-    width: 100%;
-    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    width: min(940px, 100%);
+    max-height: calc(100vh - 84px);
     overflow: hidden;
+    border: 1px solid rgba(221, 227, 236, 0.95);
+    border-radius: var(--sil-radius-lg);
+    background: var(--sil-surface);
+    box-shadow: var(--sil-shadow);
+    animation: sil-modal-enter 160ms ease-out both;
+}
+
+.sil-modal-card-variant-b {
+    width: min(1040px, 100%);
+}
+
+.sil-modal-card-confirm-obs,
+.sil-modal-card-conflict,
+.sil-modal-card-auto {
+    width: min(560px, 100%);
+}
+
+@keyframes sil-modal-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.992);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* === CABECERA === */
 .sil-modal-card-hd {
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--sil-border);
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     gap: 12px;
+    min-height: 68px;
+    padding: 13px 18px;
+    color: #fff;
+    background: var(--sil-navy);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sil-modal-card-variant-a.is-step-direct .sil-modal-card-hd {
+    background: var(--sil-green);
+}
+
+.sil-modal-card-variant-a.is-step-warning .sil-modal-card-hd {
+    background: var(--sil-amber);
+}
+
+.sil-modal-card-variant-a.is-step-partial .sil-modal-card-hd {
+    background: var(--sil-navy);
+}
+
+.sil-modal-card-variant-b .sil-modal-card-hd,
+.sil-modal-card-confirm-obs .sil-modal-card-hd {
+    background: var(--sil-amber);
+}
+
+.sil-modal-card-conflict .sil-modal-card-hd {
+    background: var(--sil-red);
+}
+
+.sil-modal-card-auto .sil-modal-card-hd {
+    background: var(--sil-purple);
+}
+
+.sil-modal-card-hd-icon {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.sil-modal-heading {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .sil-modal-card-hd .sil-modal-title {
-    font-weight: 600;
-    font-size: 15px;
     margin: 0;
-    color: var(--sil-fg);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 650;
     letter-spacing: -0.1px;
 }
 
 .sil-modal-card-hd .sil-modal-sub {
-    font-size: 12.5px;
-    color: var(--sil-fg-muted);
-    margin-top: 1px;
+    margin-top: 2px;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sil-modal-chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.sil-modal-chip strong {
+    color: #fff;
+    font-weight: 650;
 }
 
 .sil-modal-card-body {
-    padding: 20px 24px 22px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 20px 22px 22px;
+    overflow-y: auto;
+    background: var(--sil-surface);
 }
-
-/* === VARIANTES: una sola línea de acento en la cabecera ===
-   Usamos valores literales para evitar que la minificación del bundle
-   pierda las variables CSS o que otro stylesheet las pise. */
-.sil-modal-card-variant-a    { border-top: 3px solid #0e7c60; }
-.sil-modal-card-variant-b    { border-top: 3px solid #b37400; }
-.sil-modal-card-confirm-obs  { border-top: 3px solid #b37400; }
-.sil-modal-card-conflict    { border-top: 3px solid #a93226; }
-.sil-modal-card-auto        { border-top: 3px solid #111827; }
 
 /* === TABS VARIANTE A === */
 .sil-modal-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--sil-border);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-bottom: 20px;
-    font-size: 13px;
-    gap: 24px;
+    overflow: hidden;
+    border: 1px solid var(--sil-border);
+    border-radius: 9px;
+    background: var(--sil-bg-soft);
 }
 
 .sil-modal-tab {
-    padding: 8px 0;
-    text-align: center;
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 0;
+    border-right: 1px solid var(--sil-border);
     background: transparent;
     color: var(--sil-fg-muted);
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    font-weight: 500;
-    user-select: none;
-    transition: color 0.1s, border-color 0.1s;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 550;
+    line-height: 1.25;
+    text-align: center;
+    cursor: pointer;
+    transition: color 130ms ease, background-color 130ms ease, box-shadow 130ms ease;
+}
+
+.sil-modal-tab:last-child {
+    border-right: 0;
+}
+
+.sil-modal-tab:hover:not(.is-active) {
+    color: var(--sil-navy);
+    background: #eef2f8;
 }
 
 .sil-modal-tab.is-active {
-    color: var(--sil-fg);
-    font-weight: 600;
-    border-bottom-color: var(--sil-accent);
+    color: #fff;
+    background: var(--sil-navy);
+    box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.22);
 }
 
-.sil-modal-tab:not(.is-active):hover { color: var(--sil-fg); }
-
-.sil-modal-tab-step { display: none; }
-.sil-modal-tab-step.is-active { display: block; }
-
-/* === MATCH RESUMEN === */
-.sil-modal-summary {
-    background: var(--sil-bg-soft);
-    border: 1px solid var(--sil-border);
-    border-radius: 6px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: var(--sil-fg);
+.sil-modal-card-variant-a.is-step-direct .sil-modal-tab.is-active {
+    background: var(--sil-green);
 }
 
-.sil-modal-summary-amber { background: var(--sil-bg-soft); }
-
-.sil-modal-summary-title {
-    font-weight: 600;
-    color: var(--sil-fg);
-    margin-bottom: 4px;
+.sil-modal-card-variant-a.is-step-warning .sil-modal-tab.is-active {
+    background: var(--sil-amber);
 }
 
-/* === TABLAS === */
-.sil-modal-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
+.sil-modal-card-variant-a.is-step-partial .sil-modal-tab.is-active {
+    background: var(--sil-navy);
 }
 
-.sil-modal-table th {
-    color: var(--sil-fg-muted);
-    padding: 10px 12px;
-    text-align: center;
-    font-weight: 500;
-    font-size: 12px;
-    border-bottom: 1px solid var(--sil-border);
+.sil-modal-tab:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 3px solid var(--sil-focus);
+    outline-offset: -3px;
+}
+
+.sil-modal-tab-number {
+    display: inline-flex;
+    flex: 0 0 22px;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-family: var(--sil-mono);
+    font-size: 10px;
+    opacity: 0.78;
+}
+
+.sil-modal-tab.is-active .sil-modal-tab-number {
+    border-color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.14);
+    opacity: 1;
+}
+
+.sil-modal-tab-step {
+    display: none;
+}
+
+.sil-modal-tab-step.is-active {
+    display: block;
+}
+
+.sil-modal-tab-step[hidden] {
+    display: none !important;
+}
+
+/* === ENCABEZADOS DE SECCIÓN === */
+.sil-modal-section-heading {
+    margin-bottom: 13px;
+}
+
+.sil-modal-section-eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--sil-text-tertiary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+}
+
+.sil-modal-section-heading h4,
+.sil-modal-card-body .sil-modal-section-heading h4 {
+    margin: 0;
+    color: var(--sil-text-primary);
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.1px;
     text-transform: none;
 }
 
-.sil-modal-table th.tl { text-align: left; }
-
-.sil-modal-table td {
-    padding: 12px;
-    border-bottom: 1px solid var(--sil-border);
-    text-align: center;
-    color: var(--sil-fg);
+.sil-modal-section-heading p {
+    margin: 3px 0 0;
+    color: var(--sil-text-secondary);
+    font-size: 12px;
 }
 
-.sil-modal-table td.tl { text-align: left; }
-
-.sil-modal-table tbody tr:last-child td { border-bottom: 0; }
-
-.sil-modal-table input[type="number"] { font-family: var(--sil-mono); }
-
-/* === BADGES === */
-.sil-badge {
-    display: inline-flex;
-    align-items: center;
-    font-size: 11.5px;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-weight: 600;
-    white-space: nowrap;
+/* === RESUMEN Y CALLOUTS === */
+.sil-modal-summary {
+    margin-bottom: 12px;
+    padding: 13px 14px;
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
     background: var(--sil-bg-soft);
-    color: var(--sil-fg-muted);
-    border: 1px solid var(--sil-border);
+    color: var(--sil-fg);
+    font-size: 12.5px;
 }
 
-.sil-badge-dir {
-    color: var(--sil-state-direct);
-    background: var(--sil-state-direct-bg);
-    border-color: var(--sil-state-direct-border);
+.sil-modal-summary-direct {
+    border-color: var(--sil-green-border);
+    background: var(--sil-green-light);
 }
 
-.sil-badge-par {
-    color: var(--sil-state-partial);
-    background: var(--sil-state-partial-bg);
-    border-color: var(--sil-state-partial-border);
+.sil-modal-summary-amber {
+    border-color: var(--sil-amber-border);
+    background: var(--sil-amber-light);
 }
 
-.sil-badge-obs {
-    color: var(--sil-state-cond);
-    background: var(--sil-state-cond-bg);
-    border-color: var(--sil-state-cond-border);
+.sil-modal-summary-title {
+    margin-bottom: 8px;
+    color: var(--sil-green);
+    font-size: 13px;
+    font-weight: 650;
 }
 
-/* === FILAS / ITEMS DIFERENCIADOS POR TIPO DE MATCH === */
-.sil-match-row {
+.sil-modal-callout {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    background: #fff;
-    border-radius: 4px;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
     border: 1px solid var(--sil-border);
-    margin-bottom: 6px;
+    border-left-width: 4px;
+    border-radius: 7px;
+    background: var(--sil-bg-soft);
+    color: var(--sil-text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: left;
+}
+
+.sil-modal-callout > div {
+    min-width: 0;
+}
+
+.sil-modal-callout strong {
+    display: block;
+    margin-bottom: 2px;
+    color: inherit;
+    font-weight: 650;
+}
+
+.sil-modal-callout span:not(.sil-modal-callout-icon) {
+    display: block;
+}
+
+.sil-modal-callout-icon {
+    display: inline-flex;
+    flex: 0 0 22px;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-family: var(--sil-mono);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 0.78;
+}
+
+.sil-modal-callout-neutral {
+    border-color: #d7dce4;
+    border-left-color: #9aa3af;
+    background: #f8f9fb;
+    color: var(--sil-text-secondary);
+}
+
+.sil-modal-callout-navy {
+    border-color: #cad5e6;
+    border-left-color: var(--sil-navy-light);
+    background: #f0f4fa;
+    color: var(--sil-navy);
+}
+
+.sil-modal-callout-amber {
+    border-color: var(--sil-amber-border);
+    border-left-color: var(--sil-amber);
+    background: var(--sil-amber-light);
+    color: #775000;
+}
+
+.sil-modal-callout-red {
+    border-color: var(--sil-red-border);
+    border-left-color: var(--sil-red);
+    background: var(--sil-red-light);
+    color: #721c24;
+}
+
+.sil-modal-callout-purple {
+    border-color: var(--sil-purple-border);
+    border-left-color: var(--sil-purple);
+    background: var(--sil-purple-light);
+    color: var(--sil-purple);
+}
+
+#confirm-obs-texto,
+#conflict-detail {
+    display: block;
+}
+
+#confirm-obs-texto b,
+#conflict-detail > strong {
+    display: block;
+    margin-bottom: 3px;
+}
+
+#conflict-detail ul {
+    margin: 7px 0 0;
+    padding-left: 18px;
+}
+
+.sil-modal-confirm-copy,
+.sil-modal-dialog-copy {
+    margin: 0 0 11px;
+    color: var(--sil-text-secondary);
+    font-size: 12px;
+    line-height: 1.58;
+}
+
+.sil-modal-dialog-title {
+    margin-bottom: 9px;
+    color: var(--sil-text-primary);
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.sil-modal-dialog-meta {
+    margin: 0 0 10px;
+    color: var(--sil-text-tertiary);
+    font-size: 11px;
+}
+
+.sil-modal-dialog-list {
+    margin-bottom: 8px;
+    color: var(--sil-text-secondary);
+    font-size: 11.5px;
+    line-height: 1.7;
+}
+
+/* === FILAS DE MATCH === */
+.sil-match-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 7px;
+    padding: 9px 11px;
+    border: 1px solid var(--sil-border);
+    border-radius: 7px;
+    background: var(--sil-surface);
+}
+
+.sil-match-row:last-child {
+    margin-bottom: 0;
 }
 
 .sil-match-row.is-direct {
     border-color: var(--sil-state-direct-border);
-    background: var(--sil-state-direct-bg);
+    background: rgba(255, 255, 255, 0.84);
 }
 
 .sil-match-row.is-partial {
@@ -237,184 +543,456 @@
     background: var(--sil-state-cond-bg);
 }
 
-.sil-match-row .sil-match-row-info {
+.sil-match-row-info {
     display: flex;
+    min-width: 0;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
 }
 
-.sil-match-row .sil-match-row-info b {
-    font-weight: 600;
-    font-size: 12.5px;
+.sil-match-row-info b {
+    overflow: hidden;
     color: var(--sil-fg);
+    font-size: 12.5px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.sil-match-row .sil-match-row-info span {
-    font-size: 11.5px;
+.sil-match-row-info span {
     color: var(--sil-fg-muted);
+    font-size: 11px;
+}
+
+.sil-match-row-info span b {
+    display: inline;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* === TABLAS === */
+.sil-modal-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
+    background: var(--sil-surface);
+}
+
+.sil-modal-table-wrap-spaced {
+    margin-bottom: 12px;
+}
+
+.sil-modal-table {
+    width: 100%;
+    min-width: 680px;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--sil-fg);
+    font-size: 12px;
+}
+
+.sil-modal-table-main {
+    min-width: 820px;
+}
+
+.sil-modal-table-detail {
+    min-width: 520px;
+    border: 1px solid var(--sil-border);
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+.sil-modal-table th {
+    padding: 8px 10px;
+    border: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.10);
+    background: var(--sil-navy-light);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 550;
+    line-height: 1.3;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sil-modal-table th:first-child {
+    border-top-left-radius: 7px;
+}
+
+.sil-modal-table th:last-child {
+    border-top-right-radius: 7px;
+    border-right: 0;
+}
+
+.sil-modal-table th.tl,
+.sil-modal-table td.tl {
+    text-align: left;
+}
+
+.sil-modal-table td {
+    padding: 9px 10px;
+    border: 0;
+    border-bottom: 1px solid var(--sil-border-light);
+    background: var(--sil-surface);
+    color: var(--sil-fg);
+    text-align: center;
+    vertical-align: middle;
+}
+
+.sil-modal-table tbody tr:last-child > td {
+    border-bottom: 0;
+}
+
+.sil-modal-data-row:hover > td {
+    background: #f6f9fd;
+}
+
+.sil-modal-data-row.is-partial > td {
+    background: #fffdf7;
+}
+
+.sil-modal-data-row.is-cond > td {
+    background: #fffafa;
+}
+
+.sil-modal-data-row.is-partial:hover > td,
+.sil-modal-data-row.is-cond:hover > td {
+    background: #f6f9fd;
+}
+
+.sil-modal-cell-title {
+    color: var(--sil-text-primary);
+    font-weight: 650;
+}
+
+.sil-modal-cell-meta,
+.sil-modal-cell-subtle {
+    margin-top: 1px;
+    color: var(--sil-text-secondary);
+    font-size: 10.5px;
+    line-height: 1.35;
+}
+
+.sil-modal-cell-subtle {
+    color: var(--sil-text-tertiary);
+}
+
+.sil-modal-total {
+    color: var(--sil-navy);
+    font-family: var(--sil-mono);
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.sil-modal-qty-limit {
+    margin-top: 2px;
+    color: var(--sil-text-tertiary);
+    font-size: 10px;
+}
+
+.sil-modal-detail-row > td,
+.sil-modal-detail-cell {
+    padding: 0 !important;
+    background: var(--sil-bg-soft) !important;
+}
+
+.sil-modal-expanded {
+    padding: 11px 14px 13px;
+    border-top: 1px solid var(--sil-border-light);
+    background: #f1f7f5;
+    text-align: left;
+}
+
+.sil-modal-expanded-obs {
+    background: #fff7f7;
+}
+
+.sil-modal-expanded-heading {
+    margin-bottom: 8px;
+    color: var(--sil-green);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+}
+
+.sil-modal-expanded-obs .sil-modal-expanded-heading {
+    color: var(--sil-red);
+}
+
+.sil-modal-expanded-content {
+    overflow-x: auto;
+}
+
+.sil-modal-obs-callout {
+    margin-bottom: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--sil-red-border);
+    border-left: 4px solid var(--sil-red);
+    border-radius: 7px;
+    background: var(--sil-red-light);
+    color: #721c24;
+    font-size: 11.5px;
+    line-height: 1.5;
+}
+
+.sil-modal-obs-callout b {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 650;
+}
+
+/* === BADGES === */
+.sil-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border: 1px solid var(--sil-border);
+    border-radius: 999px;
+    background: var(--sil-bg-soft);
+    color: var(--sil-fg-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.sil-badge-dir {
+    border-color: var(--sil-state-direct-border);
+    background: var(--sil-state-direct-bg);
+    color: var(--sil-state-direct);
+}
+
+.sil-badge-par {
+    border-color: var(--sil-state-partial-border);
+    background: var(--sil-state-partial-bg);
+    color: var(--sil-state-partial);
+}
+
+.sil-badge-obs {
+    border-color: var(--sil-state-cond-border);
+    background: var(--sil-state-cond-bg);
+    color: var(--sil-state-cond);
+}
+
+/* === CONTADORES === */
+.sil-modal-counters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 15px;
+    padding: 11px 12px;
+    border: 1px solid var(--sil-amber-border);
+    border-radius: 8px;
+    background: #fffbea;
+}
+
+.sil-modal-counter {
+    min-width: 0;
+    padding: 0 14px;
+    border-right: 1px solid rgba(179, 116, 0, 0.18);
+    color: var(--sil-text-secondary);
+}
+
+.sil-modal-counter:first-child {
+    padding-left: 2px;
+}
+
+.sil-modal-counter:last-child {
+    padding-right: 2px;
+    border-right: 0;
+}
+
+.sil-modal-counter > span {
+    display: block;
+    margin-bottom: 1px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sil-modal-counter b {
+    display: inline-block;
+    color: var(--sil-text-primary);
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -0.35px;
+}
+
+.sil-modal-counter-assigned {
+    text-align: right;
+}
+
+.sil-modal-counter-assigned b {
+    color: var(--sil-green);
+}
+
+.sil-modal-counter-assigned small {
+    color: var(--sil-text-tertiary);
+    font-size: 11px;
 }
 
 /* === PROGRESS BAR === */
-.sil-modal-progress { margin-bottom: 18px; }
+.sil-modal-progress {
+    margin-bottom: 15px;
+}
 
 .sil-modal-progress-label {
     display: flex;
     justify-content: space-between;
-    font-size: 12.5px;
-    margin-bottom: 6px;
-    color: var(--sil-fg-muted);
+    margin-bottom: 5px;
+    color: var(--sil-text-secondary);
+    font-size: 11.5px;
 }
 
-.sil-modal-progress-label strong { color: var(--sil-fg); font-weight: 600; }
+.sil-modal-progress-label strong {
+    color: var(--sil-navy);
+    font-family: var(--sil-mono);
+    font-weight: 650;
+}
 
 .sil-modal-progress-track {
-    background: var(--sil-bg-soft);
-    border-radius: 4px;
-    height: 4px;
+    height: 8px;
     overflow: hidden;
+    border-radius: 999px;
+    background: #e6eaf0;
+    box-shadow: inset 0 1px 2px rgba(18, 41, 82, 0.08);
 }
 
 .sil-modal-progress-fill {
-    background: var(--sil-accent);
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.2s;
     width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--sil-navy);
+    transition: width 220ms ease, background-color 160ms ease;
 }
 
-.sil-modal-progress-fill.is-complete { background: var(--sil-accent); }
+.sil-modal-progress-fill.is-complete {
+    background: var(--sil-green);
+}
 
 .sil-modal-progress-warn {
-    font-size: 12px;
-    color: var(--sil-fg-muted);
-    margin-top: 6px;
     display: none;
+    margin-top: 5px;
+    color: var(--sil-amber);
+    font-size: 11px;
+    font-weight: 550;
 }
 
-.sil-modal-progress-warn.is-visible { display: block; }
-
-/* === COUNTERS === */
-.sil-modal-counters {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-    align-items: baseline;
-    margin-bottom: 18px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--sil-border);
-    font-size: 12.5px;
-}
-
-.sil-modal-counter {
-    color: var(--sil-fg-muted);
-}
-
-.sil-modal-counter b {
-    font-size: 18px;
-    color: var(--sil-fg);
-    display: inline-block;
-    font-weight: 600;
-    margin-right: 4px;
-    letter-spacing: -0.3px;
+.sil-modal-progress-warn.is-visible {
+    display: block;
 }
 
 /* === INPUTS NUMÉRICOS === */
 .sil-modal-qty {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
     justify-content: center;
+    gap: 4px;
 }
 
 .sil-modal-qty button {
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--sil-border);
-    background: var(--sil-bg);
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    color: var(--sil-fg);
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 1px solid var(--sil-border);
+    border-radius: 5px;
+    background: var(--sil-surface);
+    color: var(--sil-navy);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
 .sil-modal-qty button:hover:not(:disabled) {
-    background: var(--sil-bg-soft);
-    border-color: var(--sil-border-strong);
+    border-color: var(--sil-navy-light);
+    background: #eef2f8;
+}
+
+.sil-modal-qty button:focus-visible,
+.sil-modal-qty input:focus-visible {
+    outline: 3px solid var(--sil-focus);
+    outline-offset: 1px;
+    border-color: var(--sil-navy-light);
 }
 
 .sil-modal-qty button:disabled {
+    border-color: var(--sil-border-light);
+    background: var(--sil-bg-soft);
     color: var(--sil-fg-subtle);
     cursor: not-allowed;
 }
 
 .sil-modal-qty input {
     width: 48px;
-    text-align: center;
+    height: 27px;
+    padding: 3px 4px;
     border: 1px solid var(--sil-border);
-    border-radius: 4px;
-    padding: 4px;
-    font-size: 13px;
+    border-radius: 5px;
+    background: var(--sil-surface);
+    color: var(--sil-text-primary);
     font-family: var(--sil-mono);
-    font-weight: 500;
-    color: var(--sil-fg);
+    font-size: 12px;
+    font-weight: 650;
+    text-align: center;
     -moz-appearance: textfield;
 }
 
 .sil-modal-qty input::-webkit-outer-spin-button,
 .sil-modal-qty input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
     margin: 0;
-}
-
-.sil-modal-qty input:focus {
-    outline: none;
-    border-color: var(--sil-accent);
+    -webkit-appearance: none;
 }
 
 .sil-modal-qty input:disabled {
+    background: var(--sil-bg-soft);
     color: var(--sil-fg-subtle);
-    background: var(--sil-bg-soft);
 }
 
-/* === EXPANDABLE === */
-.sil-modal-expanded {
-    padding: 14px 16px;
-    background: var(--sil-bg-soft);
-    border-top: 1px solid var(--sil-border);
-}
-
-.sil-modal-expanded-obs { background: var(--sil-bg-soft); }
-
-.sil-modal-obs-callout {
-    background: var(--sil-bg);
+/* === BOTÓN DE DETALLE === */
+.sil-modal-detail-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 62px;
+    padding: 4px 8px;
     border: 1px solid var(--sil-border);
-    border-left: 2px solid var(--sil-accent);
-    border-radius: 4px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    font-size: 12.5px;
-    color: var(--sil-fg);
-    line-height: 1.5;
+    border-radius: 5px;
+    background: var(--sil-surface);
+    color: var(--sil-navy);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 550;
+    cursor: pointer;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
-.sil-modal-obs-callout b {
-    font-weight: 600;
-    display: block;
-    margin-bottom: 3px;
+.sil-modal-detail-toggle:hover,
+.sil-modal-detail-toggle[aria-expanded="true"] {
+    border-color: var(--sil-navy-light);
+    background: var(--sil-navy);
+    color: #fff;
+}
+
+.sil-modal-detail-toggle:focus-visible {
+    outline: 3px solid var(--sil-focus);
+    outline-offset: 1px;
 }
 
 /* === FOOTER === */
 .sil-modal-foot {
     display: flex;
-    gap: 8px;
     justify-content: flex-end;
-    margin-top: 18px;
+    gap: 8px;
+    margin-top: 17px;
     padding-top: 14px;
-    border-top: 1px solid var(--sil-border);
+    border-top: 1px solid var(--sil-border-light);
 }
 
 .sil-modal-foot.is-stacked {
@@ -422,144 +1000,164 @@
     align-items: stretch;
 }
 
-.sil-modal-foot .sil-btn { min-width: 100px; }
-
-.sil-modal-btn-danger {
-    color: var(--sil-fg);
-    border-color: var(--sil-border);
+.sil-modal-foot .sil-btn {
+    min-width: 112px;
 }
 
-.sil-modal-btn-danger:hover { background: var(--sil-bg-soft); }
-
-.sil-modal-spacer { flex: 1; }
-
-/* === CERRAR === */
-.sil-modal-close {
-    margin-left: auto;
-    background: transparent;
-    border: none;
-    color: var(--sil-fg-muted);
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 4px;
-    transition: color 0.1s;
-}
-
-.sil-modal-close:hover { color: var(--sil-fg); }
-
-/* === BOTONES BASE === */
-.sil-btn {
+.sil-modal-overlay .sil-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-height: 34px;
     padding: 7px 14px;
     border: 1px solid var(--sil-border);
-    background: var(--sil-bg);
-    color: var(--sil-fg);
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.1s, border-color 0.1s;
+    border-radius: 6px;
+    background: var(--sil-surface);
+    color: var(--sil-text-secondary);
     font-family: inherit;
+    font-size: 12px;
+    font-weight: 550;
+    line-height: 1.25;
+    text-align: center;
+    cursor: pointer;
     user-select: none;
+    transition: color 130ms ease, background-color 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
 }
 
-.sil-btn:hover {
+.sil-modal-overlay .sil-btn:hover {
+    border-color: var(--sil-navy-light);
+    background: #f4f7fb;
+    color: var(--sil-navy);
+}
+
+.sil-modal-overlay .sil-btn:focus-visible {
+    outline: 3px solid var(--sil-focus);
+    outline-offset: 2px;
+}
+
+.sil-modal-overlay .sil-btn:disabled {
+    border-color: var(--sil-border-light);
     background: var(--sil-bg-soft);
-    border-color: var(--sil-border-strong);
-}
-
-.sil-btn:focus-visible {
-    outline: none;
-    border-color: var(--sil-accent);
-}
-
-.sil-btn:disabled {
     color: var(--sil-fg-subtle);
-    background: var(--sil-bg-soft);
     cursor: not-allowed;
 }
 
-.sil-btn-navy {
-    background: var(--sil-accent-bg);
-    color: #fff;
-    border-color: var(--sil-accent-bg);
-}
-
-.sil-btn-navy:hover {
-    background: #000;
-    border-color: #000;
+.sil-modal-overlay .sil-btn-navy {
+    border-color: var(--sil-navy);
+    background: var(--sil-navy);
     color: #fff;
 }
 
-.sil-btn-teal {
-    background: var(--sil-fg);
-    color: #fff;
-    border-color: var(--sil-fg);
-}
-
-.sil-btn-teal:hover {
-    background: #000;
-    border-color: #000;
+.sil-modal-overlay .sil-btn-navy:hover {
+    border-color: var(--sil-navy-dark);
+    background: var(--sil-navy-dark);
     color: #fff;
 }
 
-/* === HEADERS DE SECCIÓN === */
-.sil-modal-card-body h4 {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--sil-fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0 0 8px;
+.sil-modal-overlay .sil-btn-teal {
+    border-color: var(--sil-teal);
+    background: var(--sil-teal);
+    color: #fff;
 }
 
-/* === BOX INFORMATIVO === */
-.sil-modal-info {
+.sil-modal-overlay .sil-btn-teal:hover {
+    border-color: var(--sil-teal-dark);
+    background: var(--sil-teal-dark);
+    color: #fff;
+}
+
+.sil-modal-overlay .sil-btn.sil-modal-btn-danger {
+    border-color: var(--sil-red);
+    background: var(--sil-red);
+    color: #fff;
+}
+
+.sil-modal-overlay .sil-btn.sil-modal-btn-danger:hover {
+    border-color: var(--sil-red-dark);
+    background: var(--sil-red-dark);
+    color: #fff;
+}
+
+/* === CERRAR === */
+.sil-modal-close {
+    display: inline-flex;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-left: 2px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
     background: transparent;
-    border: 1px solid var(--sil-border);
-    border-left: 2px solid var(--sil-accent);
-    border-radius: 4px;
-    padding: 10px 14px;
-    margin-bottom: 14px;
-    font-size: 12.5px;
-    color: var(--sil-fg);
+    color: rgba(255, 255, 255, 0.84);
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
-.sil-modal-info b {
-    color: var(--sil-fg);
-    margin-bottom: 2px;
-    font-weight: 600;
+.sil-modal-close:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
 }
 
-/* === SELECCIÓN DE FILA === */
-.sil-modal-tr-selected td { background: var(--sil-bg-soft); }
+.sil-modal-close:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.38);
+    outline-offset: 1px;
+}
+
+/* === ESTADOS Y UTILIDADES DEL COMPONENTE === */
+.sil-empty-state {
+    display: block;
+    padding: 22px 16px;
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+    text-align: center;
+}
+
+.sil-empty-state-inline {
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+}
+
+.sil-modal-order-hint {
+    margin-bottom: 0;
+}
+
+.sil-modal-tr-selected td {
+    background: #f1f6fc;
+}
 
 .sil-modal-tr-disabled td {
     color: var(--sil-fg-subtle);
 }
 
-/* === CHECKBOX === */
 .sil-modal-table input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--sil-navy);
     cursor: pointer;
-    accent-color: var(--sil-fg);
 }
 
-/* === RESPONSIVE === */
-@media (max-width: 720px) {
-    .sil-modal-overlay { padding: 16px 8px; }
-    .sil-modal-card { border-radius: 6px; }
-    .sil-modal-card-hd { padding: 14px 18px; }
-    .sil-modal-card-body { padding: 16px 18px 18px; }
-    .sil-modal-counters { gap: 18px; }
-    .sil-modal-table { font-size: 12px; }
-    .sil-modal-table th, .sil-modal-table td { padding: 8px; }
-    .sil-modal-foot { flex-direction: column-reverse; gap: 6px; }
-    .sil-modal-foot .sil-btn { min-width: 0; width: 100%; }
+.sil-modal-info {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--sil-border);
+    border-left: 4px solid var(--sil-navy-light);
+    border-radius: 7px;
+    background: #f0f4fa;
+    color: var(--sil-fg);
+    font-size: 12px;
+}
+
+.sil-modal-spacer {
+    flex: 1;
 }
 
 /* === OVERLAY BLOQUEANTE === */
@@ -567,14 +1165,13 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
     z-index: 2000;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    gap: 14px;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.62);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
     font-family: var(--sil-font);
 }
 
@@ -583,54 +1180,208 @@
 }
 
 .sil-blocking-overlay-card {
-    background: var(--sil-bg);
-    border: 1px solid var(--sil-border);
-    border-radius: var(--sil-radius-md);
-    padding: 24px 32px;
-    text-align: center;
     display: flex;
+    min-width: 280px;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.25);
-    min-width: 260px;
+    gap: 11px;
+    padding: 25px 32px;
+    border: 1px solid var(--sil-border);
+    border-radius: var(--sil-radius-md);
+    background: var(--sil-surface);
+    box-shadow: var(--sil-shadow);
+    text-align: center;
 }
 
-/* Spinner circular independiente (no depende de Bootstrap spinner-border) */
 .sil-spinner {
+    display: inline-block;
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(31, 41, 55, 0.18);
-    border-top-color: #1f2937;
+    border: 4px solid rgba(26, 58, 107, 0.16);
+    border-top-color: var(--sil-navy);
     border-radius: 50%;
-    animation: sil-spinner-rotate 0.85s linear infinite;
-    box-sizing: border-box;
-    display: inline-block;
+    animation: sil-spinner-rotate 0.8s linear infinite;
 }
 
 @keyframes sil-spinner-rotate {
     to { transform: rotate(360deg); }
 }
 
-@-webkit-keyframes sil-spinner-rotate {
-    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
-}
-
 .sil-blocking-overlay-title {
+    color: var(--sil-text-primary);
     font-size: 14px;
-    font-weight: 600;
-    color: var(--sil-fg);
+    font-weight: 650;
 }
 
 .sil-blocking-overlay-sub {
-    font-size: 12.5px;
-    color: var(--sil-fg-muted);
+    color: var(--sil-text-secondary);
+    font-size: 12px;
 }
 
-/* === UTILIDADES === */
+/* === SCROLLBAR LOCAL === */
+.sil-modal-card-body::-webkit-scrollbar,
+.sil-modal-table-wrap::-webkit-scrollbar,
+.sil-modal-expanded-content::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+.sil-modal-card-body::-webkit-scrollbar-track,
+.sil-modal-table-wrap::-webkit-scrollbar-track,
+.sil-modal-expanded-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sil-modal-card-body::-webkit-scrollbar-thumb,
+.sil-modal-table-wrap::-webkit-scrollbar-thumb,
+.sil-modal-expanded-content::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #c5ccd9;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 720px) {
+    .sil-modal-overlay {
+        align-items: flex-start;
+        padding: 14px 8px;
+    }
+
+    .sil-modal-card {
+        max-height: calc(100vh - 28px);
+        border-radius: 10px;
+    }
+
+    .sil-modal-card-hd {
+        min-height: 62px;
+        flex-wrap: wrap;
+        gap: 9px;
+        padding: 12px 14px;
+    }
+
+    .sil-modal-card-hd-icon {
+        flex-basis: 30px;
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
+    }
+
+    .sil-modal-heading {
+        flex-basis: calc(100% - 84px);
+    }
+
+    .sil-modal-chip {
+        order: 3;
+        margin-left: 39px;
+    }
+
+    .sil-modal-card-body {
+        padding: 16px 14px 17px;
+    }
+
+    .sil-modal-counters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        padding: 7px 10px;
+    }
+
+    .sil-modal-counter,
+    .sil-modal-counter:first-child,
+    .sil-modal-counter:last-child {
+        padding: 7px 10px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(179, 116, 0, 0.15);
+    }
+
+    .sil-modal-counter:nth-child(odd) {
+        border-right: 1px solid rgba(179, 116, 0, 0.15);
+    }
+
+    .sil-modal-counter:nth-last-child(-n + 2) {
+        border-bottom: 0;
+    }
+
+    .sil-modal-counter-assigned {
+        text-align: left;
+    }
+
+    .sil-match-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .sil-match-row > .sil-badge {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .sil-modal-table th,
+    .sil-modal-table td {
+        padding: 8px;
+    }
+
+    .sil-modal-foot {
+        flex-direction: column-reverse;
+        gap: 7px;
+    }
+
+    .sil-modal-foot .sil-btn {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .sil-modal-tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .sil-modal-tab {
+        justify-content: flex-start;
+        min-height: 40px;
+        border-right: 0;
+        border-bottom: 1px solid var(--sil-border);
+        text-align: left;
+    }
+
+    .sil-modal-tab:last-child {
+        border-bottom: 0;
+    }
+
+    .sil-modal-card-hd .sil-modal-title {
+        font-size: 14px;
+    }
+
+    .sil-modal-card-hd .sil-modal-sub {
+        white-space: normal;
+    }
+
+    .sil-modal-section-heading h4,
+    .sil-modal-card-body .sil-modal-section-heading h4 {
+        font-size: 14px;
+    }
+
+    .sil-match-row {
+        grid-template-columns: 1fr;
+    }
+
+    .sil-match-row > .sil-modal-qty,
+    .sil-match-row > .sil-badge {
+        justify-self: start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sil-modal-card,
+    .sil-modal-progress-fill,
+    .sil-spinner {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* === UTILIDADES LEGACY CONSERVADAS === */
 .sil-mt-2 { margin-top: 8px; }
 .sil-mt-3 { margin-top: 12px; }
 .sil-mb-2 { margin-bottom: 8px; }
 .sil-text-muted { color: var(--sil-fg-muted); }
-.sil-text-strong { color: var(--sil-fg); font-weight: 600; }
+.sil-text-strong { color: var(--sil-fg); font-weight: 650; }
 .sil-text-center { text-align: center; }

@@ -26,13 +26,13 @@
   // ── Helpers de DOM ───────────────────────────────────────
   function $o(sel) { return $(sel); }
   function showOverlay(id) {
-    $('#' + id).addClass('is-open');
+    $('#' + id).addClass('is-open').attr('aria-hidden', 'false');
   }
   function hideOverlay(id) {
-    $('#' + id).removeClass('is-open');
+    $('#' + id).removeClass('is-open').attr('aria-hidden', 'true');
   }
   function hideAllOverlays() {
-    $('.sil-modal-overlay').removeClass('is-open');
+    $('.sil-modal-overlay').removeClass('is-open').attr('aria-hidden', 'true');
   }
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
@@ -87,6 +87,8 @@
   }
 
   // ── API expuesta ─────────────────────────────────────────
+  // Exposición del estado actual para que la vista pueda incluir el id
+  // del cupo en requests de matching.
   window.SILMatching = {
     /**
      * Abre el modal de matching para el primer cupo en `cuposViewModel`.
@@ -249,7 +251,7 @@
       $('#va-step1-list').html(list);
     } else {
       $('#va-step1-headline').html('<b>0</b> solicitudes detectadas');
-      $('#va-step1-list').html('<em style="color: var(--sil-fg-muted);">No se detectaron solicitudes para los cupos disponibles.</em>');
+      $('#va-step1-list').html('<em class="sil-empty-state-inline">No se detectaron solicitudes para los cupos disponibles.</em>');
     }
 
     // STEP 2 — confirmación.
@@ -258,14 +260,14 @@
     // STEP 3 — matches parciales (incluye Condicionales como "con obs").
     var partialHtml = '';
     if (parciales.length > 0) {
-      partialHtml += '<table class="sil-modal-table">';
+      partialHtml += '<table class="sil-modal-table sil-modal-table-primary">';
       partialHtml += '<thead><tr><th class="tl">Solicitud</th><th>Grano</th><th>Fecha</th><th>Tipo match</th><th>Disponibles</th><th>Cupos a asignar</th></tr></thead><tbody>';
       parciales.forEach(function (g) {
         partialHtml += renderFilaTablaSolicitud(g, 'va-step3');
       });
       partialHtml += '</tbody></table>';
     } else {
-      partialHtml = '<em style="color: var(--sil-fg-muted);">No hay matches parciales disponibles.</em>';
+      partialHtml = '<em class="sil-empty-state-inline">No hay matches parciales disponibles.</em>';
     }
     $('#va-step3-table-wrap').html(partialHtml);
 
@@ -296,17 +298,17 @@
       '    <span>Vendedor: ' + escapeHtml(m.Vendedor || '—') +
                 ' &middot; ' + escapeHtml(m.NomGrano || ('Grano ' + (m.CodigoGrano || ''))) +
                 ' &middot; ' + formatFechaCorta(m.FechaSolicitado) + '</span>' +
-      '    <span style="font-size:11px; color:var(--sil-fg-muted);">' +
+      '    <span class="sil-modal-cell-meta">' +
                 '<b>' + disponibles + '</b> disponibles de ' + total + ' pedido(s) &middot; ' +
                 (m.CantidadRechazada || 0) + ' rechazado(s) &middot; ' +
                 cupoIdsCount + ' cupo(s) matchean</span>' +
       '  </div>' +
       '  <div class="sil-modal-qty">' +
-      '    <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '">&minus;</button>' +
+      '    <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>' +
       '    <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
                   '" data-' + prefix + '-input data-solicitud="' + m.Id +
-                  '" data-cupo-count="' + cupoIdsCount + '" />' +
-      '    <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '">&plus;</button>' +
+                  '" data-cupo-count="' + cupoIdsCount + '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />' +
+      '    <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>' +
       '  </div>' +
       '  <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
       '</div>';
@@ -326,32 +328,67 @@
     var initialQty = Math.min(disponibles, cupoIdsCount);
 
     var html = '';
-    html += '<tr style="background:#fff;">';
-    html += '  <td class="tl"><div style="font-weight:600;">#' + m.Id + '</div>';
-    html += '    <div style="font-size:11px; color:var(--sil-fg-muted);">' + escapeHtml(m.Vendedor || '—') + '</div></td>';
+    html += '<tr class="sil-modal-data-row">';
+    html += '  <td class="tl"><div class="sil-modal-cell-title">#' + m.Id + '</div>';
+    html += '    <div class="sil-modal-cell-meta">' + escapeHtml(m.Vendedor || '—') + '</div></td>';
     html += '  <td>' + escapeHtml(m.NomGrano || '') + '</td>';
     html += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
     html += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
-    html += '  <td>' + disponibles + ' <span style="font-size:11px; color:var(--sil-fg-muted);">/ ' + total + '</span></td>';
+    html += '  <td>' + disponibles + ' <span class="sil-modal-cell-subtle">/ ' + total + '</span></td>';
     html += '  <td>';
     html += '    <div class="sil-modal-qty">';
-    html += '      <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '">&minus;</button>';
+    html += '      <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>';
     html += '      <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
                   '" data-' + prefix + '-input data-solicitud="' + m.Id +
-                  '" data-cupo-count="' + cupoIdsCount + '" />';
-    html += '      <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '">&plus;</button>';
+                  '" data-cupo-count="' + cupoIdsCount + '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />';
+    html += '      <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>';
     html += '    </div>';
-    html += '    <div style="font-size: 10px; color: var(--sil-fg-muted);">m&aacute;x. ' + disponibles + '</div>';
+    html += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
     html += '  </td>';
     html += '</tr>';
     return html;
   }
 
   function irATab(tabId) {
-    $('[data-tab-group="variant-a"]').removeClass('is-active');
-    $('[data-tab="' + tabId + '"]').addClass('is-active');
-    $('.sil-modal-tab-step').removeClass('is-active');
-    $('#' + tabId).addClass('is-active');
+    var estadosVisuales = {
+      'va-step1': {
+        clase: 'is-step-direct',
+        titulo: 'Match directo detectado',
+        icono: '&#10003;'
+      },
+      'va-step2': {
+        clase: 'is-step-warning',
+        titulo: 'Desestimar match directo — confirmación requerida',
+        icono: '&#9888;'
+      },
+      'va-step3': {
+        clase: 'is-step-partial',
+        titulo: 'Match directo desestimado — matches parciales disponibles',
+        icono: '&#8776;'
+      }
+    };
+    var estadoVisual = estadosVisuales[tabId] || estadosVisuales['va-step1'];
+    var $modal = $('#sil-modal-variant-a');
+
+    $modal.find('[data-tab-group="variant-a"]')
+      .removeClass('is-active')
+      .attr('aria-selected', 'false');
+    $modal.find('[data-tab="' + tabId + '"]')
+      .addClass('is-active')
+      .attr('aria-selected', 'true');
+
+    $modal.find('.sil-modal-tab-step')
+      .removeClass('is-active')
+      .attr('hidden', 'hidden');
+    $('#' + tabId)
+      .addClass('is-active')
+      .removeAttr('hidden');
+
+    $('#va-modal-card')
+      .removeClass('is-step-direct is-step-warning is-step-partial')
+      .addClass(estadoVisual.clase);
+    $('#va-title-cupo').text(estadoVisual.titulo);
+    $('#va-header-icon').html(estadoVisual.icono);
   }
 
   // ============================================================
@@ -372,10 +409,10 @@
     $('#vb-counter-total-sols').text(grupos.length);
     $('#vb-counter-asignados-max').text(totalCuposAsignar);
 
-    var tableHtml = '<table class="sil-modal-table"><thead><tr>';
-    tableHtml += '<th class="tl"></th><th class="tl">Solicitud</th>';
-    tableHtml += '<th>Solicitante</th><th>Fecha</th><th>Match</th>';
-    tableHtml += '<th>Total a asignar</th><th></th>';
+    var tableHtml = '<table class="sil-modal-table sil-modal-table-main"><thead><tr>';
+    tableHtml += '<th aria-label="Seleccionar"></th><th class="tl">Solicitud</th>';
+    tableHtml += '<th>Solicitante</th><th>Fecha m&aacute;s antigua</th><th>Match</th>';
+    tableHtml += '<th>Total a asignar</th><th>Detalle</th>';
     tableHtml += '</tr></thead><tbody>';
 
     estado.seleccionados = {};
@@ -398,49 +435,46 @@
       var totalId = 'vb-total-' + idx;
       var inputId = 'vb-qty-' + idx;
 
-      tableHtml += '<tr style="background:#fff;">';
-      tableHtml += '  <td><input type="checkbox" checked id="' + chkId + '" data-vb-grp="' + idx + '" /></td>';
-      tableHtml += '  <td class="tl"><div style="font-weight:600;">Solicitud #' + m.Id + '</div>';
-      tableHtml += '    <div style="font-size:10.5px; color:var(--sil-fg-muted);">' +
-                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos matchean</div></td>';
+      tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '">';
+      tableHtml += '  <td><input type="checkbox" checked id="' + chkId + '" data-vb-grp="' + idx + '" aria-label="Incluir solicitud ' + m.Id + '" /></td>';
+      tableHtml += '  <td class="tl"><div class="sil-modal-cell-title">Solicitud #' + m.Id + '</div>';
+      tableHtml += '    <div class="sil-modal-cell-meta">' +
+                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos compatibles</div></td>';
       tableHtml += '  <td>' + escapeHtml(m.Vendedor || '—') + '</td>';
       tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
       tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
       tableHtml += '  <td>';
-      tableHtml += '    <strong id="' + totalId + '" style="font-size:14px; font-family: var(--sil-mono); color: var(--sil-fg);">' + maxAsignar + '</strong>';
-      tableHtml += '    <div style="font-size:10px; color:var(--sil-fg-muted);">m&aacute;x. ' + disponibles + '</div>';
+      tableHtml += '    <strong id="' + totalId + '" class="sil-modal-total">' + maxAsignar + '</strong>';
+      tableHtml += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
       tableHtml += '  </td>';
-      tableHtml += '  <td><button type="button" class="sil-btn" data-vb-toggle data-idx="' + idx + '" style="background:none; border:1px solid var(--sil-border); padding:3px 8px; font-size:11px; color:var(--sil-fg);">&#9662; ver</button></td>';
+      tableHtml += '  <td><button type="button" class="sil-modal-detail-toggle" data-vb-toggle data-idx="' + idx + '" aria-expanded="false" aria-controls="' + detalleId + '">&#9662; ver</button></td>';
       tableHtml += '</tr>';
 
       // Detalle expandible.
-      tableHtml += '<tr id="' + detalleId + '" style="display:none;">';
-      tableHtml += '  <td colspan="7" style="padding:0; border-bottom: 1px solid var(--sil-border-light);">';
+      tableHtml += '<tr id="' + detalleId + '" class="sil-modal-detail-row" style="display:none;">';
+      tableHtml += '  <td colspan="7" class="sil-modal-detail-cell">';
+      tableHtml += '    <div class="sil-modal-expanded' + (tipoMatch === 'Condicional' ? ' sil-modal-expanded-obs' : '') + '">';
 
       if (tipoMatch === 'Condicional') {
         var obsTxt = m.Observacion || 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
-        tableHtml += '    <div class="sil-modal-expanded sil-modal-expanded-obs">';
         tableHtml += '      <div class="sil-modal-obs-callout">';
-        tableHtml += '        <b>&#9888; Observaciones:</b>';
+        tableHtml += '        <b>&#9888; Observaciones de la solicitud:</b>';
         tableHtml += '        ' + escapeHtml(obsTxt);
         tableHtml += '      </div>';
-        tableHtml += '    </div>';
-      } else {
-        tableHtml += '    <div class="sil-modal-expanded">';
       }
 
-      // Tabla con los cuposIds disponibles y la cantidad a asignar.
-      tableHtml += '      <div style="padding: 10px 14px;">';
-      tableHtml += '        <table class="sil-modal-table">';
+      tableHtml += '      <div class="sil-modal-expanded-heading">Detalle de cupos &mdash; Solicitud #' + m.Id + '</div>';
+      tableHtml += '      <div class="sil-modal-expanded-content">';
+      tableHtml += '        <table class="sil-modal-table sil-modal-table-detail">';
       tableHtml += '          <thead><tr><th class="tl">Cupo ID</th><th>Fecha</th><th>Match</th><th>Aceptar</th></tr></thead><tbody>';
       g.cupoIds.forEach(function (cupoId, sidx) {
         var sgId = 'vb-sg-' + idx + '-' + sidx;
-        tableHtml += '<tr style="background:#fff;">';
-        tableHtml += '  <td class="tl">' + cupoId + '</td>';
+        tableHtml += '<tr class="sil-modal-data-row">';
+        tableHtml += '  <td class="tl"><span class="sil-modal-cell-title">#' + cupoId + '</span></td>';
         tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
-        tableHtml += '  <td>' + g.matchTypes[sidx] + '</td>';
+        tableHtml += '  <td>' + escapeHtml(g.matchTypes[sidx]) + '</td>';
         tableHtml += '  <td>';
-        tableHtml += '    <input type="checkbox" checked data-vb-cupo-grp="' + idx + '" data-vb-cupo-id="' + cupoId + '" data-vb-sg="' + sgId + '" />';
+        tableHtml += '    <input type="checkbox" checked data-vb-cupo-grp="' + idx + '" data-vb-cupo-id="' + cupoId + '" data-vb-sg="' + sgId + '" aria-label="Aceptar cupo ' + cupoId + ' para la solicitud ' + m.Id + '" />';
         tableHtml += '  </td>';
         tableHtml += '</tr>';
       });
@@ -501,7 +535,9 @@
       var $det = $('#vb-detail-' + idx);
       var open = $det.is(':visible');
       $det.toggle(!open);
-      $(this).html(open ? '&#9662; ver' : '&#9652; cerrar');
+      $(this)
+        .attr('aria-expanded', open ? 'false' : 'true')
+        .html(open ? '&#9662; ver' : '&#9652; cerrar');
     });
 
     actualizarBarraVB();
@@ -525,7 +561,10 @@
     });
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
     var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
-    $('#vb-progress-fill').css({ width: pct + '%', background: asignado >= max ? 'var(--sil-green)' : 'var(--sil-navy)' });
+    $('#vb-progress-fill')
+      .css('width', pct + '%')
+      .toggleClass('is-complete', asignado >= max && max > 0);
+    $('#vb-progress-fill').parent().attr('aria-valuenow', pct);
     $('#vb-progress-label').text(asignado + ' / ' + max);
     $('#vb-counter-asignados').text(asignado);
     $('#vb-progress-warn').toggleClass('is-visible', asignado < max);
@@ -886,7 +925,7 @@
   function mostrarConflicto(mensaje, fallos) {
     var html = '<strong>' + escapeHtml(mensaje) + '</strong>';
     if (fallos && fallos.length > 0) {
-      html += '<ul style="margin-top:6px; padding-left: 16px;">';
+      html += '<ul>';
       fallos.forEach(function (f) {
         html += '<li>Solicitud #' + f.SolicitudId + ': ' + escapeHtml(f.Motivo) + '</li>';
       });
@@ -920,7 +959,7 @@
     // Clic fuera del card también cierra (overlay).
     $(document).on('click', '.sil-modal-overlay', function (e) {
       if (e.target === this) {
-        $(this).removeClass('is-open');
+        hideOverlay(this.id);
       }
     });
 

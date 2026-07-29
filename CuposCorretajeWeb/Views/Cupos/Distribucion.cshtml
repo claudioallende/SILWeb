@@ -638,6 +638,9 @@
           CuentaComprador: @(Model.CuentaComprador),
           CodigoGrano: @(Model.CodigoProducto),
           CuentaPuerto: @(Model.CuentaPuerto),
+          CupoId: window.SILMatching && window.SILMatching.estadoCupoActual
+                    ? (window.SILMatching.estadoCupoActual().Id || 0)
+                    : 0,
           Fecha: new Date()
         };
 

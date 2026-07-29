@@ -1,7 +1,7 @@
 @* ============================================================
     SIL — Matching en Distribución de Cupos (Pantalla 3)
-    PartialView con los 4 modales del flujo de matching:
-      1. Variante A — cupo CON vendedor (3 tabs)
+    PartialView con los modales del flujo de matching:
+      1. Variante A — cupo CON vendedor (3 pasos)
       2. Variante B — cupo SIN vendedor (tabla expandible)
       3. Otros diálogos operativos:
          - Confirmación con observaciones
@@ -12,66 +12,143 @@
     ============================================================ *@
 
 @* ============================================================
-     VARIANTE A — CUPO CON VENDEDOR (3 TABS)
+     VARIANTE A — CUPO CON VENDEDOR (3 PASOS)
      ============================================================ *@
-<div id="sil-modal-variant-a" class="sil-modal-overlay" data-modal="variant-a">
-  <div class="sil-modal-card sil-modal-card-variant-a">
+<div id="sil-modal-variant-a"
+     class="sil-modal-overlay"
+     data-modal="variant-a"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="va-title-cupo"
+     aria-hidden="true">
+  <div id="va-modal-card" class="sil-modal-card sil-modal-card-variant-a is-step-direct" role="document">
     <div class="sil-modal-card-hd">
-      <span style="font-size: 18px;">&#10003;</span>
-      <div style="flex: 1;">
+      <span id="va-header-icon" class="sil-modal-card-hd-icon" aria-hidden="true">&#10003;</span>
+      <div class="sil-modal-heading">
         <div class="sil-modal-title" id="va-title-cupo">Match directo detectado</div>
         <div class="sil-modal-sub" id="va-subtitle-cupo">Cargando cupo &hellip;</div>
       </div>
-      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar">&times;</button>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
-    <div class="sil-modal-card-body">
 
-      @* ── Bloque 1: Match directo detectado ── *@
-      <h4 style="font-size: 12px; font-weight: 600; color: var(--sil-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px;">
-        Match directo detectado
-      </h4>
-      <div id="va-step1" class="sil-modal-tab-step is-active">
-        <div class="sil-modal-summary">
-          <div class="sil-modal-summary-title" id="va-step1-headline" style="font-weight: 600; color: var(--sil-green); margin-bottom: 6px;">
-            Cargando &hellip;
-          </div>
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-tabs" role="tablist" aria-label="Etapas del matching">
+        <button type="button"
+                id="va-tab-step1"
+                class="sil-modal-tab is-active"
+                data-tab-group="variant-a"
+                data-tab="va-step1"
+                role="tab"
+                aria-controls="va-step1"
+                aria-selected="true">
+          <span class="sil-modal-tab-number">1</span>
+          <span>Match directo</span>
+        </button>
+        <button type="button"
+                id="va-tab-step2"
+                class="sil-modal-tab"
+                data-tab-group="variant-a"
+                data-tab="va-step2"
+                role="tab"
+                aria-controls="va-step2"
+                aria-selected="false">
+          <span class="sil-modal-tab-number">2</span>
+          <span>Confirmar desestimaci&oacute;n</span>
+        </button>
+        <button type="button"
+                id="va-tab-step3"
+                class="sil-modal-tab"
+                data-tab-group="variant-a"
+                data-tab="va-step3"
+                role="tab"
+                aria-controls="va-step3"
+                aria-selected="false">
+          <span class="sil-modal-tab-number">3</span>
+          <span>Matches parciales</span>
+        </button>
+      </div>
+
+      @* ── Paso 1: Match directo detectado ── *@
+      <div id="va-step1"
+           class="sil-modal-tab-step is-active"
+           role="tabpanel"
+           aria-labelledby="va-tab-step1">
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 1</span>
+          <h4>Match directo detectado</h4>
+          <p>Revis&aacute; las solicitudes compatibles y ajust&aacute; la cantidad antes de confirmar.</p>
+        </div>
+
+        <div class="sil-modal-summary sil-modal-summary-direct">
+          <div class="sil-modal-summary-title" id="va-step1-headline">Cargando &hellip;</div>
           <div id="va-step1-list">
-            <em style="color: var(--sil-text-tertiary);">A&uacute;n no se consultaron los matches.</em>
+            <em class="sil-empty-state-inline">A&uacute;n no se consultaron los matches.</em>
           </div>
         </div>
-        <div style="background: #f8f9fa; border-radius: 6px; padding: 8px 10px; border-left: 3px solid #adb5bd; margin-bottom: 12px; font-size: 11.5px; color: var(--sil-text-secondary);">
-          Estos cupos fueron creados espec&iacute;ficamente para estas solicitudes. Se recomienda confirmar la asignaci&oacute;n directa.
+
+        <div class="sil-modal-callout sil-modal-callout-neutral">
+          <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+          <div>Estos cupos fueron creados espec&iacute;ficamente para estas solicitudes. Se recomienda confirmar la asignaci&oacute;n directa.</div>
         </div>
+
         <div class="sil-modal-foot">
           <button type="button" class="sil-btn" data-action="va-ir-a-paso-2">Desestimar match directo &rarr;</button>
           <button type="button" class="sil-btn sil-btn-teal" data-action="va-confirmar-directo">Confirmar asignaci&oacute;n directa</button>
         </div>
       </div>
 
-      @* ── Bloque 2: Confirmación para desestimar (oculto por default) ── *@
-      <div id="va-step2" class="sil-modal-tab-step" style="margin-bottom: 18px;">
-        <div style="background: var(--sil-amber-light); border: 1px solid var(--sil-amber-border); border-left: 3px solid var(--sil-amber); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px; color: var(--sil-amber);">
-          <strong style="font-weight: 600; display: block; margin-bottom: 4px;" id="va-step2-warning-headline">Atenci&oacute;n &mdash; acci&oacute;n poco habitual</strong>
-          Los cupos disponibles comparten vendedor y grano con solicitudes detectadas. Desestimar implica asignar manualmente o continuar sin asignar.
+      @* ── Paso 2: Confirmación para desestimar ── *@
+      <div id="va-step2"
+           class="sil-modal-tab-step"
+           role="tabpanel"
+           aria-labelledby="va-tab-step2"
+           hidden>
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 2</span>
+          <h4>Desestimar match directo</h4>
+          <p>Esta acci&oacute;n es poco habitual y requiere confirmaci&oacute;n.</p>
         </div>
+
+        <div class="sil-modal-callout sil-modal-callout-amber">
+          <span class="sil-modal-callout-icon" aria-hidden="true">!</span>
+          <div>
+            <strong id="va-step2-warning-headline">Atenci&oacute;n &mdash; acci&oacute;n poco habitual</strong>
+            <span>Los cupos disponibles comparten vendedor y grano con solicitudes detectadas. Desestimar implica ignorar ese match y continuar con alternativas parciales.</span>
+          </div>
+        </div>
+
+        <p class="sil-modal-confirm-copy">&iquest;Confirm&aacute;s que quer&eacute;s desestimar el match directo y buscar otras solicitudes compatibles?</p>
+
         <div class="sil-modal-foot">
-          <button type="button" class="sil-btn sil-btn-teal" data-action="va-ir-a-paso-1">&larr; Volver &mdash; confirmar match directo</button>
+          <button type="button" class="sil-btn sil-btn-teal" data-action="va-ir-a-paso-1">&larr; Volver al match directo</button>
           <button type="button" class="sil-btn sil-modal-btn-danger" data-action="va-ir-a-paso-3">S&iacute;, desestimar y ver parciales &rarr;</button>
         </div>
       </div>
 
-      @* ── Bloque 3: Matches parciales disponibles ── *@
-      <h4 style="font-size: 12px; font-weight: 600; color: var(--sil-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px;">
-        Matches parciales disponibles
-      </h4>
-      <div id="va-step3" class="sil-modal-tab-step">
-        <div style="background: #f0f4fa; border: 1px solid var(--sil-border); border-left: 3px solid var(--sil-navy-light); border-radius: 6px; padding: 9px 12px; margin-bottom: 12px; font-size: 11.5px;">
-          <div style="font-weight: 600; color: var(--sil-navy); margin-bottom: 4px;">Criterio de b&uacute;squeda</div>
-          Se listan las solicitudes cuyo solicitante coincide con el vendedor del cupo y con comprador o zona sin definir (match Parcial o Condicional).
+      @* ── Paso 3: Matches parciales disponibles ── *@
+      <div id="va-step3"
+           class="sil-modal-tab-step"
+           role="tabpanel"
+           aria-labelledby="va-tab-step3"
+           hidden>
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 3</span>
+          <h4>Matches parciales disponibles</h4>
+          <p>Seleccion&aacute; cu&aacute;ntos cupos asignar a cada solicitud compatible.</p>
         </div>
-        <div id="va-step3-table-wrap" style="overflow-x: auto; margin-bottom: 12px;">
-          <em style="color: var(--sil-text-tertiary);">A&uacute;n sin matches parciales.</em>
+
+        <div class="sil-modal-callout sil-modal-callout-navy">
+          <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+          <div>
+            <strong>Criterio de b&uacute;squeda</strong>
+            <span>Se listan las solicitudes cuyo solicitante coincide con el vendedor del cupo y que tienen comprador o zona sin definir.</span>
+          </div>
         </div>
+
+        <div id="va-step3-table-wrap" class="sil-modal-table-wrap sil-modal-table-wrap-spaced">
+          <em class="sil-empty-state-inline">A&uacute;n sin matches parciales.</em>
+        </div>
+
         <div class="sil-modal-foot">
           <button type="button" class="sil-btn" data-action="va-ir-a-paso-1">&larr; Volver al inicio</button>
           <button type="button" class="sil-btn sil-btn-navy" data-action="va-confirmar-parcial">Confirmar asignaci&oacute;n parcial</button>
@@ -84,22 +161,26 @@
 @* ============================================================
      VARIANTE B — CUPO SIN VENDEDOR
      ============================================================ *@
-<div id="sil-modal-variant-b" class="sil-modal-overlay" data-modal="variant-b">
-  <div class="sil-modal-card sil-modal-card-variant-b">
+<div id="sil-modal-variant-b"
+     class="sil-modal-overlay"
+     data-modal="variant-b"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="vb-title-cupo"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-variant-b" role="document">
     <div class="sil-modal-card-hd">
-      <span style="font-size: 17px;">&#8776;</span>
-      <div style="flex: 1;">
-        <div class="sil-modal-title">Solicitudes compatibles &mdash; asignaci&oacute;n a definir</div>
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#8776;</span>
+      <div class="sil-modal-heading">
+        <div class="sil-modal-title" id="vb-title-cupo">Solicitudes compatibles &mdash; asignaci&oacute;n a definir</div>
         <div class="sil-modal-sub" id="vb-subtitle-cupo">Cargando cupo &hellip;</div>
       </div>
-      <div style="font-size: 11px; background: rgba(255,255,255,0.2); border-radius: 5px; padding: 3px 9px;">
-        Ordenado: <strong>Antig&uuml;edad</strong>
-      </div>
-      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar">&times;</button>
+      <div class="sil-modal-chip">Ordenado: <strong>Antig&uuml;edad</strong></div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
-    <div class="sil-modal-card-body">
 
-      <div class="sil-modal-counters">
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-counters" aria-label="Resumen de la distribuci&oacute;n">
         <div class="sil-modal-counter">
           <span>Cupos a distribuir</span>
           <b id="vb-counter-total">0</b>
@@ -112,10 +193,12 @@
           <span>Total solicitudes</span>
           <b id="vb-counter-total-sols">0</b>
         </div>
-        <div class="sil-modal-counter" style="margin-left: auto; text-align: right;">
+        <div class="sil-modal-counter sil-modal-counter-assigned">
           <span>Cupos asignados</span>
-          <b id="vb-counter-asignados" style="color: var(--sil-green);">0</b>
-          <span style="color: var(--sil-text-tertiary); font-size: 11px;">&nbsp;/ <span id="vb-counter-asignados-max">0</span></span>
+          <div>
+            <b id="vb-counter-asignados">0</b>
+            <small>&nbsp;/ <span id="vb-counter-asignados-max">0</span></small>
+          </div>
         </div>
       </div>
 
@@ -124,19 +207,22 @@
           <span>Progreso de distribuci&oacute;n</span>
           <strong id="vb-progress-label">0 / 0</strong>
         </div>
-        <div class="sil-modal-progress-track">
+        <div class="sil-modal-progress-track" role="progressbar" aria-label="Progreso de distribuci&oacute;n" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="sil-modal-progress-fill" id="vb-progress-fill"></div>
         </div>
         <div class="sil-modal-progress-warn" id="vb-progress-warn">&#9888; Quedan cupos sin distribuir.</div>
       </div>
 
-      <div id="vb-table-wrap" style="overflow-x: auto; border: 1px solid var(--sil-border); border-radius: 8px; margin-bottom: 12px;">
-        <em style="color: var(--sil-text-tertiary); padding: 18px; display: block; text-align: center;">A&uacute;n no se cargaron solicitudes compatibles.</em>
+      <div id="vb-table-wrap" class="sil-modal-table-wrap sil-modal-table-wrap-spaced">
+        <em class="sil-empty-state">A&uacute;n no se cargaron solicitudes compatibles.</em>
       </div>
 
-      <div style="background: #f0f4fa; border: 1px solid var(--sil-border); border-left: 3px solid var(--sil-navy-light); border-radius: 6px; padding: 9px 12px; font-size: 11.5px; color: var(--sil-text-secondary); margin-bottom: 12px;">
-        <strong style="font-weight: 600; color: var(--sil-navy);">Criterio de orden actual: Antig&uuml;edad.</strong>
-        <span id="vb-order-hint">El operador puede ajustar libremente las cantidades.</span>
+      <div class="sil-modal-callout sil-modal-callout-navy sil-modal-order-hint">
+        <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>Criterio de orden actual: Antig&uuml;edad.</strong>
+          <span id="vb-order-hint">El operador puede ajustar libremente las cantidades.</span>
+        </div>
       </div>
 
       <div class="sil-modal-foot">
@@ -152,23 +238,27 @@
      ============================================================ *@
 
 @* Confirmación con observaciones (match Condicional) *@
-<div id="sil-modal-confirm-obs" class="sil-modal-overlay" data-modal="confirm-obs">
-  <div class="sil-modal-card sil-modal-card-confirm-obs">
+<div id="sil-modal-confirm-obs"
+     class="sil-modal-overlay"
+     data-modal="confirm-obs"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="confirm-obs-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-confirm-obs" role="document">
     <div class="sil-modal-card-hd">
-      <span style="font-size: 18px;">&#9888;</span>
-      <div class="sil-modal-title">Confirmaci&oacute;n con observaciones</div>
-      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar">&times;</button>
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#9888;</span>
+      <div class="sil-modal-title" id="confirm-obs-title">Confirmaci&oacute;n con observaciones</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-title" style="font-size: 13px;">La solicitud contiene condiciones especiales</div>
-      <div class="sil-modal-obs-callout" id="confirm-obs-texto" style="background: var(--sil-amber-light); border-color: var(--sil-amber-border); border-left-color: var(--sil-amber-border); color: var(--sil-amber);">
+      <div class="sil-modal-dialog-title">La solicitud contiene condiciones especiales</div>
+      <div class="sil-modal-callout sil-modal-callout-amber" id="confirm-obs-texto">
         <b>Observaciones:</b>
         <em>A&uacute;n sin texto.</em>
       </div>
-      <p style="font-size: 12px; color: var(--sil-text-secondary); line-height: 1.55; margin-bottom: 10px;">
-        Verific&aacute; que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.
-      </p>
-      <div id="confirm-obs-solicitante" style="font-size: 11px; color: var(--sil-text-tertiary); margin-bottom: 10px;"></div>
+      <p class="sil-modal-dialog-copy">Verific&aacute; que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.</p>
+      <div id="confirm-obs-solicitante" class="sil-modal-dialog-meta"></div>
       <div class="sil-modal-foot">
         <button type="button" class="sil-btn" data-action="confirm-obs-cancelar">Cancelar</button>
         <button type="button" class="sil-btn sil-modal-btn-danger" data-action="confirm-obs-confirmar">S&iacute;, confirmar</button>
@@ -178,48 +268,52 @@
 </div>
 
 @* Conflicto de concurrencia (409) *@
-<div id="sil-modal-conflict" class="sil-modal-overlay" data-modal="conflict">
-  <div class="sil-modal-card sil-modal-card-conflict">
+<div id="sil-modal-conflict"
+     class="sil-modal-overlay"
+     data-modal="conflict"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="conflict-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-conflict" role="document">
     <div class="sil-modal-card-hd">
-      <span style="font-size: 18px;">&#9888;</span>
-      <div class="sil-modal-title">Conflicto de concurrencia</div>
-      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar">&times;</button>
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#9888;</span>
+      <div class="sil-modal-title" id="conflict-title">Conflicto de concurrencia</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-title" style="font-size: 13px;">La solicitud ya fue procesada</div>
-      <p style="font-size: 12px; color: var(--sil-text-secondary); line-height: 1.55; margin-bottom: 10px;">
-        La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.
-      </p>
-      <p style="font-size: 12px; color: var(--sil-text-secondary); line-height: 1.55; margin-bottom: 10px;">
-        La tabla se actualiz&oacute;. Seleccion&aacute; otra solicitud pendiente o volv&eacute; a la grilla de cupos.
-      </p>
-      <div id="conflict-detail" style="background: var(--sil-red-light); border: 1px solid var(--sil-red-border); border-left: 3px solid var(--sil-red-border); border-radius: 6px; padding: 9px 11px; margin-bottom: 10px; font-size: 11.5px; color: #721c24;">
-      </div>
+      <div class="sil-modal-dialog-title">La solicitud ya fue procesada</div>
+      <p class="sil-modal-dialog-copy">La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.</p>
+      <p class="sil-modal-dialog-copy">La tabla se actualiz&oacute;. Seleccion&aacute; otra solicitud pendiente o volv&eacute; a la grilla de cupos.</p>
+      <div id="conflict-detail" class="sil-modal-callout sil-modal-callout-red"></div>
       <div class="sil-modal-foot">
-        <button type="button" class="sil-btn" data-action="conflict-cerrar-y-recargar">Volver a la grilla</button>
+        <button type="button" class="sil-btn sil-btn-navy" data-action="conflict-cerrar-y-recargar">Volver a la grilla</button>
       </div>
     </div>
   </div>
 </div>
 
 @* Rechazo automático 18:00 hs (informativo, sólo lectura) *@
-<div id="sil-modal-rechazo-auto" class="sil-modal-overlay" data-modal="rechazo-auto">
-  <div class="sil-modal-card sil-modal-card-auto">
+<div id="sil-modal-rechazo-auto"
+     class="sil-modal-overlay"
+     data-modal="rechazo-auto"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="rechazo-auto-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-auto" role="document">
     <div class="sil-modal-card-hd">
-      <span style="font-size: 18px;">&#128337;</span>
-      <div class="sil-modal-title">Rechazo autom&aacute;tico &mdash; cierre 18:00 hs</div>
-      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar">&times;</button>
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#128337;</span>
+      <div class="sil-modal-title" id="rechazo-auto-title">Rechazo autom&aacute;tico &mdash; cierre 18:00 hs</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-title" style="font-size: 13px;">Proceso de cierre ejecutado</div>
-      <div style="background: #f5f0fb; border: 1px solid #b39ddb; border-left: 3px solid #9b59b6; border-radius: 6px; padding: 9px 11px; margin-bottom: 10px; font-size: 12px; color: #5c3d8f;">
-        <strong id="rechazo-auto-resumen">2 solicitudes</strong> rechazadas autom&aacute;ticamente por vencimiento del d&iacute;a operativo.
+      <div class="sil-modal-dialog-title">Proceso de cierre ejecutado</div>
+      <div class="sil-modal-callout sil-modal-callout-purple">
+        <div><strong id="rechazo-auto-resumen">2 solicitudes</strong> rechazadas autom&aacute;ticamente por vencimiento del d&iacute;a operativo.</div>
       </div>
-      <div id="rechazo-auto-lista" style="font-size: 11.5px; color: var(--sil-text-secondary); margin-bottom: 6px; line-height: 1.6;">
-      </div>
-      <div style="font-size: 11px; color: var(--sil-text-tertiary); margin-bottom: 10px;">
-        Los solicitantes fueron notificados autom&aacute;ticamente.
-      </div>
+      <div id="rechazo-auto-lista" class="sil-modal-dialog-list"></div>
+      <div class="sil-modal-dialog-meta">Los solicitantes fueron notificados autom&aacute;ticamente.</div>
       <div class="sil-modal-foot">
         <button type="button" class="sil-btn sil-btn-navy" data-action="rechazo-auto-aceptar">Aceptar</button>
       </div>
