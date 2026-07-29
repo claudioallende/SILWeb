@@ -36,11 +36,29 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public short? EstadoCupo { get; set; }
     public short? CtgCupo { get; set; }
 
+    /// <summary>Cupos/turnos pedidos originalmente. FROZEN en SOLTURNOS.</summary>
+    public int Cantidad { get; set; } = 1;
+
+    /// <summary>Subconjunto de <see cref="Cantidad"/> futuro. FROZEN.</summary>
+    public int CantidadFuturo { get; set; }
+
     /// <summary>Acumulador de cupos aceptados (≤ Cantidad).</summary>
     public int CantidadAceptada { get; set; }
 
     /// <summary>Acumulador de cupos futuros aceptados (≤ CantidadFuturo).</summary>
     public int CantidadFuturoAceptada { get; set; }
+
+    /// <summary>
+    /// Acumulador de cupos rechazados al cierre del remanente (rechazo
+    /// manual). Vale 0 mientras la solicitud sigue pendiente.
+    /// </summary>
+    public int CantidadRechazada { get; set; }
+
+    /// <summary>
+    /// Acumulador de cupos futuros rechazados (≤ CantidadFuturo). Subset
+    /// de <see cref="CantidadRechazada"/>.
+    /// </summary>
+    public int CantidadFuturoRechazada { get; set; }
 
     /// <summary>
     /// True si la solicitud está pendiente de resolución (a&uacute;n no
