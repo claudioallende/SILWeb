@@ -8,6 +8,13 @@
    Stack: jQuery 1.10.2 + Bootstrap 3 + Swal.fire (CDN).
    No utiliza el loader global: la tabla y la grilla permanecen disponibles
    mientras se consulta el matching.
+
+   Invariante de pendientes (UC1-UC5):
+     pending = Cantidad - CantidadAceptada - CantidadRechazada
+   CantidadAceptada es un acumulado por asociación (SUM(SOLTURNOS_DETALLE.Cantidad))
+   y NO depende del STATUS. La columna STATUS fue retirada en
+   ALTER_SOLTURNOS_DROP_REQUEST_STATUS.sql; el motor de matching de SILData ya
+   filtra por CantidadDisponible > 0 antes de evaluar pares.
    ========================================================= */
 
 (function ($) {
@@ -168,6 +175,67 @@
      */
     clearAsignaciones: function () {
       window.SILMatching.estadoAsignaciones = {};
+    },
+
+    /**
+     * Decide si la respuesta del motor (`CuposMatching/BuscarCuposConMatch`)
+     * debe abrir el modal de matching. El motor ya filtra cupos
+     * físicamente disponibles y solicitudes con CantidadDisponible > 0;
+     * acá aplicamos el segundo gate contra la foto vigente de
+     * VistaCuposDistribuidosV4 (`#sil-vista-resumen`, inyectada por
+     * Views/Contratos/_CuerpoTablaContratosPartial.cshtml).
+     *
+     * Reglas:
+     *  - Si no hay respuesta o el array de cupos viene vacío → false.
+     *  - Si la fila del vendedor correspondiente tiene Cupostotalesadist <= 0
+     *    → false (cubre UC4, UC5 y la rama "sin vendedor" cuando la fila
+     *    sin vendedor está agotada).
+     *  - Si hay al menos un cupo cuya fila califica, devuelve la lista
+     *    filtrada para que `abrir()` muestre sólo los cupos válidos.
+     */
+    procesarRespuestaSearch: function (resp, vistaResumen) {
+      try {
+        if (!resp || !resp.success || !resp.cupos || resp.cupos.length === 0) {
+          return false;
+        }
+        var resumen = Array.isArray(vistaResumen) ? vistaResumen : [];
+        if (resumen.length === 0) {
+          // Sin resumen del backend no podemos gating. Conservador: no abrir.
+          console.warn('[Matching] Sin sil-vista-resumen; modal no se abre.');
+          return false;
+        }
+        var cuposCalifican = (resp.cupos || []).filter(function (cupo) {
+          var fila = null;
+          if (cupo && cupo.CodVendSIL && String(cupo.CodVendSIL).trim() !== '' && String(cupo.CodVendSIL) !== '0') {
+            fila = resumen.find(function (r) {
+              return String(r.Vendcta) === String(cupo.CodVendSIL)
+                  && Number(r.Codproducto) === Number(cupo.CodGrano);
+            });
+          } else {
+            fila = resumen.find(function (r) {
+              return r.TieneVendedor === false
+                  && Number(r.Codproducto) === Number(cupo.CodGrano);
+            });
+          }
+          return !!(fila && Number(fila.Cupostotalesadist) > 0);
+        });
+        if (cuposCalifican.length === 0) {
+          return false;
+        }
+        return cuposCalifican;
+      } catch (ex) {
+        console.warn('[Matching] procesarRespuestaSearch error:', ex);
+        return false;
+      }
+    },
+
+    /**
+     * Alias simple: ¿hay al menos un cupo para mostrar? Usado por tests
+     * manuales y como atajo.
+     */
+    debeMostrarModal: function (resp, vistaResumen) {
+      var resultado = this.procesarRespuestaSearch(resp, vistaResumen);
+      return Array.isArray(resultado) && resultado.length > 0;
     },
     mostrarConfirmacionObs: function (solicitante, observacion) {
       // Disparador explícito (útil para QA y demo). Si no se pasan args,
@@ -607,17 +675,21 @@
   }
 
   function doAccept(solicitudesAsignadas) {
-    // Envía las asociaciones al backend (/CuposMatching/AceptarMatch).
-    // Muestra overlay bloqueante, refresca la tabla al recibir respuesta OK.
+    // Envía las asociaciones al backend (POST /api/Cupos/ActualizarDistribucion
+    // en modo SolicitudMatch = 2). El endpoint valida que cada asociación tenga
+    // Cantidad=1 y un CupoSeleccionadoId explícito, descuenta los cupos
+    // disponibles, persiste SOLTURNOS_DETALLE y actualiza SOLTURNOS.Aceptada.
     //
     // solicitudesAsignadas: Array<{ solicitudId, matchType, cantidad? }>
     //
-    // Cada entrada representa una solicitud aceptada por el operador con
-    // una cantidad N = número de cupos físicos a asociar. Como cada
-    // asociación con SILApi exige Cantidad=1 y un CupoSeleccionadoId
-    // distinto (1 fila de CUPOSCORRE = 1 cupo), expandimos cada solicitud
-    // en N pares (solicitudId, cupoId_i, cantidad=1) usando los CupoId
-    // que el matching devolvió para esa solicitud.
+    // Cada entrada representa una solicitud aceptada por el operador con una
+    // cantidad N = número de cupos físicos a asociar. Como ActualizarDistribucion
+    // exige Cantidad=1 por asociación (1 fila de CUPOSCORRE = 1 cupo), expandimos
+    // cada solicitud en N asociaciones (solicitudId, cupoId_i, cantidad=1)
+    // usando los CupoId que el matching devolvió para esa solicitud.
+    //
+    // Antes del request se muestra el Swal de confirmación definido en
+    // confirmarDistribucion() — el operador debe aceptar antes de ejecutar.
 
     var cupo = estado.cupoActual;
     if (!cupo) return;
@@ -634,9 +706,8 @@
       }
     });
 
-    // Construir payload: N pares solicitud-cupo por cada solicitud aceptada.
-    var shiftRequest = [];
-    var cuposToBeDistributed = [];
+    // Construir AsignacionesSolicitudCupo: una asociación por cupo físico.
+    var asociaciones = [];
     var totalCupos = 0;
 
     solicitudesAsignadas.forEach(function (pair) {
@@ -650,55 +721,52 @@
 
       // Tomar los primeros N cupoIds distintos del matching para esta solicitud.
       var aAsociar = Math.min(cantidad, cupoIds.length);
-      var fechaSolISO = serializarFechaISO(match.FechaSolicitado);
+      var matchType = pair.matchType || match.MatchType || 'Parcial';
 
       for (var i = 0; i < aAsociar; i++) {
-        shiftRequest.push({
-          Id: solicitudId,
-          CodigoGrano: match.CodigoGrano || (cupo.CodGrano ? parseInt(cupo.CodGrano, 10) || 0 : 0),
+        asociaciones.push({
+          SolicitudId: parseInt(solicitudId, 10),
+          CupoSeleccionadoId: parseInt(cupoIds[i], 10),
           Cantidad: 1,
-          CuentaVendedor: match.Vendedor ? parseInt(match.Vendedor, 10) || 0 : 0,
-          CuentaComprador: match.Comprador ? parseInt(match.Comprador, 10) || null : null,
-          CodigoEstado: 0,
-          FechaCreacion: fechaSolISO || new Date().toISOString(),
-          FechaSolicitado: fechaSolISO || new Date().toISOString(),
-          CodigoCentro: ''
+          MatchType: matchType,
+          Compcta: 0,
+          Vendcta: 0,
+          Codproducto: 0,
+          Ctadestino: 0,
+          Cosecha: '',
+          Centro: '',
+          Fechaent: 0,
+          Dia: -1
         });
-
-        cuposToBeDistributed.push({
-          Id: cupoIds[i],
-          CodGrano: cupo.CodGrano || '',
-          NomGrano: cupo.NomGrano || '',
-          CodVendSIL: cupo.CodVendSIL || '',
-          NomVendSIL: cupo.NomVendSIL || '',
-          CodCompSIL: cupo.CodCompSIL || '',
-          NomCompSIL: cupo.NomCompSIL || '',
-          CodDestino: cupo.CodDestino || '',
-          NomDestino: cupo.NomDestino || '',
-          Fecha: serializarFechaISO(cupo.Fecha),
-          CentroCupo: ''
-        });
-
         totalCupos++;
       }
     });
 
-    if (shiftRequest.length === 0) return;
+    if (asociaciones.length === 0) return;
 
+    // Bloquear pantalla hasta que responda la API.
     showBlockingOverlay('Distribuyendo ' + totalCupos + ' cupo(s)...');
 
     return $.ajax({
-      url: '/CuposMatching/AceptarMatch',
+      url: window.modelData.actionActualizarDistribucion,
       method: 'POST',
-      contentType: 'application/json',
+      contentType: 'application/json; charset=utf-8',
       dataType: 'json',
       data: JSON.stringify({
-        ShiftRequest: shiftRequest,
-        CuposToBeDistributed: cuposToBeDistributed
+        model: {
+          Modo: 2,  // ModoActualizacionDistribucion.SolicitudMatch
+          AsignacionesSolicitudCupo: asociaciones
+        },
+        Confirmacion: false
       })
-    }).done(function (resp) {
+    }).done(function (data) {
       hideBlockingOverlay();
-      if (resp && resp.success) {
+
+      // ActualizarDistribucion puede responder con un int legacy (Codigo)
+      // o con ActualizarDistribucionResult { Codigo, Success, Message, ... }.
+      var codigo = (typeof data === 'number') ? data : (data && data.Codigo);
+
+      if (codigo === 1) {
         if (window.SILMatching && typeof window.SILMatching.clearAsignaciones === 'function') {
           window.SILMatching.clearAsignaciones();
         }
@@ -713,43 +781,62 @@
           Swal.fire({
             icon: 'success',
             title: 'Distribución realizada',
-            text: resp.message || 'La distribución se aplicó correctamente.',
+            text: (data && data.Message) ? data.Message
+                 : 'Se distribuyeron ' + totalCupos + ' cupo(s) correctamente.',
             timer: 3500,
             showConfirmButton: false
           });
         }
-      } else if (resp && resp.status === 409) {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Conflicto de concurrencia',
-            text: resp.message || 'La solicitud ya fue procesada por otro operador.',
-            showConfirmButton: true
-          });
-        }
+      } else if (codigo === 100) {
+        if (typeof addAlert === 'function') { addAlert('Cantidad de cupos excedidos', 'alert-danger'); if (typeof onAlert === 'function') onAlert(); }
+      } else if (codigo === 200) {
+        if (typeof addAlert === 'function') { addAlert('Cantidad de cupos excedidos para la consignación seleccionada', 'alert-danger'); if (typeof onAlert === 'function') onAlert(); }
+      } else if (codigo === 300) {
+        if (typeof addAlert === 'function') { addAlert('No hubo cambios', 'alert-info'); if (typeof onAlert === 'function') onAlert(); }
       } else {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'error',
             title: 'No se pudo distribuir',
-            text: (resp && resp.message) ? resp.message : 'El backend rechazó la distribución.',
+            text: (data && data.Message) ? data.Message : 'El backend rechazó la distribución.',
             showConfirmButton: true
           });
         }
       }
     }).fail(function (xhr) {
       hideBlockingOverlay();
-      console.warn('[Matching] AceptarMatch error:', xhr && xhr.statusText);
+      console.warn('[Matching] ActualizarDistribucion error:', xhr && xhr.statusText);
+
+      // 409 = conflicto de concurrencia explícito.
+      if (xhr && xhr.status === 409) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Conflicto de concurrencia',
+            text: (xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
+                ? (xhr.responseJSON.Message || xhr.responseJSON.message)
+                : 'La solicitud ya fue procesada por otro operador.',
+            showConfirmButton: true
+          });
+        }
+        return;
+      }
+
       if (typeof Swal !== 'undefined') {
         Swal.fire({
           icon: 'error',
           title: 'Error al distribuir',
-          text: (xhr && xhr.responseJSON && xhr.responseJSON.message)
-              ? xhr.responseJSON.message
+          text: (xhr && xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
+              ? (xhr.responseJSON.Message || xhr.responseJSON.message)
               : 'No se pudo comunicar con el servidor.',
           showConfirmButton: true
         });
       }
+    }).always(function () {
+      // Garantiza que el overlay bloqueante se oculte en cualquier camino,
+      // incluso si el backend responde 2xx sin `Codigo` o si la promesa se
+      // resuelve con un body vacío. Cubre UC1/UC2/UC3 post-Acept.
+      hideBlockingOverlay();
     });
   }
 
