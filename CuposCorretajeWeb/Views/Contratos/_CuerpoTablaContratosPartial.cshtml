@@ -46,18 +46,18 @@
        expuesto al cliente para que el handler de Buscar decida si abre el modal de matching
        sin tener que re-consultar SILApi. NO incluye Ctadestino (siempre 1, y el match ya
        lo resolvió la API). Estructura: [{ Vendcta, Vendedor, Codproducto, Cupostotalesadist, TieneVendedor }]. *@
-    <textarea id="sil-vista-resumen" style="display:none">[
-        @if (Model.Distribuciones != null && Model.Distribuciones.Count > 0)
+    <textarea id="sil-vista-resumen" style="display:none">@if (Model.Distribuciones != null && Model.Distribuciones.Count > 0)
+    {
+        var items = Model.Distribuciones.Select(d => new
         {
-            var first = true;
-            foreach (var item in Model.Distribuciones)
-            {
-                if (!first) { <text>,</text> }
-                first = false;
-                <text>{ "Vendcta": @item.Vendcta, "Vendedor": "@item.Vendedor", "Codproducto": @item.Codproducto, "Cupostotalesadist": @item.Cupostotalesadist, "TieneVendedor": @(item.Vendcta != 0 ? "true" : "false") }</text>
-            }
-        }
-    ]</textarea>
+            Vendcta = d.Vendcta,
+            Vendedor = d.Vendedor,
+            Codproducto = d.Codproducto,
+            Cupostotalesadist = d.Cupostotalesadist,
+            TieneVendedor = d.Vendcta != 0
+        });
+        @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(items))
+    }</textarea>
 </tbody>
 
 
