@@ -1072,7 +1072,8 @@
                     .always(function () { HideLoader(); });
             }
 
-            function manejarRespuesta(resp) {
+            function manejarRespuesta(resp, options) {
+                options = options || {};
                 if (resp && resp.Success) {
                     Swal.fire({
                         icon: 'success',
@@ -1081,7 +1082,19 @@
                         position: 'center',
                         showConfirmButton: true,
                         confirmButtonText: 'OK'
-                    }).then(function () { window.location = resp.RedirectUrl || '/Solicitudes/Index'; });
+                    }).then(function () {
+                        // stayOnPage: el caller pidió no redirigir al Index.
+                        // Lo usamos en el flujo de Confirmar asignación para
+                        // que el operador siga trabajando en Pantalla 2 con la
+                        // misma solicitud. Recargamos la misma URL para que el
+                        // GET del AltaSolicitud traiga el estado fresco (TO
+                        // actualizado, cupos aceptados deshabilitados, etc.).
+                        if (options.stayOnPage) {
+                            window.location.reload();
+                            return;
+                        }
+                        window.location = resp.RedirectUrl || '/Solicitudes/Index';
+                    });
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.Message) || 'Error desconocido.' });
                 }
@@ -1347,11 +1360,16 @@
                                     showConfirmButton: true,
                                     confirmButtonText: 'OK'
                                 }).then(function () {
-                                    manejarRespuesta(resp);
+                                    // stayOnPage: tras un Confirmar (total o
+                                    // parcial) el operador sigue en Pantalla 2
+                                    // con la misma solicitud para poder
+                                    // continuar trabajando; no redirigimos al
+                                    // Index.
+                                    manejarRespuesta(resp, { stayOnPage: true });
                                 });
                                 return;
                             }
-                            manejarRespuesta(resp);
+                            manejarRespuesta(resp, { stayOnPage: true });
                         })
                         .fail(mostrarErrorAjax);
                 }
