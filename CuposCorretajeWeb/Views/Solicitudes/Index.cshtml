@@ -38,9 +38,6 @@
     <span class="sil-badge sil-badge-dir">Match directo</span>
     <span class="sil-badge sil-badge-par">Match parcial</span>
     <span class="sil-badge sil-badge-obs">Con observaciones</span>
-    <span class="sil-badge sil-badge-pending">Pendiente</span>
-    <span class="sil-badge sil-badge-asig">Asignada</span>
-    <span class="sil-badge sil-badge-rech">Rechazada</span>
   </div>
 
   <!-- ===== Tabla CONTRACTUAL ===== -->
@@ -56,7 +53,7 @@
         </thead>
         <tbody id="tbodyContractual">
           <tr>
-            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+            <td colspan="@(5 + Model.CantidadDias * 2 + 1)">
               <div class="sil-empty">
                 <div class="sil-empty-icon">…</div>Cargando solicitudes…
               </div>
@@ -80,7 +77,7 @@
         <thead id="theadFuturo"></thead>
         <tbody id="tbodyFuturo">
           <tr>
-            <td colspan="@(6 + Model.CantidadDias * 2 + 1)">
+            <td colspan="@(5 + Model.CantidadDias * 2 + 1)">
               <div class="sil-empty">
                 <div class="sil-empty-icon">…</div>Cargando solicitudes…
               </div>
@@ -119,10 +116,9 @@
                 const COL_SOLICITANTE = 1;
                 const COL_COMPRADOR = 2;
                 const COL_ZONA = 3;
-                const COL_ESTADO = 4;
-                const COL_CUPOS = 5;
-                // COL 6 .. 6 + 2*N - 1 : fechas (TR/TO)
-                const COL_ACCION = 6 + @(Model.CantidadDias) * 2;
+                const COL_CUPOS = 4;
+                // COL 5 .. 5 + 2*N - 1 : fechas (TR/TO)
+                const COL_ACCION = 5 + @(Model.CantidadDias) * 2;
 
                 // ----- Estado de filtros por columna -----
                 // Los inputs de la cabecera de cada tabla actualizan estos valores
@@ -256,7 +252,7 @@
                             confirmButtonColor: '#1a3a6b'
                         });
                         ['#tbodyContractual', '#tbodyFuturo'].forEach(function (id) {
-                            $(id).html('<tr><td colspan="' + (@(Model.CantidadDias) * 2 + 7) + '"><div class="sil-empty"><div class="sil-empty-icon">⚠</div>Error al cargar los datos.</div></td></tr>');
+                            $(id).html('<tr><td colspan="' + (@(Model.CantidadDias) * 2 + 6) + '"><div class="sil-empty"><div class="sil-empty-icon">⚠</div>Error al cargar los datos.</div></td></tr>');
                         });
                     },
                     complete: function () { HideLoader(); }
@@ -280,7 +276,7 @@
                 function renderTabla(opts) {
                     const { theadId, tbodyId, tfootId, countLabelId, pagerId, rows, fechasHeader, pageSize, currentPage, skipHeader } = opts;
 
-                    const colspanTotal = 6 + fechasHeader.length * 2 + 1;
+                    const colspanTotal = 5 + fechasHeader.length * 2 + 1;
 
                     // Aplicar filtros al set antes de paginar. El total original
                     // (sin filtrar) lo guardamos para mostrar el indicador
@@ -295,7 +291,7 @@
                     //   Fila 1 (sil-tr-hdr): labels de columna + headers de fecha (colspan=2).
                     //   Fila 2 (sil-tr-filter): inputs de filtro bajo Grano/Sol/Comp/Zona
                     //                           + sub-headers TR/TO bajo cada fecha
-                    //                           + celdas vacías bajo Estado/Cupos/Acción.
+                    //                           + celdas vacías bajo Cupos/Acción.
                     //
                     // Antes probamos con rowspan=2/3 y los filtros adentro del
                     // mismo <th> que el label, pero eso dejaba la fila 1 muy
@@ -309,7 +305,6 @@
                             '<th class="tl">Solicitante</th>' +
                             '<th class="tl">Comprador</th>' +
                             '<th>Zona</th>' +
-                            '<th>Estado</th>' +
                             '<th>Cupos compatibles</th>';
                         fechasHeader.forEach(function (f, idx) {
                             // Primer header de fecha no lleva divisor a la izquierda
@@ -327,7 +322,6 @@
                             '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="solicitante" placeholder="Filtrar..." value="' + escapeHtml(state.filters.solicitante) + '" aria-label="Filtrar por Solicitante" autocomplete="off" /></th>' +
                             '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="comprador" placeholder="Filtrar..." value="' + escapeHtml(state.filters.comprador) + '" aria-label="Filtrar por Comprador" autocomplete="off" /></th>' +
                             '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="zona" placeholder="Filtrar..." value="' + escapeHtml(state.filters.zona) + '" aria-label="Filtrar por Zona" autocomplete="off" /></th>' +
-                            '<th class="sil-th-filter-cell"></th>' +
                             '<th class="sil-th-filter-cell"></th>';
                         fechasHeader.forEach(function (_, idx) {
                             // Mismo criterio que la fila 1: el primer TR no lleva
@@ -394,7 +388,6 @@
                             renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
                             renderCeldaTexto(r.NombreComprador || '—', 'tl') +
                             renderCeldaTexto(r.NombreDestino || '—', '') +
-                            renderCeldaEstado(r.EstadoBadge, r.EstadoLabel) +
                             renderCeldaCupos(r.CuposCompatibles);
 
                         // Celdas TR/TO por fecha
@@ -416,7 +409,7 @@
 
                     // Footer con totales del set completo
                     let footHtml = '<tr class="sil-tr-total">' +
-                        '<td colspan="6" class="tl">Total Diario</td>';
+                        '<td colspan="5" class="tl">Total Diario</td>';
                     totales.forEach(function (t) {
                         const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
                         footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
@@ -619,10 +612,6 @@
                     toCell += '</td>';
 
                     return trCell + toCell;
-                }
-
-                function renderCeldaEstado(cls, label) {
-                    return '<td><span class="sil-badge sil-badge-' + cls + '">' + escapeHtml(label || 'Pendiente') + '</span></td>';
                 }
 
                 function renderCeldaCupos(cc) {
