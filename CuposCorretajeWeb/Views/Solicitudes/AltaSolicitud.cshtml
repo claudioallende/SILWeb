@@ -1039,8 +1039,8 @@
                 if (seleccionadas.length === 0) {
                     Swal.fire({
                         icon: 'info',
-                        title: 'Seleccion&aacute; d&iacute;as',
-                        text: 'Tild&aacute; uno o m&aacute;s d&iacute;as del panel izquierdo antes de rechazar.'
+                        title: 'Seleccioná días',
+                        text: 'Tildá uno o más días del panel izquierdo antes de rechazar.'
                     });
                     return;
                 }
@@ -1053,7 +1053,7 @@
                     Swal.fire({
                         icon: 'info',
                         title: 'Sin cupos pendientes',
-                        text: 'Los d&iacute;as seleccionados ya tienen todos sus cupos otorgados, no hay nada para rechazar.'
+                        text: 'Los días seleccionados ya tienen todos sus cupos otorgados, no hay nada para rechazar.'
                     });
                     return;
                 }
@@ -1126,11 +1126,11 @@
                 });
 
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un d&iacute;a de la tabla de la izquierda.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día de la tabla de la izquierda.' });
                     return;
                 }
                 if (Object.keys(selectedCupos).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un cupo de la derecha.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un cupo de la derecha.' });
                     return;
                 }
 
@@ -1271,7 +1271,7 @@
                             if (resp && resp.Success && resp.Pendientes && resp.Pendientes > 0) {
                                 Swal.fire({
                                     icon: 'success',
-                                    title: 'Asignaci&oacute;n parcial',
+                                    title: 'Asignación parcial',
                                     text: 'Asignaste ' + resp.Asignados + ' de ' + resp.Solicitados + ' cupos. ' +
                                           resp.Pendientes + ' quedaron pendientes.',
                                     position: 'center',
