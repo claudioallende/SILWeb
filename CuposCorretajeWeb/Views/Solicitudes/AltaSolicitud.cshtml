@@ -558,7 +558,10 @@
                     '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
+                    // Fila 'Match TR' quitada de la UI a pedido (oculta mientras
+                    // definimos si vuelve o se elimina del payload). La variable
+                    // matchTr sigue existiendo para no romper la lógica de cálculo.
+                    // '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
                     obsHtml +
                     '  </div>' +
                     '</div>';
