@@ -52,9 +52,9 @@
             var first = true;
             foreach (var item in Model.Distribuciones)
             {
-                if (!first) { @:, }
+                if (!first) { <text>,</text> }
                 first = false;
-                @:{ "Vendcta": @item.Vendcta, "Vendedor": "@item.Vendedor", "Codproducto": @item.Codproducto, "Cupostotalesadist": @item.Cupostotalesadist, "TieneVendedor": @(item.Vendcta != 0 ? "true" : "false") }
+                <text>{ "Vendcta": @item.Vendcta, "Vendedor": "@item.Vendedor", "Codproducto": @item.Codproducto, "Cupostotalesadist": @item.Cupostotalesadist, "TieneVendedor": @(item.Vendcta != 0 ? "true" : "false") }</text>
             }
         }
     ]</script>
