@@ -531,10 +531,13 @@
 }
 
 .sil-cupo-section-hd .sil-cupo-section-toggle {
-    font-size: 11px;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 600;
     color: var(--sil-text-muted, #6b7280);
     transition: transform .15s;
     display: inline-block;
+    padding: 0 6px;
 }
 
 .sil-cupo-section-open .sil-cupo-section-hd .sil-cupo-section-toggle {

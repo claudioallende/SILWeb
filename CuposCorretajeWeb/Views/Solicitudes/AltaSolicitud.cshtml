@@ -342,6 +342,20 @@
                 return out;
             }
 
+            // Suma los pendientes (TR - TO) de los d&iacute;as tildados. Es el
+            // tope m&aacute;ximo de cupos que el operador puede aceptar en esta
+            // corrida para no pasarse de lo que resta por cubrir. El cap se
+            // consume contra las selecciones nuevas; si ya tiene N cupos
+            // marcados, se pueden agregar hasta (tope - N) m&aacute;s.
+            //
+            // Devuelve 0 si no hay d&iacute;as seleccionados (no se puede
+            // asignar nada si no hay solicitud activa).
+            function calcularTopePendientes() {
+                var total = 0;
+                resumenDiasSeleccionados().forEach(function (s) { total += s.tp; });
+                return total;
+            }
+
             // Devuelve la cantidad de d&iacute;as chequeados y el total de TR sumando
             // s&oacute;lo los d&iacute;as chequeados.
             function resumenSeleccion() {
@@ -961,16 +975,68 @@
             // Check general: tilda/des-tilda TODOS los cards del tipo, sin
             // importar si la sección está plegada. Útil para seleccionar
             // en bloque cuando hay muchos matches.
+            //
+            // Al tildar, el n&uacute;mero de cards seleccionados se CAPA a los
+            // cupos pendientes de los d&iacute;as seleccionados (suma de TP).
+            // Esto protege al operador de marcar m&aacute;s matches de los que
+            // realmente puede asignar y mantiene la sem&aacute;ntica del
+            // Confirmar (que ya validaba contra TR a nivel de solicitud).
+            //
+            // Si el cap es 0 (no hay d&iacute;as tildados o sus TP=0),
+            // mostramos un info y NO toggliamos el checkbox.
+            //
+            // Al destildar, se limpian todos los cards de la secci&oacute;n
+            // (sin cap).
             $('#cuposListado').on('change', '.sil-cupo-section-chk', function () {
                 var $sec = $(this).closest('.sil-cupo-section');
                 var tildar = this.checked;
+
+                if (!tildar) {
+                    // Des-tildar todos los cards de la secci&oacute;n (sin tope).
+                    $sec.find('.sil-cupo-card').each(function () {
+                        var $chk = $(this).find('.sil-cupo-chk');
+                        if ($chk.is(':checked')) {
+                            $chk.prop('checked', false).trigger('change');
+                        }
+                    });
+                    return;
+                }
+
+                // Tildar: tope = pendientes (TR - TO) de los d&iacute;as tildados.
+                var tope = calcularTopePendientes();
+                if (tope <= 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Tildá al menos un día con cupos pendientes antes de seleccionar todos los matches.'
+                    });
+                    this.checked = false;
+                    return;
+                }
+
+                // Tildar hasta `tope` cards de la secci&oacute;n, partiendo de
+                // los que ya estaban marcados manualmente. Si la secci&oacute;n
+                // ya cubre el tope, mantenemos el check encendido y salimos.
+                var yaMarcados = $sec.find('.sil-cupo-chk:checked').length;
+                var restantes = Math.max(0, tope - yaMarcados);
+                if (restantes === 0) return;
+
+                var tildados = 0;
                 $sec.find('.sil-cupo-card').each(function () {
-                    var $card = $(this);
-                    var $chk = $card.find('.sil-cupo-chk');
-                    if ($chk.is(':checked') !== tildar) {
-                        $chk.prop('checked', tildar).trigger('change');
+                    if (tildados >= restantes) return false; // break
+                    var $chk = $(this).find('.sil-cupo-chk');
+                    if (!$chk.is(':checked')) {
+                        $chk.prop('checked', true).trigger('change');
+                        tildados++;
                     }
                 });
+
+                // Si no llegamos al tope (la secci&oacute;n ten&iacute;a menos
+                // cards que pendientes) el check queda en estado "todos
+                // marcados" (correcto). Si llegamos al tope antes de marcar
+                // todos los cards, sincronizarCheckSecciones pondr&aacute; el
+                // check general en indeterminate.
+                sincronizarCheckSecciones();
             });
 
             // Click en cualquier parte del card tilda/des-tilda el checkbox.
