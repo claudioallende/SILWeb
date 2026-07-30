@@ -243,7 +243,8 @@ namespace CuposCorretajeWeb.Controllers
           CodDestino = cupoBackend.CodDestino ?? string.Empty,
           NomDestino = cupoBackend.NombreDestino ?? string.Empty,
           Fecha = cupoBackend.Fecha,
-          CuposTotales = totalCupos
+          CuposTotales = totalCupos,
+          Cupostotalesadist = cupoBackend.Cupostotalesadist
         };
 
         foreach (MatchItemDto item in g)

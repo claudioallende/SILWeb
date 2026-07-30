@@ -654,27 +654,17 @@
           ocultarEstadoTabla();
           cambiarEstadoBuscar('Buscando matches...');
 
-          // Leer la foto vigente de VistaCuposDistribuidosV4 que el partial
-          // (_CuerpoTablaContratosPartial.cshtml) inyectó al refrescar la tabla.
-          // La usamos para gating del modal: sólo abrimos si existe al menos
-          // una fila con Cupostotalesadist > 0 que corresponda al vendedor
-          // (con o sin) del cupo (cubre UC2 / UC4 / UC5).
-          var vistaResumen = [];
-          try {
-            var raw = $('#sil-vista-resumen').text();
-            if (raw && raw.trim().charAt(0) === '[') {
-              vistaResumen = JSON.parse(raw);
-            }
-          } catch (ex) {
-            console.warn('[Matching] No se pudo parsear sil-vista-resumen', ex);
-          }
-
+          // El gate de Cupostotalesadist viaja dentro de la respuesta del
+          // backend (CupoParaMatchViewModel.Cupostotalesadist, propagado
+          // desde VistaCuposDistribuidosV4). procesarRespuestaSearch filtra
+          // directo por resp.cupos[].Cupostotalesadist > 0 — ya no hace
+          // falta leer el DOM.
           matchingRequest = SILMatching.buscar(filtro);
 
           matchingRequest.done(function (resp) {
             if (!esBusquedaActual(id)) return;
 
-            var cuposCalifican = SILMatching.procesarRespuestaSearch(resp, vistaResumen);
+            var cuposCalifican = SILMatching.procesarRespuestaSearch(resp);
             if (Array.isArray(cuposCalifican) && cuposCalifican.length > 0) {
               SILMatching.abrir(cuposCalifican);
             } else if (resp && resp.cupos && resp.cupos.length === 0) {

@@ -179,45 +179,25 @@
 
     /**
      * Decide si la respuesta del motor (`CuposMatching/BuscarCuposConMatch`)
-     * debe abrir el modal de matching. El motor ya filtra cupos
-     * físicamente disponibles y solicitudes con CantidadDisponible > 0;
-     * acá aplicamos el segundo gate contra la foto vigente de
-     * VistaCuposDistribuidosV4 (`#sil-vista-resumen`, inyectada por
-     * Views/Contratos/_CuerpoTablaContratosPartial.cshtml).
+     * debe abrir el modal de matching. El motor ya devuelve cada cupo con
+     * su `Cupostotalesadist` (de `VistaCuposDistribuidosV4`, propagado por
+     * el backend en `SolicitudTurnoMatchingV2Service.cs`). Acá sólo filtramos
+     * los cupos que efectivamente tienen cupos disponibles para distribuir.
      *
      * Reglas:
      *  - Si no hay respuesta o el array de cupos viene vacío → false.
-     *  - Si la fila del vendedor correspondiente tiene Cupostotalesadist <= 0
-     *    → false (cubre UC4, UC5 y la rama "sin vendedor" cuando la fila
-     *    sin vendedor está agotada).
-     *  - Si hay al menos un cupo cuya fila califica, devuelve la lista
-     *    filtrada para que `abrir()` muestre sólo los cupos válidos.
+     *  - Si todos los cupos tienen `Cupostotalesadist <= 0` → false (no hay
+     *    cupos disponibles para asignar aunque el matching sea compatible).
+     *  - Si hay al menos un cupo con `Cupostotalesadist > 0`, devuelve la
+     *    lista filtrada para que `abrir()` muestre sólo los cupos válidos.
      */
-    procesarRespuestaSearch: function (resp, vistaResumen) {
+    procesarRespuestaSearch: function (resp) {
       try {
         if (!resp || !resp.success || !resp.cupos || resp.cupos.length === 0) {
           return false;
         }
-        var resumen = Array.isArray(vistaResumen) ? vistaResumen : [];
-        if (resumen.length === 0) {
-          // Sin resumen del backend no podemos gating. Conservador: no abrir.
-          console.warn('[Matching] Sin sil-vista-resumen; modal no se abre.');
-          return false;
-        }
         var cuposCalifican = (resp.cupos || []).filter(function (cupo) {
-          var fila = null;
-          if (cupo && cupo.CodVendSIL && String(cupo.CodVendSIL).trim() !== '' && String(cupo.CodVendSIL) !== '0') {
-            fila = resumen.find(function (r) {
-              return String(r.Vendcta) === String(cupo.CodVendSIL)
-                  && Number(r.Codproducto) === Number(cupo.CodGrano);
-            });
-          } else {
-            fila = resumen.find(function (r) {
-              return r.TieneVendedor === false
-                  && Number(r.Codproducto) === Number(cupo.CodGrano);
-            });
-          }
-          return !!(fila && Number(fila.Cupostotalesadist) > 0);
+          return Number(cupo.Cupostotalesadist) > 0;
         });
         if (cuposCalifican.length === 0) {
           return false;

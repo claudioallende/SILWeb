@@ -55,6 +55,11 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string CodCompSIL { get; set; }
     public string CodDestino { get; set; }
     public DateTime? Fecha { get; set; }
+    /// <summary>
+    /// Cupos totales a distribuir del cupo (de <c>VISTA_CUPOSDISTRIBUIDOV4</c>).
+    /// Espejo literal de <c>SILData.Model.SolicitudTurno.MatchCupoResumen.Cupostotalesadist</c>.
+    /// </summary>
+    public int Cupostotalesadist { get; set; }
     public string NombreVendedor { get; set; }
     public string NombreComprador { get; set; }
     public string NombreDestino { get; set; }

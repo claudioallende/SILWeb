@@ -26,6 +26,14 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public int CuposTotales { get; set; }
 
     /// <summary>
+    /// Cupos totales a distribuir del cupo (de <c>VISTA_CUPOSDISTRIBUIDOV4</c>).
+    /// Lo usa <c>Scripts/MatchingDistribucion.js#procesarRespuestaSearch</c>
+    /// como gate para abrir el modal: sólo cuando hay cupos disponibles para
+    /// el (comprador, vendedor, producto, centro) del cupo.
+    /// </summary>
+    public int Cupostotalesadist { get; set; }
+
+    /// <summary>
     /// Solicitudes compatibles para este cupo, ya en formato de presentación.
     /// Se llena con la respuesta de <c>GET /api/ShiftRequest/MatchesPorCupo/{id}</c>.
     /// </summary>

@@ -42,22 +42,11 @@
             </td>
         </tr>
     }
-    @* sil-vista-resumen: resumen por fila de VistaCuposDistribuidosV4 (Cupostotalesadist),
-       expuesto al cliente para que el handler de Buscar decida si abre el modal de matching
-       sin tener que re-consultar SILApi. NO incluye Ctadestino (siempre 1, y el match ya
-       lo resolvió la API). Estructura: [{ Vendcta, Vendedor, Codproducto, Cupostotalesadist, TieneVendedor }]. *@
-    <textarea id="sil-vista-resumen" style="display:none">@if (Model.Distribuciones != null && Model.Distribuciones.Count > 0)
-    {
-        var items = Model.Distribuciones.Select(d => new
-        {
-            Vendcta = d.Vendcta,
-            Vendedor = d.Vendedor,
-            Codproducto = d.Codproducto,
-            Cupostotalesadist = d.Cupostotalesadist,
-            TieneVendedor = d.Vendcta != 0
-        });
-        @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(items))
-    }</textarea>
+    @* sil-vista-resumen eliminado. El gate de Cupostotalesadist ahora viaja
+       dentro de la respuesta de BuscarCuposConMatch (CupoParaMatchViewModel.Cupostotalesadist),
+       propagado desde VistaCuposDistribuidosV4 vía SolicitudTurnoMatchingV2Service.cs.
+       Scripts/MatchingDistribucion.js#procesarRespuestaSearch filtra directamente
+       por resp.cupos[].Cupostotalesadist > 0. *@
 </tbody>
 
 
