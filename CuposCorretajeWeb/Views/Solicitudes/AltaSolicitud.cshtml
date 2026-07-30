@@ -28,7 +28,7 @@
 }
 
 @section Styles {
-  <link rel="stylesheet" href="~/Content/solicitudes-alta.css" />
+  <link rel="stylesheet" href="~/Content/solicitudes-alta.css?v=2" />
 }
 
 <div class="container-fluid">
@@ -131,10 +131,21 @@
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th style="text-align:left; padding-left:10px;">Fecha</th>
-                  <th style="text-align:center;">Sol. TR</th>
-                  <th style="text-align:center;">Sol. TO</th>
-                  <th style="text-align:center;">Estado</th>
+                  <th style="text-align:left; padding-left:10px;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Fecha del turno solicitado.">Fecha</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TR &mdash; Turnos requeridos para esta fecha.">Sol. TR</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TO &mdash; Turnos que ya fueron otorgados (asignados a un cupo) en esta fecha.">Sol. TO</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TP &mdash; Turnos pendientes de asignar. Es lo que queda por aceptar/rechazar.">Sol. TP</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Estado de la fila: Seleccionado, Pendiente o Sin solicitudes.">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,6 +164,9 @@
                   // el dict (caso legacy sin el campo), queda en 0.
                   var dictTO = (Model != null) ? Model.FechasAceptadas : null;
                   var toFuturas = (dictTO != null && dictTO.ContainsKey(fechaKey)) ? dictTO[fechaKey] : 0;
+                  // TP = pendientes = TR - TO (clamped a 0 para que la UI
+                  // nunca muestre negativos cuando hay back legacy).
+                  var tp = tr > toFuturas ? tr - toFuturas : 0;
                   var sinSolicitudes = (tr == 0 && toFuturas == 0);
                   <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
                     <td>
@@ -167,6 +181,7 @@
                     </td>
                     <td style="text-align:center;">@tr</td>
                     <td style="text-align:center;">@toFuturas</td>
+                    <td style="text-align:center;">@tp</td>
                     <td style="text-align:center;">
                       <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
                         @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
@@ -187,7 +202,7 @@
           <div class="sil-actions-block">
             <div class="sil-action-label">Acciones sobre la solicitud</div>
             <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
-              Rechazar solicitud completa
+              Rechazar solicitud
             </button>
             <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
               + Crear nuevo cupo
@@ -300,6 +315,45 @@
             // Lee el TO (columna 3) de la fila como n&uacute;mero entero.
             function toDeFila($tr) {
                 return parseInt($tr.find('td').eq(3).text(), 10) || 0;
+            }
+
+            // Lee el TP (columna 4) de la fila como n&uacute;mero entero.
+            function tpDeFila($tr) {
+                return parseInt($tr.find('td').eq(4).text(), 10) || 0;
+            }
+
+            // Devuelve un array de objetos { fechaKey, fechaDisplay, tr, to, tp }
+            // para los d&iacute;as tildados (excluyendo filas sin solicitudes).
+            // Se usa en el SWAL de rechazo para mostrar cu&aacute;les son los
+            // d&iacute;as afectados y cu&aacute;ntos cupos pendientes se van a rechazar.
+            function resumenDiasSeleccionados() {
+                var out = [];
+                $('.chkDia:checked').each(function () {
+                    var $tr = $(this).closest('tr');
+                    if ($tr.hasClass('sil-day-row-disabled')) return;
+                    var fechaKey = $tr.data('fecha');
+                    var parts = (fechaKey || '').split('-');
+                    var fechaDisplay = parts.length === 3 ? (parts[2] + '/' + parts[1]) : fechaKey;
+                    var tr = trDeFila($tr);
+                    var toFuturas = toDeFila($tr);
+                    var tp = Math.max(0, tr - toFuturas);
+                    out.push({ fechaKey: fechaKey, fechaDisplay: fechaDisplay, tr: tr, to: toFuturas, tp: tp });
+                });
+                return out;
+            }
+
+            // Suma los pendientes (TR - TO) de los d&iacute;as tildados. Es el
+            // tope m&aacute;ximo de cupos que el operador puede aceptar en esta
+            // corrida para no pasarse de lo que resta por cubrir. El cap se
+            // consume contra las selecciones nuevas; si ya tiene N cupos
+            // marcados, se pueden agregar hasta (tope - N) m&aacute;s.
+            //
+            // Devuelve 0 si no hay d&iacute;as seleccionados (no se puede
+            // asignar nada si no hay solicitud activa).
+            function calcularTopePendientes() {
+                var total = 0;
+                resumenDiasSeleccionados().forEach(function (s) { total += s.tp; });
+                return total;
             }
 
             // Devuelve la cantidad de d&iacute;as chequeados y el total de TR sumando
@@ -425,7 +479,7 @@
                     '  <div class="sil-cupo-section-hd sil-cupo-section-' + key + '">' +
                     '    <input type="checkbox" class="sil-cupo-section-chk" />' +
                     '    <span class="sil-cupo-section-label">&#9679; ' + label + ' (' + items.length + ')</span>' +
-                    '    <span class="sil-cupo-section-toggle">&#9662;</span>' +
+                    '    <span class="sil-cupo-section-toggle">&#9660;</span>' +
                     '  </div>' +
                     '  <div class="sil-cupo-section-body">' +
                          cardsHtml +
@@ -504,7 +558,10 @@
                     '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
                     '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
-                    '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
+                    // Fila 'Match TR' quitada de la UI a pedido (oculta mientras
+                    // definimos si vuelve o se elimina del payload). La variable
+                    // matchTr sigue existiendo para no romper la lógica de cálculo.
+                    // '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
                     obsHtml +
                     '  </div>' +
                     '</div>';
@@ -921,16 +978,68 @@
             // Check general: tilda/des-tilda TODOS los cards del tipo, sin
             // importar si la sección está plegada. Útil para seleccionar
             // en bloque cuando hay muchos matches.
+            //
+            // Al tildar, el n&uacute;mero de cards seleccionados se CAPA a los
+            // cupos pendientes de los d&iacute;as seleccionados (suma de TP).
+            // Esto protege al operador de marcar m&aacute;s matches de los que
+            // realmente puede asignar y mantiene la sem&aacute;ntica del
+            // Confirmar (que ya validaba contra TR a nivel de solicitud).
+            //
+            // Si el cap es 0 (no hay d&iacute;as tildados o sus TP=0),
+            // mostramos un info y NO toggliamos el checkbox.
+            //
+            // Al destildar, se limpian todos los cards de la secci&oacute;n
+            // (sin cap).
             $('#cuposListado').on('change', '.sil-cupo-section-chk', function () {
                 var $sec = $(this).closest('.sil-cupo-section');
                 var tildar = this.checked;
+
+                if (!tildar) {
+                    // Des-tildar todos los cards de la secci&oacute;n (sin tope).
+                    $sec.find('.sil-cupo-card').each(function () {
+                        var $chk = $(this).find('.sil-cupo-chk');
+                        if ($chk.is(':checked')) {
+                            $chk.prop('checked', false).trigger('change');
+                        }
+                    });
+                    return;
+                }
+
+                // Tildar: tope = pendientes (TR - TO) de los d&iacute;as tildados.
+                var tope = calcularTopePendientes();
+                if (tope <= 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Tildá al menos un día con cupos pendientes antes de seleccionar todos los matches.'
+                    });
+                    this.checked = false;
+                    return;
+                }
+
+                // Tildar hasta `tope` cards de la secci&oacute;n, partiendo de
+                // los que ya estaban marcados manualmente. Si la secci&oacute;n
+                // ya cubre el tope, mantenemos el check encendido y salimos.
+                var yaMarcados = $sec.find('.sil-cupo-chk:checked').length;
+                var restantes = Math.max(0, tope - yaMarcados);
+                if (restantes === 0) return;
+
+                var tildados = 0;
                 $sec.find('.sil-cupo-card').each(function () {
-                    var $card = $(this);
-                    var $chk = $card.find('.sil-cupo-chk');
-                    if ($chk.is(':checked') !== tildar) {
-                        $chk.prop('checked', tildar).trigger('change');
+                    if (tildados >= restantes) return false; // break
+                    var $chk = $(this).find('.sil-cupo-chk');
+                    if (!$chk.is(':checked')) {
+                        $chk.prop('checked', true).trigger('change');
+                        tildados++;
                     }
                 });
+
+                // Si no llegamos al tope (la secci&oacute;n ten&iacute;a menos
+                // cards que pendientes) el check queda en estado "todos
+                // marcados" (correcto). Si llegamos al tope antes de marcar
+                // todos los cards, sincronizarCheckSecciones pondr&aacute; el
+                // check general en indeterminate.
+                sincronizarCheckSecciones();
             });
 
             // Click en cualquier parte del card tilda/des-tilda el checkbox.
@@ -963,7 +1072,8 @@
                     .always(function () { HideLoader(); });
             }
 
-            function manejarRespuesta(resp) {
+            function manejarRespuesta(resp, options) {
+                options = options || {};
                 if (resp && resp.Success) {
                     Swal.fire({
                         icon: 'success',
@@ -972,22 +1082,80 @@
                         position: 'center',
                         showConfirmButton: true,
                         confirmButtonText: 'OK'
-                    }).then(function () { window.location = resp.RedirectUrl || '/Solicitudes/Index'; });
+                    }).then(function () {
+                        // stayOnPage: el caller pidió no redirigir al Index.
+                        // Lo usamos en el flujo de Confirmar asignación para
+                        // que el operador siga trabajando en Pantalla 2 con la
+                        // misma solicitud. Recargamos la misma URL para que el
+                        // GET del AltaSolicitud traiga el estado fresco (TO
+                        // actualizado, cupos aceptados deshabilitados, etc.).
+                        if (options.stayOnPage) {
+                            window.location.reload();
+                            return;
+                        }
+                        window.location = resp.RedirectUrl || '/Solicitudes/Index';
+                    });
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.Message) || 'Error desconocido.' });
                 }
             }
 
-            // "Rechazar solicitud completa"
+            // "Rechazar solicitud"
+            //
+            // Recolecta los d&iacute;as tildados y construye un SWAL que muestra:
+            //   1) el total de cupos pendientes que se rechazar&aacute;n
+            //      (suma de TP para los d&iacute;as seleccionados);
+            //   2) el listado de d&iacute;as afectadas con su propio TP;
+            // El POST sigue siendo a nivel de solicitud (el back rechaza el
+            // remanente de la solicitud completa). El SWAL s&oacute;lo refleja
+            // el subconjunto que el operador seleccion&oacute; para no generar
+            // confusi&oacute;n.
             $('#btnRechazarCompleta').on('click', function () {
                 if (idSolicitud <= 0) {
                     Swal.fire({ icon: 'error', title: 'Sin id de solicitud' });
                     return;
                 }
+
+                var seleccionadas = resumenDiasSeleccionados();
+
+                if (seleccionadas.length === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Seleccioná días',
+                        text: 'Tildá uno o más días del panel izquierdo antes de rechazar.'
+                    });
+                    return;
+                }
+
+                // D&iacute;as con TP &gt; 0 (los que efectivamente se rechazan).
+                var conPendientes = seleccionadas.filter(function (s) { return s.tp > 0; });
+                var totalPendientes = conPendientes.reduce(function (acc, s) { return acc + s.tp; }, 0);
+
+                if (totalPendientes === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Los días seleccionados ya tienen todos sus cupos otorgados, no hay nada para rechazar.'
+                    });
+                    return;
+                }
+
+                var plural = totalPendientes !== 1;
+                var listadoHtml = conPendientes.map(function (s) {
+                    return '<li><strong>' + s.fechaDisplay + '</strong> &mdash; ' +
+                        s.tp + ' pendiente' + (s.tp !== 1 ? 's' : '') + '</li>';
+                }).join('');
+
+                var bodyHtml = 'Vas a rechazar <strong>' + totalPendientes +
+                    '</strong> cupo' + (plural ? 's' : '') + ' pendiente' + (plural ? 's' : '') +
+                    ' en los siguientes d&iacute;as:' +
+                    '<ul style="text-align:left; font-size:13px; line-height:1.6; margin: 8px 0 0; padding-left: 20px;">' +
+                    listadoHtml + '</ul>';
+
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Rechazar solicitud completa?',
-                    text: 'Esta acción rechaza la solicitud para todos los días.',
+                    title: 'Rechazar solicitud?',
+                    html: bodyHtml,
                     showCancelButton: true,
                     confirmButtonText: 'Rechazar',
                     cancelButtonText: 'Cancelar',
@@ -1000,6 +1168,14 @@
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
                         });
                 });
+            });
+
+            // Inicializa los tooltips de Bootstrap sobre los &lt;th&gt; con
+            // data-toggle="tooltip". Necesario porque delegamos la activaci&oacute;n
+            // a este script (no hay un auto-init global en la master page).
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                html: true
             });
 
             // "+ Crear nuevo cupo" (placeholder)
@@ -1032,11 +1208,11 @@
                 });
 
                 if (Object.keys(fechas).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un d&iacute;a de la tabla de la izquierda.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día de la tabla de la izquierda.' });
                     return;
                 }
                 if (Object.keys(selectedCupos).length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Sin selecci&oacute;n', text: 'Tild&aacute; al menos un cupo de la derecha.' });
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un cupo de la derecha.' });
                     return;
                 }
 
@@ -1177,18 +1353,23 @@
                             if (resp && resp.Success && resp.Pendientes && resp.Pendientes > 0) {
                                 Swal.fire({
                                     icon: 'success',
-                                    title: 'Asignaci&oacute;n parcial',
+                                    title: 'Asignación parcial',
                                     text: 'Asignaste ' + resp.Asignados + ' de ' + resp.Solicitados + ' cupos. ' +
                                           resp.Pendientes + ' quedaron pendientes.',
                                     position: 'center',
                                     showConfirmButton: true,
                                     confirmButtonText: 'OK'
                                 }).then(function () {
-                                    manejarRespuesta(resp);
+                                    // stayOnPage: tras un Confirmar (total o
+                                    // parcial) el operador sigue en Pantalla 2
+                                    // con la misma solicitud para poder
+                                    // continuar trabajando; no redirigimos al
+                                    // Index.
+                                    manejarRespuesta(resp, { stayOnPage: true });
                                 });
                                 return;
                             }
-                            manejarRespuesta(resp);
+                            manejarRespuesta(resp, { stayOnPage: true });
                         })
                         .fail(mostrarErrorAjax);
                 }
