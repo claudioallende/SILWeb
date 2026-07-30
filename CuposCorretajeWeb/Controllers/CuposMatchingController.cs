@@ -94,9 +94,9 @@ namespace CuposCorretajeWeb.Controllers
           {
             var cupos = await repo.RequestPostAndDeserializeAsync<IList<Models.Cupos>>(
               "CuposData", "GetCupos", new { ids = new List<long> { filter.CupoId } });
-            if (cupos != null && cupos.Count > 0 && cupos[0].Fecha.HasValue)
+            if (cupos != null && cupos.Count > 0)
             {
-              cupoFecha = cupos[0].Fecha.Value.Date;
+              cupoFecha = cupos[0].Fecha.Date;
             }
           }
           catch (Exception ex)
@@ -127,27 +127,33 @@ namespace CuposCorretajeWeb.Controllers
           AgruparPor = MatchesAgrupacion.Ninguno
         };
 
-        // 2) Llamar al endpoint bulk específico de Distribución. Soporta
-        // correctamente los casos parciales donde la solicitud no tiene
-        // comprador o destino: el motor los marca como Parcial en vez de
-        // ser descartados por el WHERE. Pantalla 2 (Solicitudes) sigue
-        // usando el endpoint /Matches legacy, sin cambios.
+        // 2) Llamar al endpoint bulk específico de Distribución. El flujo V2
+        // (MatchesDistribucionV2) usa un INNER JOIN nativo entre cuposcorre
+        // y SOLTURNOS, dejando al motor sólo la clasificación. Si el V2 no
+        // está disponible o devuelve 4xx/5xx, caemos al endpoint legacy
+        // (MatchesDistribucion) como defensa — el contrato de salida es el
+        // mismo MatchesResultDto.
         MatchesResultDto result;
         try
         {
           result = await repo.RequestSILDataPostAndDeserializeAsync<MatchesResultDto>(
-            "ShiftRequest", "MatchesDistribucion", bulkFilter);
+            "ShiftRequest", "MatchesDistribucionV2", bulkFilter);
         }
         catch (Models.Error.ApiException apiEx)
         {
-          Trace.TraceWarning("BuscarCuposConMatch 4xx: " + apiEx.Message);
-          return Json(new
-          {
-            success = false,
-            cupos = new List<object>(),
-            status = apiEx.Message,
-            message = "El motor de matching rechazó la consulta: " + apiEx.Message
-          });
+          Trace.TraceWarning(
+            "BuscarCuposConMatch: MatchesDistribucionV2 4xx ({Code}). Fallback a MatchesDistribucion legacy.",
+            apiEx.Message);
+          result = await repo.RequestSILDataPostAndDeserializeAsync<MatchesResultDto>(
+            "ShiftRequest", "MatchesDistribucion", bulkFilter);
+        }
+        catch (Exception exV2)
+        {
+          Trace.TraceWarning(
+            "BuscarCuposConMatch: MatchesDistribucionV2 no disponible ({Err}). Fallback a MatchesDistribucion legacy.",
+            exV2.Message);
+          result = await repo.RequestSILDataPostAndDeserializeAsync<MatchesResultDto>(
+            "ShiftRequest", "MatchesDistribucion", bulkFilter);
         }
 
         sw.Stop();
