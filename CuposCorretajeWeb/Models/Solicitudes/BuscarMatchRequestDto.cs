@@ -21,8 +21,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public long CupoId { get; set; }
     /// <summary>Código del centro seleccionado por el operador (de
     /// <c>Model.CentroSeleccionado</c>). El backend lo usa para filtrar
-    /// <c>Cupostotalesadist</c> de la vista <c>VISTA_CUPOSDISTRIBUIDOV4</c>
-    /// por el centro que se está distribuyendo.</summary>
+    /// <c>cuposcorre</c> por el centro que se está distribuyendo. La
+    /// disponibilidad por vendedor la calcula la UI desde la tabla HTML
+    /// de Distribución (#TablaDistribuciones).</summary>
     public string Codcentro { get; set; }
   }
 }

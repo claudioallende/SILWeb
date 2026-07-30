@@ -655,17 +655,19 @@
           ocultarEstadoTabla();
           cambiarEstadoBuscar('Buscando matches...');
 
-          // El gate de Cupostotalesadist viaja dentro de la respuesta del
-          // backend (CupoParaMatchViewModel.Cupostotalesadist, propagado
-          // desde VistaCuposDistribuidosV4). procesarRespuestaSearch filtra
-          // directo por resp.cupos[].Cupostotalesadist > 0 — ya no hace
-          // falta leer el DOM.
+          // La disponibilidad por vendedor la calcula la UI desde la tabla
+          // HTML recién refrescada (#TablaDistribuciones). El motor sólo
+          // devuelve pares estructuralmente compatibles; este snapshot es la
+          // única fuente de Cupostotalesadist para decidir qué matches
+          // alcanzan al modal.
+          var disponibilidad = SILMatching.obtenerDisponibilidadVendedores();
+
           matchingRequest = SILMatching.buscar(filtro);
 
           matchingRequest.done(function (resp) {
             if (!esBusquedaActual(id)) return;
 
-            var cuposCalifican = SILMatching.procesarRespuestaSearch(resp);
+            var cuposCalifican = SILMatching.procesarRespuestaSearch(resp, disponibilidad);
             if (Array.isArray(cuposCalifican) && cuposCalifican.length > 0) {
               SILMatching.abrir(cuposCalifican);
             } else if (resp && resp.cupos && resp.cupos.length === 0) {
@@ -678,8 +680,8 @@
               }
             } else {
               // Motor devolvió cupos pero ninguno califica por
-              // Cupostotalesadist > 0 → no mostrar modal.
-              console.info('[Matching] Modal no se abre: sin filas con Cupostotalesadist > 0.');
+              // disponibilidad del vendedor de la solicitud → no mostrar modal.
+              console.info('[Matching] Modal no se abre: sin vendedores con Cupostotalesadist > 0 en la tabla HTML.');
             }
           }).fail(function (xhr, textStatus) {
             if (!esBusquedaActual(id) || textStatus === 'abort') return;

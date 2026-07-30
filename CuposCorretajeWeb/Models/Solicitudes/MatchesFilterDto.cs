@@ -19,9 +19,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public long? ZonaGeograficaId { get; set; }
     public long? CuentaVendedor { get; set; }
     /// <summary>Código del centro que está distribuyendo el operador. El backend
-    /// lo usa para filtrar <c>Cupostotalesadist</c> por el centro seleccionado
-    /// (la vista <c>VISTA_CUPOSDISTRIBUIDOV4</c> es por (centro, comprador,
-    /// vendedor, producto)).</summary>
+    /// lo usa para filtrar <c>cuposcorre</c> por el centro seleccionado. La
+    /// disponibilidad por vendedor la calcula la UI desde la tabla HTML de
+    /// Distribución (#TablaDistribuciones).</summary>
     public string Codcentro { get; set; }
     public DateTime? FechaDesde { get; set; }
     public DateTime? FechaHasta { get; set; }

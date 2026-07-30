@@ -56,8 +56,9 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string CodDestino { get; set; }
     public DateTime? Fecha { get; set; }
     /// <summary>
-    /// Cupos totales a distribuir del cupo (de <c>VISTA_CUPOSDISTRIBUIDOV4</c>).
-    /// Espejo literal de <c>SILData.Model.SolicitudTurno.MatchCupoResumen.Cupostotalesadist</c>.
+    /// Cupos disponibles para el vendedor de la solicitud. Se calcula
+    /// desde la tabla HTML de Distribución (#TablaDistribuciones), no del
+    /// backend, por lo que permanece en 0 en la respuesta del motor.
     /// </summary>
     public int Cupostotalesadist { get; set; }
     public string NombreVendedor { get; set; }

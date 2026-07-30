@@ -225,14 +225,13 @@ namespace CuposCorretajeWeb.Controllers
         // IMPORTANTE: este `CuposTotales` es heurístico y NO se usa como
         // gate para abrir el modal de matching. El gating real se hace en
         // `Scripts/MatchingDistribucion.js#procesarRespuestaSearch`
-        // contra la foto vigente de VistaCuposDistribuidosV4
-        // (`#sil-vista-resumen`, inyectado por
-        // Views/Contratos/_CuerpoTablaContratosPartial.cshtml). El criterio
-        // es: `Cupostotalesadist > 0` para la fila del vendedor (con o sin)
-        // correspondiente al cupo. Esto cubre los casos UC2 (cupos agotados
+        // contra la foto vigente de la tabla HTML de Distribución
+        // (#TablaDistribuciones), leyendo por vendedor de la solicitud la
+        // celda `.cupos-disponibles`. Sólo se abre el modal cuando esa
+        // disponibilidad es > 0. Esto cubre los casos UC2 (cupos agotados
         // del vendedor, no abre modal aunque la fila siga activa), UC4
-        // (sin fila en la vista) y UC5 (tabla con contratos del vendedor
-        // pero sin fila en VistaCuposDistribuidosV4).
+        // (sin fila en la tabla) y UC5 (tabla con contratos del vendedor
+        // pero sin saldo).
         int totalCupos = g.Sum(i => i.Solicitud != null ? Math.Max(1, i.Solicitud.Cantidad) : 1);
 
         CupoParaMatchViewModel view = new CupoParaMatchViewModel

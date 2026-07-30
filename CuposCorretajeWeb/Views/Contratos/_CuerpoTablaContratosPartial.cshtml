@@ -42,11 +42,11 @@
             </td>
         </tr>
     }
-    @* sil-vista-resumen eliminado. El gate de Cupostotalesadist ahora viaja
-       dentro de la respuesta de BuscarCuposConMatch (CupoParaMatchViewModel.Cupostotalesadist),
-       propagado desde VistaCuposDistribuidosV4 vía SolicitudTurnoMatchingV2Service.cs.
-       Scripts/MatchingDistribucion.js#procesarRespuestaSearch filtra directamente
-       por resp.cupos[].Cupostotalesadist > 0. *@
+    @* sil-vista-resumen eliminado. La disponibilidad por vendedor ya no la
+       calcula el backend: Scripts/MatchingDistribucion.js#obtenerDisponibilidadVendedores
+       lee este `<tr data-vendedor>` y la celda `.cupos-disponibles` justo
+       después de que actualizarTablaContratos refresque este tbody, y la
+       usa en procesarRespuestaSearch para decidir qué matches pasan al modal. *@
 </tbody>
 
 

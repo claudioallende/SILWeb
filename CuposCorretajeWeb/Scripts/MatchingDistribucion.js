@@ -178,31 +178,76 @@
     },
 
     /**
+     * Construye un lookup { CuentaVendedor: Cupostotalesadist } a partir de la
+     * tabla HTML de Distribución que Distribucion.cshtml actualiza antes de
+     * pedir matches. Cada fila aporta el valor visible de la celda
+     * `.cupos-disponibles` y la cuenta del vendedor en `data-vendedor`.
+     * Filas sin vendedor válido o con valor no numérico se tratan como 0.
+     * Si hay varias filas para el mismo vendedor se conserva la primera fila
+     * encontrada para no mezclar contextos (comprador/grano/centro distintos).
+     */
+    obtenerDisponibilidadVendedores: function () {
+      var lookup = {};
+      try {
+        $('#TablaDistribuciones tbody tr.grupo-contrato').each(function () {
+          var $row = $(this);
+          var rawVendedor = $row.attr('data-vendedor');
+          var vendedor = parseInt(rawVendedor, 10);
+          if (!vendedor || vendedor <= 0 || lookup.hasOwnProperty(vendedor)) return;
+
+          var rawCupos = $row.find('.cupos-disponibles').first().text();
+          if (rawCupos === null || rawCupos === undefined) rawCupos = '0';
+          var limpio = String(rawCupos).replace(/[^0-9\-]/g, '');
+          var cupos = parseInt(limpio, 10);
+          if (isNaN(cupos)) cupos = 0;
+          lookup[vendedor] = cupos;
+        });
+      } catch (ex) {
+        console.warn('[Matching] obtenerDisponibilidadVendedores error:', ex);
+      }
+      return lookup;
+    },
+
+    /**
      * Decide si la respuesta del motor (`CuposMatching/BuscarCuposConMatch`)
-     * debe abrir el modal de matching. El motor ya devuelve cada cupo con
-     * su `Cupostotalesadist` (de `VistaCuposDistribuidosV4`, propagado por
-     * el backend en `SolicitudTurnoMatchingV2Service.cs`). Acá sólo filtramos
-     * los cupos que efectivamente tienen cupos disponibles para distribuir.
+     * debe abrir el modal de matching. La disponibilidad por vendedor ya no
+     * la trae el backend: la calcula la UI desde la tabla HTML vigente
+     * (#TablaDistribuciones, atributo data-vendedor + celda .cupos-disponibles)
+     * y se recibe en `disponibilidad`.
      *
      * Reglas:
      *  - Si no hay respuesta o el array de cupos viene vacío → false.
-     *  - Si todos los cupos tienen `Cupostotalesadist <= 0` → false (no hay
-     *    cupos disponibles para asignar aunque el matching sea compatible).
-     *  - Si hay al menos un cupo con `Cupostotalesadist > 0`, devuelve la
-     *    lista filtrada para que `abrir()` muestre sólo los cupos válidos.
+     *  - Para cada cupo se filtra cada match por el vendedor de su solicitud.
+     *    Si `disponibilidad[CuentaVendedor]` <= 0 el match se descarta.
+     *  - Un cupo sin matches sobrevivientes se descarta entero.
+     *  - Los matches supervivientes quedan como los únicos que `abrir()`
+     *    debe mostrar; cada match hereda `Cupostotalesadist` para uso de la UI.
      */
-    procesarRespuestaSearch: function (resp) {
+    procesarRespuestaSearch: function (resp, disponibilidad) {
       try {
         if (!resp || !resp.success || !resp.cupos || resp.cupos.length === 0) {
           return false;
         }
-        var cuposCalifican = (resp.cupos || []).filter(function (cupo) {
-          return Number(cupo.Cupostotalesadist) > 0;
+        var lookup = disponibilidad || {};
+        var cuposFiltrados = [];
+        (resp.cupos || []).forEach(function (cupo) {
+          var matchesFiltrados = (cupo.Matches || []).filter(function (m) {
+            var vendedor = (m && m.Solicitud && m.Solicitud.CuentaVendedor !== undefined && m.Solicitud.CuentaVendedor !== null)
+              ? m.Solicitud.CuentaVendedor
+              : (m && m.Vendedor ? parseInt(m.Vendedor, 10) : NaN);
+            if (!vendedor || vendedor <= 0) return false;
+            var disponibles = lookup.hasOwnProperty(vendedor) ? lookup[vendedor] : 0;
+            return Number(disponibles) > 0;
+          });
+          if (matchesFiltrados.length === 0) return;
+
+          var cupoClonado = $.extend({}, cupo, { Matches: matchesFiltrados });
+          var primerMatch = matchesFiltrados[0];
+          var vendedor = primerMatch && primerMatch.Solicitud && primerMatch.Solicitud.CuentaVendedor;
+          cupoClonado.Cupostotalesadist = (vendedor && lookup[vendedor]) ? lookup[vendedor] : 0;
+          cuposFiltrados.push(cupoClonado);
         });
-        if (cuposCalifican.length === 0) {
-          return false;
-        }
-        return cuposCalifican;
+        return cuposFiltrados.length > 0 ? cuposFiltrados : false;
       } catch (ex) {
         console.warn('[Matching] procesarRespuestaSearch error:', ex);
         return false;
@@ -213,8 +258,8 @@
      * Alias simple: ¿hay al menos un cupo para mostrar? Usado por tests
      * manuales y como atajo.
      */
-    debeMostrarModal: function (resp, vistaResumen) {
-      var resultado = this.procesarRespuestaSearch(resp, vistaResumen);
+    debeMostrarModal: function (resp, disponibilidad) {
+      var resultado = this.procesarRespuestaSearch(resp, disponibilidad);
       return Array.isArray(resultado) && resultado.length > 0;
     },
     mostrarConfirmacionObs: function (solicitante, observacion) {
