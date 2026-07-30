@@ -1020,16 +1020,22 @@ namespace CuposCorretajeWeb.Controllers
       {
         try
         {
-          var filter = new
+          // Importante: el wrapper serializa con Newtonsoft.Json (que respeta
+          // el PascalCase de las propiedades) y SILData deserializa con
+          // System.Text.Json case-sensitive (Program.cs sin AddNewtonsoftJson()).
+          // Por eso debemos usar un DTO tipado con nombres PascalCase, no
+          // un tipo anónimo en camelCase: si no, CodigoGrano llega como 0 y
+          // el motor tira 400 → catch → BuildResumenMatching → "Sin coincidencia".
+          var filter = new MatchesFilterDto
           {
-            codigoGrano = row.CodigoGrano,
-            cuentaVendedor = row.CuentaVendedor,
-            cuentaComprador = row.CuentaComprador,
-            zonaGeograficaId = row.CuentaDestino,
-            fechaDesde = fechaDesde,
-            fechaHasta = fechaDesde.AddDays(cantidadDias - 1),
-            incluirIncompatibles = false
-            // agruparPor se omite: default = Solicitud (= 0) en el DTO.
+            CodigoGrano = row.CodigoGrano,
+            CuentaVendedor = row.CuentaVendedor,
+            CuentaComprador = row.CuentaComprador,
+            ZonaGeograficaId = row.CuentaDestino,
+            FechaDesde = fechaDesde,
+            FechaHasta = fechaDesde.AddDays(cantidadDias - 1),
+            IncluirIncompatibles = false
+            // AgruparPor se omite: default = Solicitud (= 0) en el DTO.
           };
 
           var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
