@@ -257,11 +257,6 @@ namespace CuposCorretajeWeb.Controllers
 
       try
       {
-        // Reconstruimos los datos de la solicitud desde TempData (mismo
-        // patrón que AltaSolicitud GET). Si no hay TempData o no coincide el
-        // id, devolvemos error para que el operador vuelva a Pantalla 1
-        // en vez de rehidratar contra la API (no queremos un side-effect
-        // silencioso).
         var solicitud = TempData["Solicitud"] as SolicitudViewModel;
         if (solicitud == null || solicitud.IdSolicitud != req.IdSolicitud)
         {
@@ -322,8 +317,6 @@ namespace CuposCorretajeWeb.Controllers
       }
       catch (ApiException ex)
       {
-        // 400/409/500 de SILData: el body ya viene como ProblemDetails. El
-        // caller (JS) extrae responseJSON.detail/title con mostrarErrorAjax.
         Trace.TraceError($"BuscarMatches API error id={req.IdSolicitud}: " + ex.Message);
         return Json(new { success = false, message = "La API de matching rechazó la consulta. Reintentá o contactá al administrador." });
       }
@@ -437,6 +430,11 @@ namespace CuposCorretajeWeb.Controllers
           ? "Solicitud rechazada correctamente."
           : "La solicitud ya no está pendiente (fue asignada o rechazada por otro operador).";
 
+        if (exito)
+        {
+          RefreshTempDataSolicitud(asignadosDelta: 0, rechazada: true);
+        }
+
         return Json(new SolicitudActionResponseViewModel
         {
           Success = exito,
@@ -460,28 +458,6 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    /// <summary>
-    /// Confirma la asignación de los cupos seleccionados para una solicitud (Pantalla 2,
-    /// botón "Confirmar asignación seleccionada").
-    ///
-    /// Recibe idSolicitud + lista de CupoIds (long, reales del motor de matching) +
-    /// mapa de fechas seleccionadas + mapa CantidadPorCupo (default 1 por cupo).
-    /// CupoCompatibleId se conserva por compatibilidad legacy y se popula con el
-    /// primero de CupoIds si está null.
-    ///
-    /// Si vienen <see cref="ConfirmarAsignacionRequest.AsignacionesPorSolicitud"/>
-    /// (camino multi-solicitud de Pantalla 2), arma un payload
-    /// <see cref="RegistroDistribucionViewModel"/> en modo
-    /// <see cref="ModoActualizacionDistribucion.SolicitudMatch"/> y POSTea a
-    /// <c>SILApi /api/Cupos/ActualizarDistribucion</c>. Esta ruta reemplaza al
-    /// flujo legacy de N calls a SILData <c>/api/ShiftRequest/Accept</c>: SILApi
-    /// ahora persiste CUPOSDIST + CUPOSCORRE + SOLTURNOS + SOLTURNOS_DETALLE en
-    /// una sola transacción NHibernate.
-    ///
-    /// Si NO vienen AsignacionesPorSolicitud, mantiene el flujo legacy
-    /// (ConfirmarSolicitud / Pantallas 1) que sigue yendo a SILData por el
-    /// endpoint Accept legacy.
-    /// </summary>
     [HttpPost]
     public async Task<JsonResult> ConfirmarAsignacionSeleccionada(ConfirmarAsignacionRequest req)
     {
@@ -556,6 +532,8 @@ namespace CuposCorretajeWeb.Controllers
           ? $"Asignaste {asignados} de {solicitados} cupos. {pendientes} quedaron pendientes."
           : $"Asignación confirmada: {asignados} cupos.";
 
+        RefreshTempDataSolicitud(asignados, rechazada: false);
+
         return Json(new ConfirmarAsignacionResponse
         {
           Success = true,
@@ -582,28 +560,9 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    /// <summary>
-    /// Helper privado: ejecuta el flujo SolicitudMatch contra SILApi.
-    /// Toma las <see cref="ConfirmarAsignacionRequest.AsignacionesPorSolicitud"/>
-    /// de Pantalla 2 (multi-solicitud), las traduce a una lista de
-    /// <see cref="AsignacionSolicitudCupoDto"/> con <c>CupoSeleccionadoId</c>
-    /// fijo (1 cupo = 1 asignación) y arma un único payload
-    /// <see cref="RegistroDistribucionViewModel"/> en modo
-    /// <see cref="ModoActualizacionDistribucion.SolicitudMatch"/>.
-    /// SILApi persiste todo en una transacción NHibernate atómica
-    /// (CUPOSCORRE + CUPOSDIST + SOLTURNOS + SOLTURNOS_DETALLE).
-    ///
-    /// Si el request tiene <see cref="ConfirmarAsignacionRequest.CantidadPorCupo"/>
-    /// con algún valor > 1, abortamos: el flujo SolicitudMatch sólo soporta
-    /// 1 asignación por card. La subdivisión intra-cupo queda como hook futuro
-    /// (ver §8 del plan-integracion-solicitudes-distribucion.md).
-    /// </summary>
+
     private async Task<JsonResult> ConfirmarAsignacionesPorSolicitudMatch(ConfirmarAsignacionRequest req)
     {
-      // Defensa: la subdivisión intra-cupo (>1 por card) no está habilitada
-      // en SolicitudMatch v1. Bloqueamos cualquier intento de asignar >1 por
-      // cupo para no terminar con un payload inconsistente (la sumatoria de
-      // cantidades excedería lo que el backend sabe distribuir).
       if (req.CantidadPorCupo != null)
       {
         foreach (var kv in req.CantidadPorCupo)
@@ -669,9 +628,6 @@ namespace CuposCorretajeWeb.Controllers
       }
       catch (ApiException ex)
       {
-        // 4xx/5xx de SILApi: el wrapper ya tira ApiException con el body
-        // (mensaje de ExceptionHandlingAttribute o ProblemDetails). Lo
-        // propagamos como mensaje al operador.
         Trace.TraceError("ConfirmarAsignacionesPorSolicitudMatch SILApi error: " + ex);
         return Json(new ConfirmarAsignacionResponse
         {
@@ -689,9 +645,6 @@ namespace CuposCorretajeWeb.Controllers
         });
       }
 
-      // Mapear ActualizarDistribucionResult → ConfirmarAsignacionResponse.
-      // Success se evalúa contra Codigo == 1 (semántica legacy) Y
-      // Success == true. Pendientes > 0 indica asignación parcial.
       bool ok = resultado.Success && resultado.Codigo == 1;
       string message;
       if (ok && resultado.Pendientes > 0)
@@ -705,6 +658,11 @@ namespace CuposCorretajeWeb.Controllers
       else
       {
         message = resultado.Message ?? "SILApi rechazó la asignación.";
+      }
+
+      if (ok)
+      {
+        RefreshTempDataSolicitud(resultado.Asignados, rechazada: false);
       }
 
       return Json(new ConfirmarAsignacionResponse
@@ -840,6 +798,30 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
+    private void RefreshTempDataSolicitud(int asignadosDelta, bool rechazada)
+    {
+      var vm = TempData["Solicitud"] as SolicitudViewModel;
+      if (vm == null) return;
+
+      if (rechazada)
+      {
+        vm.EstadoBadge = "rech";
+        vm.EstadoLabel = "Rechazada";
+      }
+      else
+      {
+        vm.CantidadAceptada += Math.Max(0, asignadosDelta);
+        if (vm.CantidadOriginal > 0 && vm.CantidadAceptada >= vm.CantidadOriginal)
+        {
+          vm.EstadoBadge = "asig";
+          vm.EstadoLabel = "Asignada";
+        }
+      }
+
+      TempData["Solicitud"] = vm;
+      TempData.Keep("Solicitud");
+    }
+
     private static List<SolicitudTurnoDetalleGrupoView> EnumerateFechas(DateTime desde, int dias)
     {
       List<SolicitudTurnoDetalleGrupoView> list = new List<SolicitudTurnoDetalleGrupoView>();
@@ -859,30 +841,6 @@ namespace CuposCorretajeWeb.Controllers
       return list;
     }
 
-    /// <summary>
-    /// Agrupa el response crudo por (grano, vendedor, comprador, destino) y arma
-    /// la lista de CantidadFechas dentro de la ventana.
-    ///
-    /// La separación entre las dos tablas (CONTRACTUAL y FUTURO) se hace a nivel
-    /// del llamador filtrando por EsFuturo, así que acá se agrupa por la
-    /// combinación (grano, vendedor, comprador, destino) ignorando el tipo de
-    /// solicitud. Comprador y destino pueden venir null (solicitudes sólo con
-    /// solicitante): en ese caso el null participa de la key y las filas con
-    /// destino null forman su propio grupo, no se mezclan con las que sí
-    /// tienen destino.
-    ///
-    /// Parámetro <paramref name="campoCantidadTR"/>: campo del item que se
-    /// acumula en la columna TR (Cantidad o CantidadFuturo según la tabla).
-    ///
-    /// Columna TO (<see cref="SolicitudTurnoDetalleGrupoView.CantidadFuturo"/>):
-    /// acumula la cantidad ACEPTADA para esa fecha. Como el response del
-    /// backend no desglosa los aceptados por fecha (vienen totales en
-    /// CantidadAceptada / CantidadFuturoAceptada), ponemos el total del grupo
-    /// en la celda de la fecha solicitada por el primer item del grupo y 0 en
-    /// el resto. Es una simplificación: si en una iteración posterior se
-    /// quiere el desglose por fecha, hay que agregar un endpoint que joinee
-    /// SOLTURNOS_DETALLE con CUPOSCORRE.fecha.
-    /// </summary>
     private static List<SolicitudTurnoGrupoView> GroupBySolicitud(
       IEnumerable<ShiftRequestPendingViewModel> items,
       List<SolicitudTurnoDetalleGrupoView> ventana,
@@ -930,20 +888,12 @@ namespace CuposCorretajeWeb.Controllers
           int valor = campoCantidadTR == "Cantidad" ? item.Cantidad : item.CantidadFuturo;
           if (valor > 0) detalles[fechaKey].Cantidad += valor;
 
-          // TO: CantidadAceptada (o CantidadFuturoAceptada para la tabla FUTURO)
-          // por FECHA, no la suma del grupo depositada en la celda del primer
-          // item. Cada item tiene su propia FechaSolicitado y su propio
-          // CantidadAceptada; depositar la SUYA en la celda de SU fecha es lo
-          // que el operador espera ver — aceptar cupos para el d&iacute;a 10
-          // debe impactar la celda del 10, no la del 9.
           int aceptados = campoCantidadTR == "Cantidad"
             ? item.CantidadAceptada
             : item.CantidadFuturoAceptada;
           if (aceptados > 0) detalles[fechaKey].CantidadFuturo = aceptados;
         }
 
-        // El estado de la fila lo define la primera solicitud del grupo.
-        // (Si todas coinciden perfecto, si no, se puede refinar en una iteración posterior.)
         var first = g.First();
         SolicitudTurnoGrupoView row = new SolicitudTurnoGrupoView
         {
@@ -959,31 +909,15 @@ namespace CuposCorretajeWeb.Controllers
           CodigoCentro = first.CodigoCentro,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
-          // Observaciones: las del primer item del grupo. Si en una iteración
-          // posterior hace falta consolidar observaciones de varios items, se
-          // cambia acá. Por ahora alcanza con una sola para el banner.
           Observacion = first.Observacion,
           CantidadFechas = detalles.Values
             .OrderBy(d => d.Fecha)
             .ToList(),
-          // Mapa fecha → solicitudId. Pantalla 1 agrupa solicitudes por
-          // (grano, vendedor, comprador, destino); cada item del grupo tiene
-          // su propio Id y FechaSolicitado. Cuando el operador tilda una
-          // fecha en Pantalla 2, ese mapa nos permite saber la solicitudId
-          // ESPECÍFICA del d&iacute;a (no s&oacute;lo la del primer item).
-          // Si dos items del grupo caen en la misma fecha (no deber&iacute;a
-          // pasar en la pr&aacute;ctica por la l&oacute;gica de creaci&oacute;n
-          // de SOLTURNOS), gana el primero que aparece.
           SolicitudesPorFecha = g
             .GroupBy(x => x.FechaSolicitado.Date)
             .ToDictionary(
               gg => gg.Key.ToString("yyyy-MM-dd"),
               gg => gg.First().Id),
-          // Mapa fecha → CantidadAceptada (o CantidadFuturoAceptada para
-          // FUTURO) por FECHA, no la suma del grupo. Cada item deposita su
-          // aceptados en la celda de su propia fecha. Si en una iteraci&oacute;n
-          // posterior se necesita el desglose por cupo aceptado, se cambia
-          // el SELECT en SolicitudTurnoStore.
           FechasAceptadas = g
             .Where(x => ventana.Any(v => v.Fecha == x.FechaSolicitado.ToString("yyyy-MM-dd")))
             .GroupBy(x => x.FechaSolicitado.Date)
@@ -1027,18 +961,6 @@ namespace CuposCorretajeWeb.Controllers
       return resumen;
     }
 
-    /// <summary>
-    /// Trae el conjunto de cupos ya ACEPTADOS para cada solicitud en una sola
-    /// query batched (un POST por página de grilla, no por fila). Se usa
-    /// después para descontar del conteo de matches del motor bulk los cupos
-    /// que la solicitud ya tiene otorgados — sin este descuento la columna
-    /// "Cupos compatibles" muestra un conteo inflado (incluiría cupos ya
-    /// asignados en fechas anteriores que la solicitud ya completó).
-    ///
-    /// Si la llamada falla (timeout, 5xx, etc.), devolvemos un mapa vacío
-    /// para no romper la grilla: el operador vería los counts originales
-    /// (un poco inflados) hasta el pr&oacute;ximo refresh.
-    /// </summary>
     private static async Task<Dictionary<long, HashSet<long>>> GetCuposAceptadosPorSolicitudesAsync(
       WebServiceSILRespository repo,
       List<long> solicitudIds)
@@ -1076,35 +998,6 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    /// <summary>
-    /// Enriquece cada fila pendiente con el conteo de matches del motor
-    /// (Directos / Parciales / Observaciones[=Condicional]). Reutiliza el
-    /// endpoint bulk <c>POST /api/ShiftRequest/Matches</c> con los mismos
-    /// filtros que aplicar&iacute;a Pantalla 2 (codigoGrano + cuentaVendedor
-    /// + cuentaComprador + zonaGeograficaId + ventana de fechas). Para cada
-    /// combinaci&oacute;n (grano, vendedor, comprador, destino) hace 1 llamada
-    /// y cuenta <c>Items[].MatchType</c> en buckets.
-    ///
-    /// Antes de contar, descuenta los items cuyo <c>CupoId</c> ya figura
-    /// como aceptado para esa solicitud (sale de
-    /// <paramref name="cuposAceptadosPorSolicitud"/>). Sin este descuento el
-    /// motor devolvería matches para TODAS las fechas de la ventana sin
-    /// importar que la solicitud ya haya aceptado cupos en alguna, y la
-    /// columna "Cupos compatibles" mostraría un conteo inflado.
-    ///
-    /// Las llamadas se ejecutan en paralelo (<see cref="Task.WhenAll(Task[])"/>)
-    /// para no serializar N round-trips HTTP al backend en grillas grandes.
-    /// Si la llamada de una fila falla (timeout, 5xx, conflict), esa fila
-    /// recibe el placeholder por defecto — el resto no se ve afectada.
-    /// </summary>
-    /// <param name="cuposAceptadosPorSolicitud">
-    /// Mapa <c>solicitudId → HashSet&lt;cupoId&gt;</c> con los cupos que ya
-    /// fueron aceptados (vienen de <c>SOLTURNOS_DETALLE</c>). Se trae antes
-    /// en una sola query batched desde
-    /// <c>POST /api/ShiftRequest/Cupos/Aceptados/PorSolicitudes</c>. Si el
-    /// fetch falló, este mapa puede ser null/vacío — en ese caso no se
-    /// descuenta nada (no rompemos la grilla).
-    /// </param>
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
       EnriquecerResumenesMatchingAsync(
         WebServiceSILRespository repo,
@@ -1219,23 +1112,6 @@ namespace CuposCorretajeWeb.Controllers
         case "CBA": return "Córdoba";
         default: return codigo;
       }
-    }
-
-    /// <summary>
-    /// Método legado sin uso. La respuesta actual de Matches ya trae los
-    /// nombres hidratados dentro de <c>MatchCupoResumen</c> desde SILData,
-    /// por lo que no se realiza una llamada adicional desde este controller.
-    /// </summary>
-    [Obsolete("Reemplazado por hidrataci&oacute;n directa en MatchCupoResumen (SILData).")]
-    private static async Task HidratarNombres(List<MatchItemViewModel> items, long cuentaVendedor)
-    {
-      // Stub inofensivo tras la hidrata directa en SILData
-      // (MatchCupoResumen.NombreVendedor / NombreComprador / NombreDestino).
-      // Se conserva la firma porque MatchItemViewModel ya no tiene las
-      // propiedades planas NombreVendedor/Comprador/Destino/Grano (viven
-      // adentro de Cupo). Si en alg&uacute;n momento queremos volver a
-      // hidratar desde GetByVendedorAsync, este stub ser&aacute; el lugar.
-      await Task.CompletedTask;
     }
   }
 }
