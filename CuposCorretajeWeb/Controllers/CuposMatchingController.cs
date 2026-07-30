@@ -121,6 +121,10 @@ namespace CuposCorretajeWeb.Controllers
           CuentaVendedor = filter.CuentaVendedor > 0 ? (long?)filter.CuentaVendedor : null,
           CuentaComprador = filter.CuentaComprador > 0 ? (long?)filter.CuentaComprador : null,
           CuentaPuerto = filter.CuentaPuerto > 0 ? (long?)filter.CuentaPuerto : null,
+          // Codcentro: viene del dropdown CentroSeleccionado de Distribucion.cshtml.
+          // El backend filtra Cupostotalesadist por este valor (la vista es
+          // por (centro, comprador, vendedor, producto)).
+          Codcentro = filter.Codcentro,
           FechaDesde = fechaDesde,
           FechaHasta = fechaHasta,
           IncluirIncompatibles = false,

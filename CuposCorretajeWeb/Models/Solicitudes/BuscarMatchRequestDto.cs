@@ -19,5 +19,10 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// <summary>Id del cupo (CUPOSCORRE) que se está distribuyendo. Se usa para
     /// obtener su fecha exacta y comparar contra FechaSolicitado de las solicitudes.</summary>
     public long CupoId { get; set; }
+    /// <summary>Código del centro seleccionado por el operador (de
+    /// <c>Model.CentroSeleccionado</c>). El backend lo usa para filtrar
+    /// <c>Cupostotalesadist</c> de la vista <c>VISTA_CUPOSDISTRIBUIDOV4</c>
+    /// por el centro que se está distribuyendo.</summary>
+    public string Codcentro { get; set; }
   }
 }
