@@ -276,15 +276,15 @@ namespace CuposCorretajeWeb.Controllers
             .Select(f => DateTime.ParseExact(f, "yyyy-MM-dd", CultureInfo.InvariantCulture))
             .OrderBy(d => d)
             .ToList();
-          filter = new
+          filter = new MatchesFilterDto
           {
-            codigoGrano = solicitud.CodigoGrano,
-            cuentaVendedor = solicitud.CuentaVendedor,
-            cuentaComprador = solicitud.CuentaComprador,
-            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
-            fechaDesde = fechasParsed.First(),
-            fechaHasta = fechasParsed.Last(),
-            incluirIncompatibles = false
+            CodigoGrano = solicitud.CodigoGrano,
+            CuentaVendedor = solicitud.CuentaVendedor,
+            CuentaComprador = solicitud.CuentaComprador,
+            ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            FechaDesde = fechasParsed.First(),
+            FechaHasta = fechasParsed.Last(),
+            IncluirIncompatibles = false
             // agruparPor se omite: default = Solicitud (= 0) en el DTO.
           };
         }
@@ -292,13 +292,13 @@ namespace CuposCorretajeWeb.Controllers
         {
           // Sin rango: el backend resuelve fechaDesde/fechaHasta a
           // hoy / hoy+7 (ver MatchesFilterDto defaults).
-          filter = new
+          filter = new MatchesFilterDto
           {
-            codigoGrano = solicitud.CodigoGrano,
-            cuentaVendedor = solicitud.CuentaVendedor,
-            cuentaComprador = solicitud.CuentaComprador,
-            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
-            incluirIncompatibles = false
+            CodigoGrano = solicitud.CodigoGrano,
+            CuentaVendedor = solicitud.CuentaVendedor,
+            CuentaComprador = solicitud.CuentaComprador,
+            ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            IncluirIncompatibles = false
           };
         }
 
@@ -1020,12 +1020,6 @@ namespace CuposCorretajeWeb.Controllers
       {
         try
         {
-          // Importante: el wrapper serializa con Newtonsoft.Json (que respeta
-          // el PascalCase de las propiedades) y SILData deserializa con
-          // System.Text.Json case-sensitive (Program.cs sin AddNewtonsoftJson()).
-          // Por eso debemos usar un DTO tipado con nombres PascalCase, no
-          // un tipo anónimo en camelCase: si no, CodigoGrano llega como 0 y
-          // el motor tira 400 → catch → BuildResumenMatching → "Sin coincidencia".
           var filter = new MatchesFilterDto
           {
             CodigoGrano = row.CodigoGrano,
