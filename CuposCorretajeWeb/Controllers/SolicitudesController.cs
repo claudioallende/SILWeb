@@ -63,27 +63,12 @@ namespace CuposCorretajeWeb.Controllers
           $"Sin Comprador: {sinComprador}. Sin Destino: {sinDestino}. " +
           $"Sin Comprador y Sin Destino: {sinCompradorYDestino}.");
 
-        // 1) Construir la ventana de fechas (7 días a partir de hoy).
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        // 2) Agrupar el response crudo por (grano, vendedor), separando EsFuturo.
-        //    CONTRACTUAL: la columna TR muestra Cantidad. FUTURO: la columna TR
-        //    muestra CantidadFuturo. La columna TO queda en 0 en ambos casos.
         var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
         var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
 
-        // 3) Enriquecer cada fila con el resumen de matching. Las filas pendientes
-        //    piden al motor bulk /ShiftRequest/Matches un conteo por tipo
-        //    (Directo / Parcial / Condicional) usando la misma ventana que la
-        //    grilla. Las ya Asignadas/Rechazadas conservan su resumen propio
-        //    (CupoAsignadoId / "Rechazo manual"). Las llamadas se hacen en
-        //    paralelo para no serializar N requests HTTP.
-        //
-        //    Para no contar como "match disponible" los cupos que la
-        //    solicitud ya tiene aceptados (el operador no los puede volver
-        //    a asignar) traenos todos los cupoIds ya otorgados en una sola
-        //    query batched antes del fan-out.
         var cuposAceptadosPorSolicitud = await GetCuposAceptadosPorSolicitudesAsync(
           repo,
           rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
@@ -276,15 +261,15 @@ namespace CuposCorretajeWeb.Controllers
             .Select(f => DateTime.ParseExact(f, "yyyy-MM-dd", CultureInfo.InvariantCulture))
             .OrderBy(d => d)
             .ToList();
-          filter = new
+          filter = new MatchesFilterDto
           {
-            codigoGrano = solicitud.CodigoGrano,
-            cuentaVendedor = solicitud.CuentaVendedor,
-            cuentaComprador = solicitud.CuentaComprador,
-            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
-            fechaDesde = fechasParsed.First(),
-            fechaHasta = fechasParsed.Last(),
-            incluirIncompatibles = false
+            CodigoGrano = solicitud.CodigoGrano,
+            CuentaVendedor = solicitud.CuentaVendedor,
+            CuentaComprador = solicitud.CuentaComprador,
+            ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            FechaDesde = fechasParsed.First(),
+            FechaHasta = fechasParsed.Last(),
+            IncluirIncompatibles = false
             // agruparPor se omite: default = Solicitud (= 0) en el DTO.
           };
         }
@@ -292,13 +277,13 @@ namespace CuposCorretajeWeb.Controllers
         {
           // Sin rango: el backend resuelve fechaDesde/fechaHasta a
           // hoy / hoy+7 (ver MatchesFilterDto defaults).
-          filter = new
+          filter = new MatchesFilterDto
           {
-            codigoGrano = solicitud.CodigoGrano,
-            cuentaVendedor = solicitud.CuentaVendedor,
-            cuentaComprador = solicitud.CuentaComprador,
-            zonaGeograficaId = solicitud.CuentaDestino ?? 0,
-            incluirIncompatibles = false
+            CodigoGrano = solicitud.CodigoGrano,
+            CuentaVendedor = solicitud.CuentaVendedor,
+            CuentaComprador = solicitud.CuentaComprador,
+            ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            IncluirIncompatibles = false
           };
         }
 
@@ -999,12 +984,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
-      EnriquecerResumenesMatchingAsync(
-        WebServiceSILRespository repo,
-        List<SolicitudTurnoGrupoView> rows,
-        DateTime fechaDesde,
-        int cantidadDias,
-        Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
+      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 
@@ -1020,12 +1000,6 @@ namespace CuposCorretajeWeb.Controllers
       {
         try
         {
-          // Importante: el wrapper serializa con Newtonsoft.Json (que respeta
-          // el PascalCase de las propiedades) y SILData deserializa con
-          // System.Text.Json case-sensitive (Program.cs sin AddNewtonsoftJson()).
-          // Por eso debemos usar un DTO tipado con nombres PascalCase, no
-          // un tipo anónimo en camelCase: si no, CodigoGrano llega como 0 y
-          // el motor tira 400 → catch → BuildResumenMatching → "Sin coincidencia".
           var filter = new MatchesFilterDto
           {
             CodigoGrano = row.CodigoGrano,
