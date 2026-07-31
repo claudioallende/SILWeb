@@ -63,27 +63,12 @@ namespace CuposCorretajeWeb.Controllers
           $"Sin Comprador: {sinComprador}. Sin Destino: {sinDestino}. " +
           $"Sin Comprador y Sin Destino: {sinCompradorYDestino}.");
 
-        // 1) Construir la ventana de fechas (7 días a partir de hoy).
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        // 2) Agrupar el response crudo por (grano, vendedor), separando EsFuturo.
-        //    CONTRACTUAL: la columna TR muestra Cantidad. FUTURO: la columna TR
-        //    muestra CantidadFuturo. La columna TO queda en 0 en ambos casos.
         var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
         var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
 
-        // 3) Enriquecer cada fila con el resumen de matching. Las filas pendientes
-        //    piden al motor bulk /ShiftRequest/Matches un conteo por tipo
-        //    (Directo / Parcial / Condicional) usando la misma ventana que la
-        //    grilla. Las ya Asignadas/Rechazadas conservan su resumen propio
-        //    (CupoAsignadoId / "Rechazo manual"). Las llamadas se hacen en
-        //    paralelo para no serializar N requests HTTP.
-        //
-        //    Para no contar como "match disponible" los cupos que la
-        //    solicitud ya tiene aceptados (el operador no los puede volver
-        //    a asignar) traenos todos los cupoIds ya otorgados en una sola
-        //    query batched antes del fan-out.
         var cuposAceptadosPorSolicitud = await GetCuposAceptadosPorSolicitudesAsync(
           repo,
           rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
@@ -999,12 +984,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
-      EnriquecerResumenesMatchingAsync(
-        WebServiceSILRespository repo,
-        List<SolicitudTurnoGrupoView> rows,
-        DateTime fechaDesde,
-        int cantidadDias,
-        Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
+      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 

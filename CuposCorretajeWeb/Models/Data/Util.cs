@@ -17,11 +17,6 @@ namespace CuposCorretajeWeb.Models.Data
 {
   public abstract class Util : IDisposable
   {
-    // .NET Framework 4.6.1 no habilita TLS 1.2 por defecto en
-    // ServicePointManager.SecurityProtocol. Sin esto, los endpoints HTTPS
-    // modernos (Azure App Service, por ejemplo) rechazan la conexión con
-    // "Could not create SSL/TLS secure channel". Localhost no lo nota porque
-    // su cert negocia con versiones viejas, pero el sitio de test no.
     static Util()
     {
       ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -123,20 +118,10 @@ namespace CuposCorretajeWeb.Models.Data
       HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
       var response = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
 
-      // 204 NoContent: el endpoint ejecutó OK pero no tiene cuerpo. Algunos
-      // endpoints (ej. Matches cuando no hay resultados) lo declaran
-      // explícitamente. Devolvemos default(T) para evitar JsonReaderException
-      // al deserializar un body vacío.
       if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
         return default(T);
 
       if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
-      // Defensa: capturamos 400/422 además de 409/500. Si SILData responde con un
-      // ProblemDetails (típicamente por mismatch de contrato — campos faltantes,
-      // case-sensitivity, validación) el wrapper tira ApiException en vez de
-      // tratar de deserializar el ProblemDetails contra el DTO esperado y romper
-      // con un 500 inentendible. ExtractApiMessage en los controllers extrae el
-      // detail del ProblemDetails y lo muestra al operador en un Swal.
       if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
           response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
           response.StatusCode == System.Net.HttpStatusCode.Conflict)
