@@ -121,7 +121,7 @@
      */
     buscar: function (filtroForm) {
       return $.ajax({
-        url: '/CuposMatching/BuscarCuposConMatch',
+        url: window.modelData.actionBuscarCuposConMatch,
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(filtroForm)
