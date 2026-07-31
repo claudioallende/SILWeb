@@ -295,6 +295,14 @@
 
   // Agrupa los matches por SolicitudId. Devuelve una lista de solicitudes
   // únicas con los cupos disponibles para matchear.
+  //
+  // Tras el refactor de CuposMatchingController.AgruparPorSolicitud, cada
+  // match ya viene agregado por solicitud (1 entrada por solicitudId, con
+  // su lista de cupos en m.Cupos[]). Acá seguimos agrupando por
+  // solicitudId como defensa por si el backend alguna vez devuelve dos
+  // entradas con el mismo id (no debería, pero es barato protegerse).
+  // cupoIds se llena desde m.Cupos[].Id, no desde m.CupoId — esa propiedad
+  // ya no existe en SolicitudParaMatchViewModel.
   function agruparMatchesPorSolicitud(matches) {
     var grupos = {};
     (matches || []).forEach(function (m) {
@@ -306,8 +314,13 @@
           matchTypes: []
         };
       }
-      grupos[key].cupoIds.push(m.CupoId);
-      grupos[key].matchTypes.push(m.MatchType);
+      var cuposDeMatch = m.Cupos || [];
+      cuposDeMatch.forEach(function (cupo) {
+        if (cupo && cupo.Id && grupos[key].cupoIds.indexOf(cupo.Id) === -1) {
+          grupos[key].cupoIds.push(cupo.Id);
+        }
+      });
+      if (m.MatchType) grupos[key].matchTypes.push(m.MatchType);
     });
     return Object.values(grupos);
   }
@@ -317,6 +330,8 @@
     $('#va-title-cupo').text('Match detectado');
     var subtitleParts = [];
     if (cupo.CuposTotales) subtitleParts.push(cupo.CuposTotales + ' cupos disponibles');
+    var fechaCupo = formatFechaCorta(parsearFechaJSON(cupo.Fecha));
+    if (fechaCupo) subtitleParts.push('Fecha: ' + fechaCupo);
     if (cupo.NomGrano) subtitleParts.push(cupo.NomGrano);
     if (cupo.NomCompSIL) subtitleParts.push(cupo.NomCompSIL);
     if (cupo.NomVendSIL) subtitleParts.push('Vendedor: ' + cupo.NomVendSIL);
@@ -488,9 +503,12 @@
   // VARIANTE B — Cupo sin vendedor (input numérico por solicitud)
   // ============================================================
   function renderVarianteB(cupo) {
+    var fechaCupoB = formatFechaCorta(parsearFechaJSON(cupo.Fecha));
     $('#vb-subtitle-cupo').text(
       (cupo.CuposTotales || 0) + ' cupos · ' + (cupo.NomGrano || '') +
-      ' · ' + (cupo.NomCompSIL || 'Sin comprador') + ' · Sin vendedor');
+      ' · ' + (cupo.NomCompSIL || 'Sin comprador') +
+      (fechaCupoB ? ' · Fecha: ' + fechaCupoB : '') +
+      ' · Sin vendedor');
 
     // Agrupar matches por solicitud (dedup). Variante B muestra una fila por
     // solicitud con un input numérico editable — la cantidad que ingrese el
@@ -657,22 +675,20 @@
 
     if (!Array.isArray(solicitudesAsignadas) || solicitudesAsignadas.length === 0) return;
 
-    // Indexar todos los cupos del response por solicitud matcheada. cupo.Id
-    // es el cuposcorre.Id (un cupo físico). Recorremos estado.cupos (la lista
-    // filtrada completa) en vez de sólo estado.cupoActual.Matches, porque la
-    // misma solicitud puede matchear con varios cupos distintos — la query V2
-    // hace INNER JOIN y devuelve un row por par (cuposcorre.Id, solicitud).
-    // Al aceptar N para esa solicitud, tomamos los primeros N cupos distintos.
+    // Indexar todos los cupos disponibles por solicitud matcheada. El backend
+    // (CuposMatchingController.AgruparPorSolicitud) ahora devuelve una vista
+    // sintética (cupo.Id=0) con TODAS las solicitudes en Matches y, dentro de
+    // cada solicitud, su lista de cupos disponibles en m.Cupos. Antes se
+    // agrupaba por cupo y se leía c.Id como el cupo físico; ahora el cupo
+    // "contenedor" sintético no tiene Id real — los cupos físicos viven en
+    // m.Cupos[].Id.
     var cuposPorSolicitud = {};
     (estado.cupos || []).forEach(function (c) {
-      var cupoIdMatch = parseInt(c.Id, 10);
-      if (!cupoIdMatch || cupoIdMatch <= 0) return;
       (c.Matches || []).forEach(function (m) {
         var key = String(m.Id);
-        if (!cuposPorSolicitud[key]) cuposPorSolicitud[key] = [];
-        if (cuposPorSolicitud[key].indexOf(cupoIdMatch) === -1) {
-          cuposPorSolicitud[key].push(cupoIdMatch);
-        }
+        cuposPorSolicitud[key] = (m.Cupos || []).map(function (cupo) {
+          return cupo.Id;
+        });
       });
     });
 

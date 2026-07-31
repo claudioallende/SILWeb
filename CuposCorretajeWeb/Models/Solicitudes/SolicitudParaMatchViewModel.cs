@@ -49,6 +49,19 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public string MatchRazon { get; set; }
 
     /// <summary>
+    /// Cupos físicos disponibles que pueden satisfacer esta solicitud.
+    /// Cada item tiene <see cref="CupoDisponibleParaSolicitud.Id"/>,
+    /// <see cref="CupoDisponibleParaSolicitud.Fecha"/> y
+    /// <see cref="CupoDisponibleParaSolicitud.Cantidad"/> (cuántos cupos hay
+    /// en esa fecha). Una solicitud puede matchear con varios cupos en
+    /// fechas distintas — la suma de <c>Cantidad</c> es lo que el operador
+    /// puede asignar. Esta lista reemplaza al antiguo lookup por
+    /// <c>cupo.Id</c> en el frontend (el "cupo contenedor" sintético con
+    /// Id=0 ya no lleva los cupos hijos).
+    /// </summary>
+    public List<CupoDisponibleParaSolicitud> Cupos { get; set; }
+
+    /// <summary>
     /// Detalle por día (una entrada por fecha solicitada), para habilitar
     /// el ajuste +/− de Variante B. Si la API devuelve una solicitud
     /// consolidada por (grano+vendedor+comprador+destino), se desglosa
@@ -59,7 +72,26 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public SolicitudParaMatchViewModel()
     {
       Dias = new List<MatchDiaItem>();
+      Cupos = new List<CupoDisponibleParaSolicitud>();
     }
+  }
+
+  /// <summary>
+  /// Cupo físico que el motor de matching reportó como compatible con una
+  /// solicitud. Proyectado dentro de
+  /// <see cref="SolicitudParaMatchViewModel.Cupos"/> para que el frontend
+  /// pueda renderizar la lista de cupos disponibles por solicitud y, en el
+  /// confirm, emitir el listado
+  /// <c>(SolicitudId, CupoSeleccionadoId, Cantidad=1)</c> que espera
+  /// <c>POST /api/Cupos/ActualizarDistribucion</c> en modo SolicitudMatch.
+  /// </summary>
+  public class CupoDisponibleParaSolicitud
+  {
+    public long Id { get; set; }
+    public DateTime Fecha { get; set; }
+    public int Cantidad { get; set; }
+    public string MatchType { get; set; }
+    public string MatchRazon { get; set; }
   }
 
   /// <summary>

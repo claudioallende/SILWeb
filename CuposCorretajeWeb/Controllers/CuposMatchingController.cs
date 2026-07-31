@@ -173,7 +173,7 @@ namespace CuposCorretajeWeb.Controllers
 
         if (result != null && result.Items != null && result.Items.Count > 0)
         {
-          cuposViewModel = AgruparPorCupo(result.Items);
+          cuposViewModel = AgruparPorSolicitud(result.Items);
         }
 
         return Json(new
@@ -201,96 +201,141 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     /// <summary>
-    /// Agrupa los items (solicitud, cupo) que devuelve el motor por <c>cupoId</c>,
-    /// para producir un <see cref="CupoParaMatchViewModel"/> por cada cupo único.
-    /// La metadata del cupo se hidrata desde <c>MatchItemDto.Cupo</c>.
+    /// Agrupa los items (solicitud, cupo) que devuelve el motor por
+    /// <c>SolicitudId</c> y los proyecta dentro de un único
+    /// <see cref="CupoParaMatchViewModel"/> sintético (Id=0) que el modal
+    /// de Pantalla 3 itera como contenedor de TODAS las solicitudes
+    /// compatibles.
+    ///
+    /// Cambio respecto del comportamiento anterior: antes se agrupaba por
+    /// <c>CupoId</c> y se emitía un <see cref="CupoParaMatchViewModel"/>
+    /// por cada cupo, pero el modal sólo mostraba el primero
+    /// (<c>cuposViewModel[0]</c>). Si el operador tenía solicitudes para
+    /// hoy, mañana, pasado y el otro día, cada una matcheaba con un cupo
+    /// distinto y sólo la del primer cupo se renderizaba. La convención
+    /// nueva es: una sola vista sintética con TODOS los matches, agrupados
+    /// por solicitud en <see cref="SolicitudParaMatchViewModel.Cupos"/>.
+    /// El frontend ya itera sobre <c>Matches</c> agrupándolas por solicitud
+    /// (<c>agruparMatchesPorSolicitud</c>), así que este cambio es
+    /// transparente para el render.
+    ///
+    /// NOTA sobre <c>CupoParaMatchViewModel.Id</c>: queda en 0 (sentínela).
+    /// <c>doAccept</c> ya no usa este Id — lee los cupos directamente desde
+    /// <see cref="SolicitudParaMatchViewModel.Cupos"/>.
     /// </summary>
-    private static List<CupoParaMatchViewModel> AgruparPorCupo(List<MatchItemDto> items)
+    private static List<CupoParaMatchViewModel> AgruparPorSolicitud(List<MatchItemDto> items)
     {
+      // Sin items: lista vacía (el controller ya retorna success=true con
+      // cupos=[]; el frontend muestra el Swal "Sin matches" sin abrir modal).
+      if (items == null || items.Count == 0)
+      {
+        return new List<CupoParaMatchViewModel>();
+      }
+
+      // Metadata del header de la vista sintética: usamos el primer item
+      // como representante. Como todos los items vienen del mismo motor y
+      // filtran por el mismo grano + comprador, los nombres deberían
+      // coincidir; si no, caemos a string.Empty en cada campo.
+      MatchItemDto firstItem = items[0];
+      MatchCupoResumenDto firstCupo = firstItem.Cupo ?? new MatchCupoResumenDto();
+
+      // CuposTotales = suma de cupos disponibles (no de matches) reportados
+      // por el motor a través de los items. Cada item es un (solicitud,
+      // cupo) compatible, así que la cantidad de cupos físicos únicos es
+      // items.Count — pero algunos items pueden repetir el mismo cupo si
+      // matchea con varias solicitudes. Por seguridad contamos IDs únicos.
+      int totalCuposUnicos = items.Select(i => i.CupoId).Distinct().Count();
+
+      // GroupBy por SolicitudId. Cada grupo es una solicitud con su lista
+      // de cupos disponibles. Ordenamos por fecha de solicitud (más
+      // antiguas primero) para que el modal las muestre en orden de
+      // antigüedad, consistente con el criterio del Operator UI.
       var grupos = items
-        .GroupBy(i => i.CupoId)
+        .GroupBy(i => i.SolicitudId)
+        .OrderBy(g => g.First().Solicitud?.FechaSolicitado ?? DateTime.MaxValue)
         .ToList();
 
-      List<CupoParaMatchViewModel> resultado = new List<CupoParaMatchViewModel>();
+      var matches = new List<SolicitudParaMatchViewModel>();
 
       foreach (var g in grupos)
       {
-        MatchItemDto first = g.First();
-        MatchCupoResumenDto cupoBackend = first.Cupo ?? new MatchCupoResumenDto();
+        MatchItemDto firstMatch = g.First();
+        MatchSolicitudCompletaDto s = firstMatch.Solicitud ?? new MatchSolicitudCompletaDto();
+        int antiguedad = s.FechaSolicitado == default
+          ? 0
+          : Math.Max(0, (int)(DateTime.Today - s.FechaSolicitado.Date).TotalDays);
 
-        // Sumamos cantidades para reportar cupos totales del cupo (no viene
-        // directo en el response; usamos Cantidad de la primera solicitud
-        // como heurística — el cupo real podría tener varios asociados).
-        //
-        // IMPORTANTE: este `CuposTotales` es heurístico y NO se usa como
-        // gate para abrir el modal de matching. El gating real se hace en
-        // `Scripts/MatchingDistribucion.js#procesarRespuestaSearch`
-        // contra la foto vigente de la tabla HTML de Distribución
-        // (#TablaDistribuciones), leyendo por vendedor de la solicitud la
-        // celda `.cupos-disponibles`. Sólo se abre el modal cuando esa
-        // disponibilidad es > 0. Esto cubre los casos UC2 (cupos agotados
-        // del vendedor, no abre modal aunque la fila siga activa), UC4
-        // (sin fila en la tabla) y UC5 (tabla con contratos del vendedor
-        // pero sin saldo).
-        int totalCupos = g.Sum(i => i.Solicitud != null ? Math.Max(1, i.Solicitud.Cantidad) : 1);
+        // MatchType "global" de la solicitud = el "más fuerte" entre sus
+        // matches. Orden: Directo > Condicional > Parcial. Una solicitud
+        // con al menos un match Directo se considera Directo; si no, pero
+        // tiene Condicional, Condicional; si no, Parcial.
+        string matchTypeSolicitud = g.Any(i => i.MatchType == "Directo") ? "Directo"
+                                  : g.Any(i => i.MatchType == "Condicional") ? "Condicional"
+                                  : "Parcial";
 
-        CupoParaMatchViewModel view = new CupoParaMatchViewModel
+        // Cupos asociados a esta solicitud (uno por item del grupo, ya
+        // que cada item es (solicitudId, cupoId)).
+        var cuposAsociados = g.Select(i => new CupoDisponibleParaSolicitud
+        {
+          Id = i.CupoId,
+          Fecha = i.Cupo?.Fecha ?? default(DateTime),
+          Cantidad = 1, // 1 cupo físico = 1 unidad. Si se subdivide en el
+                        // futuro, leer de i.Solicitud.Cantidad o un campo
+                        // equivalente del motor.
+          MatchType = i.MatchType,
+          MatchRazon = i.Razon
+        }).ToList();
+
+        matches.Add(new SolicitudParaMatchViewModel
         {
           Id = g.Key,
-          CodGrano = cupoBackend.CodGrano,
-          NomGrano = cupoBackend.NombreGrano ?? cupoBackend.CodGrano,
-          CodVendSIL = cupoBackend.CodVendSIL ?? string.Empty,
-          NomVendSIL = cupoBackend.NombreVendedor ?? string.Empty,
-          CodCompSIL = cupoBackend.CodCompSIL ?? string.Empty,
-          NomCompSIL = cupoBackend.NombreComprador ?? string.Empty,
-          CodDestino = cupoBackend.CodDestino ?? string.Empty,
-          NomDestino = cupoBackend.NombreDestino ?? string.Empty,
-          Fecha = cupoBackend.Fecha,
-          CuposTotales = totalCupos,
-          Cupostotalesadist = cupoBackend.Cupostotalesadist
-        };
-
-        foreach (MatchItemDto item in g)
-        {
-          if (item.MatchType == null) continue; // Incompatible: el motor no lo incluye si IncluirIncompatibles=false, pero por las dudas.
-
-          MatchSolicitudCompletaDto s = item.Solicitud ?? new MatchSolicitudCompletaDto();
-          int antiguedad = s.FechaSolicitado == default
-            ? 0
-            : Math.Max(0, (int)(DateTime.Today - s.FechaSolicitado.Date).TotalDays);
-
-          view.Matches.Add(new SolicitudParaMatchViewModel
+          Vendedor = s.CuentaVendedor.ToString(),
+          NombreVendedor = s.NombreVendedor,
+          Comprador = s.CuentaComprador.HasValue ? s.CuentaComprador.Value.ToString() : null,
+          Destino = s.CuentaDestino.HasValue ? s.CuentaDestino.Value.ToString() : null,
+          Zona = firstCupo.NombreDestino,
+          FechaSolicitado = s.FechaSolicitado,
+          Cantidad = s.Cantidad,
+          CantidadDisponible = s.CantidadDisponible,
+          CantidadRechazada = s.CantidadRechazada,
+          CantidadFuturo = 0,
+          Observacion = s.Observacion,
+          AntiguedadDias = antiguedad,
+          MatchType = matchTypeSolicitud,
+          MatchRazon = firstMatch.Razon,
+          Cupos = cuposAsociados,
+          Dias = new List<MatchDiaItem>
           {
-            Id = item.SolicitudId,
-            Vendedor = s.CuentaVendedor.ToString(),
-            NombreVendedor = s.NombreVendedor,
-            Comprador = s.CuentaComprador.HasValue ? s.CuentaComprador.Value.ToString() : null,
-            Destino = s.CuentaDestino.HasValue ? s.CuentaDestino.Value.ToString() : null,
-            Zona = cupoBackend.NombreDestino,
-            FechaSolicitado = s.FechaSolicitado,
-            Cantidad = s.Cantidad,
-            CantidadDisponible = s.CantidadDisponible,
-            CantidadRechazada = s.CantidadRechazada,
-            CantidadFuturo = 0,
-            Observacion = s.Observacion,
-            AntiguedadDias = antiguedad,
-            MatchType = item.MatchType,
-            MatchRazon = item.Razon,
-            Dias = new List<MatchDiaItem>
+            new MatchDiaItem
             {
-              new MatchDiaItem
-              {
-                Fecha = s.FechaSolicitado,
-                Cantidad = s.CantidadDisponible
-              }
+              Fecha = s.FechaSolicitado,
+              Cantidad = s.CantidadDisponible
             }
-          });
-        }
-
-        resultado.Add(view);
+          }
+        });
       }
 
-      return resultado;
+      // Vista sintética única. El header se llena con metadata del primer
+      // item para que el subtítulo del modal ("4 cupos disponibles · Soja
+      // · COTAGRO ...") siga siendo informativo.
+      var view = new CupoParaMatchViewModel
+      {
+        Id = 0, // sentinela: no representa un cupo real.
+        CodGrano = firstCupo.CodGrano,
+        NomGrano = firstCupo.NombreGrano ?? firstCupo.CodGrano,
+        CodVendSIL = firstCupo.CodVendSIL ?? string.Empty,
+        NomVendSIL = firstCupo.NombreVendedor ?? string.Empty,
+        CodCompSIL = firstCupo.CodCompSIL ?? string.Empty,
+        NomCompSIL = firstCupo.NombreComprador ?? string.Empty,
+        CodDestino = firstCupo.CodDestino ?? string.Empty,
+        NomDestino = firstCupo.NombreDestino ?? string.Empty,
+        Fecha = firstCupo.Fecha,
+        CuposTotales = totalCuposUnicos,
+        Cupostotalesadist = firstCupo.Cupostotalesadist,
+        Matches = matches
+      };
+
+      return new List<CupoParaMatchViewModel> { view };
     }
 
     /// <summary>
