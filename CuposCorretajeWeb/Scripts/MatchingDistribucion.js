@@ -657,37 +657,53 @@
 
     if (!Array.isArray(solicitudesAsignadas) || solicitudesAsignadas.length === 0) return;
 
-    // Agrupar matches por SolicitudId para tomar CupoIds distintos por solicitud.
+    // Indexar todos los cupos del response por solicitud matcheada. cupo.Id
+    // es el cuposcorre.Id (un cupo físico). Recorremos estado.cupos (la lista
+    // filtrada completa) en vez de sólo estado.cupoActual.Matches, porque la
+    // misma solicitud puede matchear con varios cupos distintos — la query V2
+    // hace INNER JOIN y devuelve un row por par (cuposcorre.Id, solicitud).
+    // Al aceptar N para esa solicitud, tomamos los primeros N cupos distintos.
     var cuposPorSolicitud = {};
-    (cupo.Matches || []).forEach(function (m) {
-      var key = String(m.Id);
-      if (!cuposPorSolicitud[key]) cuposPorSolicitud[key] = [];
-      if (cuposPorSolicitud[key].indexOf(m.CupoId) === -1) {
-        cuposPorSolicitud[key].push(m.CupoId);
-      }
+    (estado.cupos || []).forEach(function (c) {
+      var cupoIdMatch = parseInt(c.Id, 10);
+      if (!cupoIdMatch || cupoIdMatch <= 0) return;
+      (c.Matches || []).forEach(function (m) {
+        var key = String(m.Id);
+        if (!cuposPorSolicitud[key]) cuposPorSolicitud[key] = [];
+        if (cuposPorSolicitud[key].indexOf(cupoIdMatch) === -1) {
+          cuposPorSolicitud[key].push(cupoIdMatch);
+        }
+      });
     });
 
-    // Construir AsignacionesSolicitudCupo: una asociación por cupo físico.
+    // Construir AsignacionesSolicitudCupo: una asociación por cupo físico DISTINTO.
     var asociaciones = [];
     var totalCupos = 0;
 
     solicitudesAsignadas.forEach(function (pair) {
       var solicitudId = pair.solicitudId;
-      var match = (cupo.Matches || []).find(function (m) { return m.Id === solicitudId });
-      if (!match) return;
+      var cuposDisponibles = cuposPorSolicitud[String(solicitudId)] || [];
+      if (cuposDisponibles.length === 0) {
+        console.warn('[Matching] doAccept: ningún cupo disponible para solicitud', solicitudId);
+        return;
+      }
+
+      // MatchType: usar el del modal actual si está disponible, sino 'Parcial'.
+      var matchLocal = (cupo.Matches || []).find(function (m) { return m.Id === solicitudId; });
+      var matchType = pair.matchType || (matchLocal && matchLocal.MatchType) || 'Parcial';
 
       var cantidad = (typeof pair.cantidad === 'number' && pair.cantidad > 0) ? pair.cantidad : 1;
-      var cupoIds = cuposPorSolicitud[String(solicitudId)] || [];
-      if (cupoIds.length === 0) return;
-
-      // Tomar los primeros N cupoIds distintos del matching para esta solicitud.
-      var aAsociar = Math.min(cantidad, cupoIds.length);
-      var matchType = pair.matchType || match.MatchType || 'Parcial';
+      var aAsociar = Math.min(cantidad, cuposDisponibles.length);
+      if (aAsociar < cantidad) {
+        console.warn('[Matching] doAccept: solicitud ' + solicitudId +
+          ' pidió ' + cantidad + ' cupos pero sólo ' + cuposDisponibles.length +
+          ' matchean. Se distribuyen ' + aAsociar + '.');
+      }
 
       for (var i = 0; i < aAsociar; i++) {
         asociaciones.push({
           SolicitudId: parseInt(solicitudId, 10),
-          CupoSeleccionadoId: parseInt(cupoIds[i], 10),
+          CupoSeleccionadoId: cuposDisponibles[i],
           Cantidad: 1,
           MatchType: matchType,
           Compcta: 0,
