@@ -440,7 +440,7 @@
     html += '  <td class="tl"><div class="sil-modal-cell-title">#' + m.Id + '</div>';
     html += '    <div class="sil-modal-cell-meta">' + escapeHtml(m.Vendedor || '—') + '</div></td>';
     html += '  <td>' + escapeHtml(m.NomGrano || '') + '</td>';
-    html += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
+    html += '  <td>' + (formatFechaCorta(parsearFechaJSON(m.FechaSolicitado)) || '&mdash;') + '</td>';
     html += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
     html += '  <td>' + disponibles + ' <span class="sil-modal-cell-subtle">/ ' + total + '</span></td>';
     html += '  <td>';
@@ -524,6 +524,7 @@
 
     var tableHtml = '<table class="sil-modal-table sil-modal-table-main"><thead><tr>';
     tableHtml += '<th class="tl">Solicitud</th>';
+    tableHtml += '<th>Fecha</th>';
     tableHtml += '<th>Solicitante</th><th>Match</th>';
     tableHtml += '<th>Cantidad a asignar</th>';
     tableHtml += '</tr></thead><tbody>';
@@ -561,6 +562,10 @@
       tableHtml += '    <div class="sil-modal-cell-meta">' +
                     disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos compatibles</div>' +
                     obsBlock + '</td>';
+      // Fecha solicitada por el operador (SOLTURNOS.FECHASOLICITADA).
+      // parsearFechaJSON maneja Date, ISO 8601 y el formato WCF /Date(...)/.
+      var fechaSolicitadaDisplay = formatFechaCorta(parsearFechaJSON(m.FechaSolicitado));
+      tableHtml += '  <td>' + (fechaSolicitadaDisplay || '&mdash;') + '</td>';
       tableHtml += '  <td>' + escapeHtml(vendedorLabel) + '</td>';
       tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
       tableHtml += '  <td>';
