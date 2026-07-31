@@ -485,15 +485,17 @@
   }
 
   // ============================================================
-  // VARIANTE B — Cupo sin vendedor (tabla expandible)
+  // VARIANTE B — Cupo sin vendedor (input numérico por solicitud)
   // ============================================================
   function renderVarianteB(cupo) {
     $('#vb-subtitle-cupo').text(
       (cupo.CuposTotales || 0) + ' cupos · ' + (cupo.NomGrano || '') +
       ' · ' + (cupo.NomCompSIL || 'Sin comprador') + ' · Sin vendedor');
 
-    // Agrupar matches por solicitud (dedup) y construir la tabla expandible
-    // por solicitud. Variante B se enfoca en solicitudes sin vendedor.
+    // Agrupar matches por solicitud (dedup). Variante B muestra una fila por
+    // solicitud con un input numérico editable — la cantidad que ingrese el
+    // operador son los cupos que se asignarán a esa solicitud, replicando
+    // la semántica de Variante A (ver doAccept).
     var grupos = agruparMatchesPorSolicitud(cupo.Matches || []);
     var totalCuposAsignar = cupo.CuposTotales || 0;
 
@@ -503,9 +505,9 @@
     $('#vb-counter-asignados-max').text(totalCuposAsignar);
 
     var tableHtml = '<table class="sil-modal-table sil-modal-table-main"><thead><tr>';
-    tableHtml += '<th aria-label="Seleccionar"></th><th class="tl">Solicitud</th>';
-    tableHtml += '<th>Solicitante</th><th>Fecha m&aacute;s antigua</th><th>Match</th>';
-    tableHtml += '<th>Total a asignar</th><th>Detalle</th>';
+    tableHtml += '<th class="tl">Solicitud</th>';
+    tableHtml += '<th>Solicitante</th><th>Match</th>';
+    tableHtml += '<th>Cantidad a asignar</th>';
     tableHtml += '</tr></thead><tbody>';
 
     estado.seleccionados = {};
@@ -514,7 +516,7 @@
       var m = g.solicitud;
       var disponibles = Math.max(0, m.CantidadDisponible || 0);
       var cupoIdsCount = g.cupoIds.length;
-      var maxAsignar = Math.min(disponibles, cupoIdsCount);
+      var initialQty = Math.min(disponibles, cupoIdsCount);
       var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
       var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
         : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
@@ -523,134 +525,66 @@
       var tipoCss = tipoMatch === 'Directo' ? 'is-direct'
         : (tipoMatch === 'Condicional' ? 'is-cond' : 'is-partial');
 
-      var detalleId = 'vb-detail-' + idx;
-      var chkId = 'vb-chk-' + idx;
-      var totalId = 'vb-total-' + idx;
-      var inputId = 'vb-qty-' + idx;
+      // Nombre del vendedor (preferimos NombreVendedor del backend; caemos
+      // a la cuenta y luego a un em-dash si ninguno está disponible).
+      var vendedorLabel = m.NombreVendedor || m.Vendedor || '—';
 
-      tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '">';
-      tableHtml += '  <td><input type="checkbox" checked id="' + chkId + '" data-vb-grp="' + idx + '" aria-label="Incluir solicitud ' + m.Id + '" /></td>';
-      tableHtml += '  <td class="tl"><div class="sil-modal-cell-title">Solicitud #' + m.Id + '</div>';
-      tableHtml += '    <div class="sil-modal-cell-meta">' +
-                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos compatibles</div></td>';
-      tableHtml += '  <td>' + escapeHtml(m.Vendedor || '—') + '</td>';
-      tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
-      tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
-      tableHtml += '  <td>';
-      tableHtml += '    <strong id="' + totalId + '" class="sil-modal-total">' + maxAsignar + '</strong>';
-      tableHtml += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
-      tableHtml += '  </td>';
-      tableHtml += '  <td><button type="button" class="sil-modal-detail-toggle" data-vb-toggle data-idx="' + idx + '" aria-expanded="false" aria-controls="' + detalleId + '">&#9662; ver</button></td>';
-      tableHtml += '</tr>';
-
-      // Detalle expandible.
-      tableHtml += '<tr id="' + detalleId + '" class="sil-modal-detail-row" style="display:none;">';
-      tableHtml += '  <td colspan="7" class="sil-modal-detail-cell">';
-      tableHtml += '    <div class="sil-modal-expanded' + (tipoMatch === 'Condicional' ? ' sil-modal-expanded-obs' : '') + '">';
-
+      // Observaciones inline para matches Condicionales (sigue siendo útil
+      // que el operador las vea antes de tipear la cantidad).
+      var obsBlock = '';
       if (tipoMatch === 'Condicional') {
         var obsTxt = m.Observacion || 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
-        tableHtml += '      <div class="sil-modal-obs-callout">';
-        tableHtml += '        <b>&#9888; Observaciones de la solicitud:</b>';
-        tableHtml += '        ' + escapeHtml(obsTxt);
-        tableHtml += '      </div>';
+        obsBlock += '<div class="sil-modal-cell-meta"><b>&#9888; Obs:</b> ' +
+                    escapeHtml(obsTxt) + '</div>';
       }
 
-      tableHtml += '      <div class="sil-modal-expanded-heading">Detalle de cupos &mdash; Solicitud #' + m.Id + '</div>';
-      tableHtml += '      <div class="sil-modal-expanded-content">';
-      tableHtml += '        <table class="sil-modal-table sil-modal-table-detail">';
-      tableHtml += '          <thead><tr><th class="tl">Cupo ID</th><th>Fecha</th><th>Match</th><th>Aceptar</th></tr></thead><tbody>';
-      g.cupoIds.forEach(function (cupoId, sidx) {
-        var sgId = 'vb-sg-' + idx + '-' + sidx;
-        tableHtml += '<tr class="sil-modal-data-row">';
-        tableHtml += '  <td class="tl"><span class="sil-modal-cell-title">#' + cupoId + '</span></td>';
-        tableHtml += '  <td>' + formatFechaCorta(m.FechaSolicitado) + '</td>';
-        tableHtml += '  <td>' + escapeHtml(g.matchTypes[sidx]) + '</td>';
-        tableHtml += '  <td>';
-        tableHtml += '    <input type="checkbox" checked data-vb-cupo-grp="' + idx + '" data-vb-cupo-id="' + cupoId + '" data-vb-sg="' + sgId + '" aria-label="Aceptar cupo ' + cupoId + ' para la solicitud ' + m.Id + '" />';
-        tableHtml += '  </td>';
-        tableHtml += '</tr>';
-      });
-      tableHtml += '        </tbody></table>';
-      tableHtml += '      </div>';
+      tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '">';
+      tableHtml += '  <td class="tl"><div class="sil-modal-cell-title">Solicitud #' + m.Id + '</div>';
+      tableHtml += '    <div class="sil-modal-cell-meta">' +
+                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos compatibles</div>' +
+                    obsBlock + '</td>';
+      tableHtml += '  <td>' + escapeHtml(vendedorLabel) + '</td>';
+      tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
+      tableHtml += '  <td>';
+      tableHtml += '    <div class="sil-modal-qty">';
+      tableHtml += '      <button type="button" data-vb-decr data-idx="' + idx + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>';
+      tableHtml += '      <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
+                    '" data-vb-input data-idx="' + idx + '" data-solicitud="' + m.Id +
+                    '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />';
+      tableHtml += '      <button type="button" data-vb-incr data-idx="' + idx + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>';
       tableHtml += '    </div>';
+      tableHtml += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
       tableHtml += '  </td>';
       tableHtml += '</tr>';
 
-      // Estado inicial.
+      // Estado inicial. `cantidad` refleja el valor del input numérico y se
+      // mantiene en sync con [data-vb-input] mediante los handlers ± y un
+      // listener explícito de cambio (ver más abajo).
       estado.seleccionados[idx] = {
         checked: true,
         solicitudId: m.Id,
         cupoIds: g.cupoIds.slice(),
-        cupoIdsSeleccionados: g.cupoIds.slice(),
+        cupoId: cupo.Id,
         matchType: tipoMatch,
         disponibles: disponibles,
-        max: maxAsignar,
-        sum: maxAsignar,
-        g: g,
-        cupoId: cupo.Id
+        cantidad: initialQty,
+        g: g
       };
     });
 
     tableHtml += '</tbody></table>';
     $('#vb-table-wrap').html(tableHtml);
 
-    // Aplicar handlers.
-    Object.keys(estado.seleccionados).forEach(function (k) {
-      var s = estado.seleccionados[k];
-      var chkId = 'vb-chk-' + k;
-      var totalId = 'vb-total-' + k;
-
-      $(document).on('change', '#' + chkId, function () {
-        s.checked = this.checked;
-        s.sum = s.checked ? s.cupoIds.length : 0;
-        s.cupoIdsSeleccionados = s.checked ? s.cupoIds.slice() : [];
-        $('#' + totalId).text(s.sum);
-        actualizarBarraVB();
-      });
-
-      $(document).on('change', '[data-vb-cupo-grp="' + k + '"]', function () {
-        var cupoId = parseInt($(this).data('vbCupoId'), 10);
-        if (this.checked) {
-          if (s.cupoIdsSeleccionados.indexOf(cupoId) === -1) s.cupoIdsSeleccionados.push(cupoId);
-        } else {
-          s.cupoIdsSeleccionados = s.cupoIdsSeleccionados.filter(function (x) { return x !== cupoId; });
-        }
-        s.sum = s.cupoIdsSeleccionados.length;
-        $('#' + totalId).text(s.sum);
-        actualizarBarraVB();
-      });
-    });
-
-    // Botón expandir/colapsar.
-    $(document).off('click', '[data-vb-toggle]').on('click', '[data-vb-toggle]', function () {
-      var idx = $(this).data('idx');
-      var $det = $('#vb-detail-' + idx);
-      var open = $det.is(':visible');
-      $det.toggle(!open);
-      $(this)
-        .attr('aria-expanded', open ? 'false' : 'true')
-        .html(open ? '&#9662; ver' : '&#9652; cerrar');
-    });
-
-    actualizarBarraVB();
-  }
-
-  function recalcularGrupoVB(grp) {
-    var s = estado.seleccionados[grp];
-    if (!s) return;
-    var sum = (s.cupoIdsSeleccionados || s.cupoIds || []).length;
-    s.sum = sum;
-    if (s.checked) $('#vb-total-' + grp).text(sum);
-    else $('#vb-total-' + grp).text(0);
     actualizarBarraVB();
   }
 
   function actualizarBarraVB() {
+    // La barra refleja la suma de cantidades tipeadas en los inputs
+    // numéricos, no de checkboxes (ya no hay checkboxes en Variante B).
     var asignado = 0;
     Object.keys(estado.seleccionados).forEach(function (k) {
       var s = estado.seleccionados[k];
-      if (s.checked) asignado += (s.cupoIdsSeleccionados || []).length;
+      if (s.checked) asignado += (parseInt(s.cantidad, 10) || 0);
     });
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
     var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
@@ -667,24 +601,26 @@
   // Confirmar / Accept / Reject
   // ============================================================
   function prepararYMostrarConfirmacionObs(onContinue) {
-    var hayCond = Object.keys(estado.seleccionados).some(function (k) {
-      var s = estado.seleccionados[k];
-      if (!s.checked) return false;
-      return s.g.hayCondicional;
-    });
-    if (!hayCond) { onContinue(); return; }
-
-    var obsTxt = '(sin texto)';
-    var solicitante = '';
+    // Busca un match Condicional entre los grupos seleccionados. Antes del
+    // refactor este helper referenciaba `s.g.sols` y `s.g.hayCondicional`,
+    // campos que `agruparMatchesPorSolicitud` nunca creaba — la confirmación
+    // con observaciones estaba rota en Variante B. Ahora leemos directo del
+    // shape actual: `matchType` en cada grupo y `g.solicitud` para tomar la
+    // observación y el nombre del vendedor.
+    var grupoCond = null;
     Object.keys(estado.seleccionados).forEach(function (k) {
+      if (grupoCond) return;
       var s = estado.seleccionados[k];
-      if (!s.g.hayCondicional) return;
-      var solCond = s.g.sols.find(function (x) { return x.MatchType === 'Condicional'; });
-      if (solCond) {
-        if (solCond.Observacion) obsTxt = solCond.Observacion;
-        solicitante = solCond.Vendedor || '';
-      }
+      if (!s.checked) return;
+      if (s.matchType !== 'Condicional') return;
+      grupoCond = s;
     });
+    if (!grupoCond) { onContinue(); return; }
+
+    var solicitud = grupoCond.g && grupoCond.g.solicitud ? grupoCond.g.solicitud : null;
+    var obsTxt = (solicitud && solicitud.Observacion) || '(sin texto)';
+    var solicitante = (solicitud && (solicitud.NombreVendedor || solicitud.Vendedor)) || '';
+
     $('#confirm-obs-texto').html('<b>Observaciones:</b><br />&laquo;' + escapeHtml(obsTxt) + '&raquo;');
     $('#confirm-obs-solicitante').html(solicitante ? 'Solicitante: <strong>' + escapeHtml(solicitante) + '</strong>' : '');
     showOverlay('sil-modal-confirm-obs');
@@ -1169,24 +1105,55 @@
       hideOverlay('sil-modal-variant-b');
     });
 
+    // ± en inputs numéricos de Variante B (data-vb-input). Mantienen
+    // s.cantidad en sync con el valor del input y refrescan la barra.
+    $(document).on('click', '[data-vb-decr], [data-vb-incr]', function () {
+      var $b = $(this);
+      var idx = $b.data('idx');
+      var $inp = $('[data-vb-input][data-idx="' + idx + '"]');
+      if ($inp.length === 0) return;
+      var max = parseInt($inp.attr('max'), 10) || 0;
+      var cur = parseInt($inp.val(), 10) || 0;
+      var inc = $b.data('vbIncr') !== undefined ? +1 : -1;
+      cur = Math.max(0, Math.min(max, cur + inc));
+      $inp.val(cur);
+      if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = cur;
+      actualizarBarraVB();
+    });
+
+    // Cambio manual en el input: clamp + sync con s.cantidad.
+    $(document).on('input change', '[data-vb-input]', function () {
+      var $i = $(this);
+      var idx = $i.data('idx');
+      var max = parseInt($i.attr('max'), 10) || 0;
+      var raw = parseInt($i.val(), 10);
+      if (isNaN(raw) || raw < 0) raw = 0;
+      if (raw > max) raw = max;
+      $i.val(raw);
+      if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = raw;
+      actualizarBarraVB();
+    });
+
     $(document).on('click', '[data-action="vb-confirmar"]', function () {
       var solicitudes = [];
-      Object.keys(estado.seleccionados).forEach(function (k) {
-        var s = estado.seleccionados[k];
-        if (!s.checked) return;
-        if (s.sum <= 0) return;
-        // s.g.sols es la lista; tomamos el primer día (simplificación iteración 1).
-        var firstSol = s.g.sols[0];
-        if (!firstSol) return;
+      // Leemos directo del DOM para tomar el valor actual del input, aunque
+      // s.cantidad ya esté sincronizado por los handlers ± / change de arriba.
+      $('[data-vb-input]').each(function () {
+        var $i = $(this);
+        var idx = $i.data('idx');
+        var s = estado.seleccionados[idx];
+        if (!s || !s.checked) return;
+        var cant = parseInt($i.val(), 10) || 0;
+        if (cant <= 0) return;
         solicitudes.push({
           cupoId: s.cupoId || 0,
-          solicitudId: firstSol.Id,
-          matchType: firstSol.MatchType,
-          cantidad: s.sum
+          solicitudId: s.solicitudId,
+          matchType: s.matchType,
+          cantidad: cant
         });
       });
       if (solicitudes.length === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Tildá al menos un solicitante o ajustá las cantidades.' });
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ingresá al menos una cantidad mayor a 0.' });
         return;
       }
       var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);

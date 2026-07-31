@@ -28,6 +28,15 @@ namespace CuposCorretajeWeb.Models.Solicitudes
   {
     public long Id { get; set; }
     public long CuentaVendedor { get; set; }
+    /// <summary>
+    /// Nombre del vendedor asociado a <see cref="CuentaVendedor"/>.
+    /// Resuelto server-side por SILData (join CUPOSVENDEDOR); se propaga
+    /// al modal de matching para mostrar el nombre en la columna
+    /// "Solicitante" de Variante B (donde el cupo no tiene vendedor
+    /// propio y no se puede tomar de <c>MatchCupoResumenDto.NombreVendedor</c>).
+    /// Puede llegar vacío si el backend todavía no lo propagó.
+    /// </summary>
+    public string NombreVendedor { get; set; }
     public long? CuentaComprador { get; set; }
     public int CodigoGrano { get; set; }
     public long? CuentaDestino { get; set; }

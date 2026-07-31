@@ -263,6 +263,7 @@ namespace CuposCorretajeWeb.Controllers
           {
             Id = item.SolicitudId,
             Vendedor = s.CuentaVendedor.ToString(),
+            NombreVendedor = s.NombreVendedor,
             Comprador = s.CuentaComprador.HasValue ? s.CuentaComprador.Value.ToString() : null,
             Destino = s.CuentaDestino.HasValue ? s.CuentaDestino.Value.ToString() : null,
             Zona = cupoBackend.NombreDestino,

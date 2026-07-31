@@ -15,7 +15,15 @@ namespace CuposCorretajeWeb.Models.Solicitudes
   public class SolicitudParaMatchViewModel
   {
     public long Id { get; set; }
+    /// <summary>Cuenta del vendedor de la solicitud (CUIT/cuenta, string para preservar ceros a la izquierda).</summary>
     public string Vendedor { get; set; }
+    /// <summary>
+    /// Nombre del vendedor (<see cref="Vendedor"/>). Preferido por la UI sobre
+    /// <see cref="Vendedor"/> para mostrar en la columna "Solicitante" del
+    /// modal de matching. Si llega vacío, la UI cae al valor de
+    /// <see cref="Vendedor"/>.
+    /// </summary>
+    public string NombreVendedor { get; set; }
     public string Comprador { get; set; }
     public string Destino { get; set; }
     public string Zona { get; set; }
