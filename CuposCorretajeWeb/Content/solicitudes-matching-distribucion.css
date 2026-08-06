@@ -686,6 +686,23 @@
     display: none;
 }
 
+/* Banner de excedente: la suma de cupos pedidos supera los
+   cupos disponibles. Aparece apenas se pasa del máximo y se mantiene
+   hasta que el operador reduzca las cantidades. */
+.sil-modal-excedente-banner {
+    margin-top: 12px;
+}
+
+.sil-modal-excedente-banner:empty {
+    display: none;
+}
+
+/* Barra de progreso en estado excedido (más del 100% pedido). */
+.sil-modal-progress-fill.is-overflow,
+#vb-progress-fill.is-overflow {
+    background: var(--sil-red, #a93226) !important;
+}
+
 /* Anotación pequeña "X sin asignar" al lado del contador
    "Total solicitudes" del header del modal Variante B. */
 .sil-modal-counter-sin-asignar {

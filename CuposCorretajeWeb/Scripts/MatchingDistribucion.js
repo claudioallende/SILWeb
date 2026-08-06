@@ -743,8 +743,11 @@
 
       // Fila padre (sin input). El "Total" se actualiza dinámicamente
       // desde la suma de los inputs de la subtabla (ver actualizarBarraVB).
+      // El checkbox arranca desmarcado: el operador debe optar
+      // explícitamente por incluir el grupo (así se evita sobre-asignar
+      // cuando hay más solicitudes que cupos disponibles).
       tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '" data-grupo="' + grupoIdx + '">';
-      tableHtml += '  <td><input type="checkbox" data-vb-chk-grupo data-grupo="' + grupoIdx + '" checked aria-label="Incluir solicitudes de ' + escapeHtml(grupo.solicitante) + '"></td>';
+      tableHtml += '  <td><input type="checkbox" data-vb-chk-grupo data-grupo="' + grupoIdx + '" aria-label="Incluir solicitudes de ' + escapeHtml(grupo.solicitante) + '"></td>';
       tableHtml += '  <td class="tl">';
       tableHtml += '    <div class="sil-modal-cell-title">' + escapeHtml(grupo.solicitante) + '</div>';
       tableHtml += '    <div class="sil-modal-cell-meta">Solicitudes agrupadas por vendedor</div>';
@@ -805,9 +808,9 @@
         tableHtml += '            <td>0</td>';
         tableHtml += '            <td>';
         tableHtml += '              <div class="sil-modal-qty">';
-        tableHtml += '                <button type="button" data-vb-decr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" aria-label="Disminuir">&minus;</button>';
-        tableHtml += '                <input type="number" min="0" max="' + disponibles + '" value="' + initialQty + '" data-vb-input-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '" aria-label="Cupos para solicitud ' + solId + '" />';
-        tableHtml += '                <button type="button" data-vb-incr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" aria-label="Aumentar">&plus;</button>';
+        tableHtml += '                <button type="button" data-vb-decr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Disminuir">&minus;</button>';
+        tableHtml += '                <input type="number" min="0" max="' + disponibles + '" value="' + initialQty + '" disabled data-vb-input-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '" aria-label="Cupos para solicitud ' + solId + '" />';
+        tableHtml += '                <button type="button" data-vb-incr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Aumentar">&plus;</button>';
         tableHtml += '              </div>';
         tableHtml += '              <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
         tableHtml += '            </td>';
@@ -817,9 +820,9 @@
         // input de la subtabla. doAccept y detectarConflictosCupos iteran
         // sobre este mapa (clave = solicitudId).
         estado.seleccionados[String(solId)] = {
-          checked: true,            // checkbox de inclusión individual (hoy siempre true; se mantiene por compat)
+          checked: false,           // compat legacy
           grupoIdx: grupoIdx,
-          grupoChecked: true,       // checkbox del padre
+          grupoChecked: false,      // arranca desmarcado, se setea true al tildar el checkbox del padre
           grupoConObs: grupo.conObs,
           solicitudId: solId,
           cupoIds: record.cupoIds.slice(),
@@ -893,13 +896,45 @@
 
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
     var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
+    var excedido = max > 0 && asignado > max;
     $('#vb-progress-fill')
       .css('width', pct + '%')
-      .toggleClass('is-complete', asignado >= max && max > 0);
+      .toggleClass('is-complete', asignado >= max && max > 0)
+      .toggleClass('is-overflow', excedido);
     $('#vb-progress-fill').parent().attr('aria-valuenow', pct);
     $('#vb-progress-label').text(asignado + ' / ' + max);
     $('#vb-counter-asignados').text(asignado);
     $('#vb-progress-warn').toggleClass('is-visible', asignado < max);
+
+    // Banner inline de excedente. Aparece apenas la suma de los inputs
+    // supera los cupos disponibles, para que el operador vea el problema
+    // antes de llegar al Swal de confirmación.
+    actualizarBannerExcedente(excedido, asignado, max);
+  }
+
+  function actualizarBannerExcedente(excedido, asignado, max) {
+    var $banner = $('#vb-excedente-banner');
+    if (!excedido) {
+      if ($banner.length) $banner.empty().hide();
+      return;
+    }
+    var diff = asignado - max;
+    var html = '<div class="sil-modal-callout sil-modal-callout-red">' +
+               '<span class="sil-modal-callout-icon" aria-hidden="true">!</span>' +
+               '<div><strong>Excediste los cupos disponibles:</strong> estás pidiendo ' +
+               '<b>' + asignado + '</b> cupos pero sólo hay <b>' + max + '</b> disponibles ' +
+               '(' + diff + ' de m&aacute;s). Reduc&iacute; las cantidades antes de confirmar.</div>' +
+               '</div>';
+    if ($banner.length === 0) {
+      $banner = $('<div id="vb-excedente-banner" class="sil-modal-excedente-banner"></div>');
+      var $progress = $('#vb-progress');
+      if ($progress.length) {
+        $progress.after($banner);
+      } else {
+        $('#vb-table-wrap').before($banner);
+      }
+    }
+    $banner.html(html).show();
   }
 
   // ============================================================
@@ -1511,6 +1546,28 @@
       });
       if (solicitudes.length === 0) {
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ingresá al menos una cantidad mayor a 0.' });
+        return;
+      }
+
+      // Bloqueo por excedente: si la suma de las cantidades pedidas
+      // supera los cupos físicos disponibles, no dejamos confirmar.
+      // El banner inline (#vb-excedente-banner) ya muestra el aviso en
+      // tiempo real, pero en el confirmamos con un Swal explícito.
+      var maxCupos = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
+      var totalAsignado = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
+      if (maxCupos > 0 && totalAsignado > maxCupos) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Cupos excedidos',
+            html: 'Est&aacute;s intentando asignar <b>' + totalAsignado +
+                  '</b> cupos pero s&oacute;lo hay <b>' + maxCupos +
+                  '</b> disponibles para distribuir (' + (totalAsignado - maxCupos) +
+                  ' de m&aacute;s).<br><br>Desactiv&aacute; alg&uacute;n grupo o reduc&iacute; las cantidades antes de confirmar.',
+            showConfirmButton: true,
+            confirmButtonText: 'Entendido'
+          });
+        }
         return;
       }
 
