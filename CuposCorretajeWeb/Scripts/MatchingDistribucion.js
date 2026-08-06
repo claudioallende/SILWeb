@@ -434,12 +434,11 @@
         };
       }
       grupos[key].records.push(g);
-      // totalSols = suma de los cupos físicos que doAccept puede
-      // efectivamente asignar para este grupo (suma de m.Cupos[].length).
-      // CantidadDisponible puede ser mayor (cupos de SOLTURNOS que no
-      // matchearon los filtros del Buscar); esa diferencia se ve en la
-      // columna "Sols." del padre y en el contador "Total solicitudes".
-      grupos[key].totalSols += Math.max(0, (sol.Cupos || []).length);
+      // totalSols = suma de las unidades disponibles para asignar en este
+      // grupo (suma de s.CantidadDisponible). Es lo que el operador va a
+      // poder mover como máximo para este solicitante respetando el tope
+      // que el backend expone en cada solicitud.
+      grupos[key].totalSols += Math.max(0, sol.CantidadDisponible || 0);
 
       if (obs || tipo === 'Condicional') {
         grupos[key].conObs = true;
@@ -779,11 +778,12 @@
     var totalCuposAsignar = cupo.Cupostotalesadist || cupo.CuposTotales || 0;
     var cuposFisicosMatcheados = cupo.CuposTotales || 0;
 
-    // Total solicitudes = suma de cupos físicos que matchearon todas
-    // las solicitudes (puede ser > totalCuposAsignar si hay cupos
-    // compartidos entre solicitudes o si Cupostotalesadist < CuposTotales).
-    // La diferencia entre este valor y totalCuposAsignar son los "cupos
-    // sin asignar" del mock.
+    // Total solicitudes = suma de las unidades disponibles para asignar
+    // (CantidadDisponible) en todas las solicitudes del grupo. Es el
+    // tope real que el operador puede mover respetando lo que el
+    // backend expone por solicitud. La diferencia entre este valor y
+    // totalCuposAsignar (los cupos pendientes en la tabla de distribu-
+    // ción) son los "cupos sin asignar" del mock.
     var totalSolicitudes = gruposPorSolicitante.reduce(function (a, g) {
       return a + g.totalSols;
     }, 0);
@@ -878,22 +878,17 @@
       tableHtml += '        <thead><tr>';
       tableHtml += '          <th class="tl">Fecha</th>';
       tableHtml += '          <th>Ingresada</th>';
-      tableHtml += '          <th>Sols. TR</th>';
-      tableHtml += '          <th>Sols. TO</th>';
       tableHtml += '          <th>Cupos a asignar</th>';
       tableHtml += '        </tr></thead>';
       tableHtml += '        <tbody>';
 
       grupo.records.forEach(function (record, recordIdx) {
         var sol = record.solicitud;
-        var cantSolicitud = Math.max(0, sol.CantidadDisponible || 0);
-        // max del input = cupos físicos que matchearon esta solicitud
-        // (= m.Cupos[].length). El operador puede pedir hasta acá por fila;
-        // el tope global por vendedor (Cupostotalesadist) NO se enforcea
-        // en los handlers — se valida y bloquea recién al confirmar, para
-        // que el operador vea los números que tipeó y entienda el motivo
-        // del rechazo en el Swal.
-        var disponibles = record.cupoIds.length;
+        // Tope del input = unidades disponibles para asignar en esta
+        // solicitud (sol.CantidadDisponible). Es lo que el backend va a
+        // aceptar como máximo para esta fila; alineamos el input con el
+        // límite real en lugar de con los cupos físicos matcheados.
+        var disponibles = Math.max(0, sol.CantidadDisponible || 0);
         var initialQty = disponibles; // arranca al máximo para que el operador reduzca si quiere
         var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
         var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
@@ -907,25 +902,13 @@
         tableHtml += '          <tr class="sil-modal-detail-data-row" data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '">';
         tableHtml += '            <td class="tl">' + fechaDisplay + '</td>';
         tableHtml += '            <td>' + antiguedadRecord + '</td>';
-        tableHtml += '            <td>' + disponibles + '</td>';
-        tableHtml += '            <td>0</td>';
         tableHtml += '            <td>';
         tableHtml += '              <div class="sil-modal-qty">';
         tableHtml += '                <button type="button" data-vb-decr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Disminuir">&minus;</button>';
         tableHtml += '                <input type="number" min="0" max="' + disponibles + '" value="' + initialQty + '" disabled data-vb-input-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '" aria-label="Cupos para solicitud ' + solId + '" />';
         tableHtml += '                <button type="button" data-vb-incr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Aumentar">&plus;</button>';
         tableHtml += '              </div>';
-        tableHtml += '              <div class="sil-modal-qty-limit">';
-        if (cantSolicitud > disponibles) {
-          // Hay cupos en SOLTURNOS que no matchearon los filtros del
-          // Buscar: el máximo efectivo es el de los cupos matcheados.
-          tableHtml += 'm&aacute;x. ' + disponibles +
-                       ' <span class="sil-modal-qty-limit-note">(de ' + cantSolicitud +
-                       ' disp.)</span>';
-        } else {
-          tableHtml += 'm&aacute;x. ' + disponibles;
-        }
-        tableHtml += '              </div>';
+        tableHtml += '              <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
         tableHtml += '            </td>';
         tableHtml += '          </tr>';
 
@@ -1523,6 +1506,11 @@
   //   tipo: 'confirm-obs' | 'conflict' | 'rechazo-auto'
   // Para cada tipo hay un set distinto de campos relevantes; ver
   // MatchingDistribucionPartial.cshtml para los IDs.
+  // Flags comunes:
+  //   noCerrarMatch (sólo conflict): si true, el botón de cierre solo
+  //     oculta el modal de conflicto sin tocar la tabla de distribución
+  //     ni el modal de match. Útil para validaciones en donde el
+  //     operador debe ajustar cantidades y reintentar.
   function mostrarDialogo(opts) {
     if (!opts || !opts.tipo) return;
     var tipo = opts.tipo;
@@ -1587,6 +1575,15 @@
 
       $(document).off('click.silDialogo', '[data-action="conflict-cerrar-y-recargar"]');
       $(document).on('click.silDialogo', '[data-action="conflict-cerrar-y-recargar"]', function () {
+        // Modo "no cerrar match": sólo ocultamos el modal de conflicto
+        // para que el operador pueda ajustar las cantidades en la
+        // grilla del modal de matching y reintentar. NO recargamos la
+        // página y NO tocamos la tabla de distribución.
+        if (opts.noCerrarMatch) {
+          hideOverlay('sil-modal-conflict');
+          if (typeof opts.onClose === 'function') opts.onClose();
+          return;
+        }
         hideAllOverlays();
         if (typeof opts.onClose === 'function') {
           opts.onClose();
@@ -1976,17 +1973,20 @@
             ? '<b>' + escapeHtml(ve.nombre) + '</b> (CUIT ' + escapeHtml(ve.cuit) + ')'
             : '<b>CUIT ' + escapeHtml(ve.cuit) + '</b>';
           return header + ': querés asignar <b>' + ve.solicitado +
-                 '</b> cupos pero su Cupostotalesadist en la tabla de distribución es <b>' +
+                 '</b> cupos pero su Cupos Totales a Distribuir en la tabla de distribución es <b>' +
                  ve.limite + '</b> (' + ve.excedente + ' de más). Reducí las cantidades de este CUIT antes de confirmar.';
         });
         mostrarDialogo({
           tipo: 'conflict',
-          header: 'Cupostotalesadist excedido por vendedor',
+          header: 'Cupos Totales a Distribuir excedido por vendedor',
           titulo: 'La suma de cupos por CUIT supera el disponible',
-          intro: 'La suma de cupos a distribuir por cada CUIT no puede superar su Cupostotalesadist (los cupos pendientes en la tabla de distribución):',
+          intro: 'La suma de cupos a distribuir por cada CUIT no puede superar su Cupos Totales a Distribuir (los cupos pendientes en la tabla de distribución):',
           help: '<br>' + lineasVend.join('<br><br>'),
           detalle: null,
-          botonTexto: 'Entendido, voy a ajustar'
+          botonTexto: 'Entendido, voy a ajustar',
+          // No recargar ni cerrar el modal de match: el operador debe
+          // ajustar cantidades y volver a intentar la confirmación.
+          noCerrarMatch: true
         });
         return;
       }
@@ -2009,7 +2009,10 @@
           intro: 'Los siguientes cupos están asignados a más de una solicitud. Reducí las cantidades y elegí en cuál solicitud los querés dejar.',
           help: '<br>' + lineas.join('<br>'),
           detalle: null,
-          botonTexto: 'Entendido'
+          botonTexto: 'Entendido',
+          // No recargar ni cerrar el modal de match: el operador debe
+          // ajustar cantidades y volver a intentar la confirmación.
+          noCerrarMatch: true
         });
         return;
       }
