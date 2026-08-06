@@ -80,20 +80,23 @@
 
   // Notificación previa a la distribución. Devuelve una Promise que se
   // resuelve true si el operador confirma, false si cancela.
+  // Usa el modal "Confirmación con observaciones" del mock (sección
+  // "Otros diálogos operativos") en lugar de Swal.
   function confirmarDistribucion(totalCupos, totalSolicitudes) {
-    if (typeof Swal === 'undefined') return $.Deferred().resolve(true).promise();
-
-    return Swal.fire({
-      icon: 'warning',
-      title: 'Aceptar este match distribuirá los cupos',
-      html: 'Se asignarán <b>' + (totalCupos || 0) + '</b> cupo(s) a ',
-      showCancelButton: true,
-      confirmButtonText: 'Aceptar y distribuir',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true,
-      allowOutsideClick: false,
-      allowEscapeKey: false
-    }).then(function (r) { return !!(r && r.isConfirmed); });
+    var dfd = $.Deferred();
+    mostrarDialogo({
+      tipo: 'confirm-obs',
+      header: 'Confirmar distribución',
+      titulo: 'Aceptar este match distribuirá los cupos',
+      observaciones: null,
+      copy: 'Se asignarán <b>' + (totalCupos || 0) + '</b> cupo(s) a ' +
+            (totalSolicitudes || 0) + ' solicitud(es). Esta acción no se puede deshacer.',
+      meta: 'Esta distribución impacta la tabla de cupos.',
+      confirmarTexto: 'Aceptar y distribuir',
+      onConfirm: function () { dfd.resolve(true); },
+      onCancel: function () { dfd.resolve(false); }
+    });
+    return dfd.promise();
   }
 
   // ── API expuesta ─────────────────────────────────────────
@@ -106,9 +109,17 @@
      */
     abrir: function (cuposViewModel) {
       if (!cuposViewModel || cuposViewModel.length === 0) {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'info', title: 'Sin cupos', text: 'No se encontraron cupos en ACA_SILData con esos filtros.' });
-        }
+        // Modal del mock: "Rechazo automático" (informativo, sin redirección).
+        mostrarDialogo({
+          tipo: 'rechazo-auto',
+          header: 'Sin cupos disponibles',
+          titulo: 'No hay cupos para distribuir',
+          resumen: '0 cupos',
+          detalle: 'No se encontraron cupos en ACA_SILData con esos filtros.',
+          lista: [],
+          metaFooter: 'Ajustá los filtros y volvé a buscar para obtener resultados.',
+          botonTexto: 'Aceptar'
+        });
         return;
       }
       estado.cupos = cuposViewModel;
@@ -134,6 +145,15 @@
     cerrar: hideAllOverlays,
     mostrarRechazoAutomatico: mostrarRechazoAutomatico,
     mostrarConflicto: mostrarConflicto,
+    /**
+     * Helper unificado para los tres modales del mock en la sección
+     * "Otros diálogos operativos". Reemplaza al Swal.fire del flujo.
+     *   tipo: 'confirm-obs' | 'conflict' | 'rechazo-auto'
+     * Ver MatchingDistribucionPartial.cshtml para los IDs y la
+     * MatchingDistribucionPartial.cshtml#sil-modal-* para cada
+     * diálogo.
+     */
+    mostrarDialogo: mostrarDialogo,
 
     /**
      * Devuelve la lista de AsignacionesSolicitudCupo que SILApi espera en
@@ -1115,18 +1135,28 @@
     var solicitud = grupoCond.solicitud || (grupoCond.g && grupoCond.g.solicitud) || null;
     var obsTxt = (solicitud && solicitud.Observacion) || '(sin texto)';
     var solicitante = (solicitud && (solicitud.NombreVendedor || solicitud.Vendedor)) || '';
+    var fechaTxt = (solicitud && solicitud.FechaSolicitado)
+      ? formatFechaCorta(solicitud.FechaSolicitado)
+      : '';
+    var meta;
+    if (solicitante && fechaTxt) {
+      meta = 'Solicitante: ' + solicitante + ' · ' + fechaTxt;
+    } else if (solicitante) {
+      meta = 'Solicitante: ' + solicitante;
+    } else {
+      meta = fechaTxt;
+    }
 
-    $('#confirm-obs-texto').html('<b>Observaciones:</b><br />&laquo;' + escapeHtml(obsTxt) + '&raquo;');
-    $('#confirm-obs-solicitante').html(solicitante ? 'Solicitante: <strong>' + escapeHtml(solicitante) + '</strong>' : '');
-    showOverlay('sil-modal-confirm-obs');
-
-    // Botones.
-    $(document).off('click', '[data-action="confirm-obs-confirmar"]').on('click', '[data-action="confirm-obs-confirmar"]', function () {
-      hideOverlay('sil-modal-confirm-obs');
-      onContinue();
-    });
-    $(document).off('click', '[data-action="confirm-obs-cancelar"]').on('click', '[data-action="confirm-obs-cancelar"]', function () {
-      hideOverlay('sil-modal-confirm-obs');
+    mostrarDialogo({
+      tipo: 'confirm-obs',
+      header: 'Confirmación con observaciones',
+      titulo: 'La solicitud tiene condiciones especiales',
+      observaciones: obsTxt,
+      copy: 'Verificá que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.',
+      meta: meta,
+      confirmarTexto: 'Sí, confirmar',
+      onConfirm: onContinue,
+      onCancel: function () { /* no-op: el operador canceló */ }
     });
   }
 
@@ -1247,16 +1277,18 @@
           actualizarTablaContratos({ mostrarEstado: true });
         }
 
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'success',
-            title: 'Distribución realizada',
-            text: (data && data.Message) ? data.Message
-                 : 'Se distribuyeron ' + totalCupos + ' cupo(s) correctamente.',
-            timer: 3500,
-            showConfirmButton: false
-          });
-        }
+        // Notificación informativa (mock: "Rechazo automático" → reutilizado
+        // como notificación de cierre/ejecución exitosa).
+        mostrarDialogo({
+          tipo: 'rechazo-auto',
+          header: 'Distribución realizada',
+          titulo: 'Proceso ejecutado correctamente',
+          resumen: totalCupos + ' cupo(s)',
+          detalle: 'distribuidos correctamente.',
+          lista: [],
+          metaFooter: (data && data.Message) ? data.Message : 'La tabla de distribución se actualizó.',
+          botonTexto: 'Aceptar'
+        });
       } else if (codigo === 100) {
         if (typeof addAlert === 'function') { addAlert('Cantidad de cupos excedidos', 'alert-danger'); if (typeof onAlert === 'function') onAlert(); }
       } else if (codigo === 200) {
@@ -1264,14 +1296,16 @@
       } else if (codigo === 300) {
         if (typeof addAlert === 'function') { addAlert('No hubo cambios', 'alert-info'); if (typeof onAlert === 'function') onAlert(); }
       } else {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'No se pudo distribuir',
-            text: (data && data.Message) ? data.Message : 'El backend rechazó la distribución.',
-            showConfirmButton: true
-          });
-        }
+        // Error de negocio (mock: "Conflicto de concurrencia" → reutilizado
+        // como modal de error genérico: header rojo, detalle del backend).
+        mostrarDialogo({
+          tipo: 'conflict',
+          header: 'No se pudo distribuir',
+          titulo: 'El backend rechazó la distribución',
+          intro: '',
+          help: (data && data.Message) ? data.Message : 'Revisá los datos y volvé a intentar.',
+          detalle: null
+        });
       }
     }).fail(function (xhr) {
       hideBlockingOverlay();
@@ -1279,29 +1313,33 @@
 
       // 409 = conflicto de concurrencia explícito.
       if (xhr && xhr.status === 409) {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Conflicto de concurrencia',
-            text: (xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
-                ? (xhr.responseJSON.Message || xhr.responseJSON.message)
-                : 'La solicitud ya fue procesada por otro operador.',
-            showConfirmButton: true
-          });
-        }
+        var msg409 = (xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
+          ? (xhr.responseJSON.Message || xhr.responseJSON.message)
+          : 'La solicitud ya fue procesada por otro operador.';
+        mostrarDialogo({
+          tipo: 'conflict',
+          header: 'Conflicto de concurrencia',
+          titulo: 'La solicitud ya fue procesada',
+          intro: 'La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.',
+          help: 'La tabla se actualizó. Seleccioná otra solicitud pendiente o volvé a la grilla de cupos.',
+          detalle: '<strong>' + escapeHtml(msg409) + '</strong>'
+        });
         return;
       }
 
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error al distribuir',
-          text: (xhr && xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
-              ? (xhr.responseJSON.Message || xhr.responseJSON.message)
-              : 'No se pudo comunicar con el servidor.',
-          showConfirmButton: true
-        });
-      }
+      // Otros errores: modal "Conflicto de concurrencia" usado como
+      // canal genérico de error (header rojo) según el mock.
+      var msgErr = (xhr && xhr.responseJSON && (xhr.responseJSON.Message || xhr.responseJSON.message))
+        ? (xhr.responseJSON.Message || xhr.responseJSON.message)
+        : 'No se pudo comunicar con el servidor.';
+      mostrarDialogo({
+        tipo: 'conflict',
+        header: 'Error al distribuir',
+        titulo: 'Falló la comunicación con el servidor',
+        intro: '',
+        help: 'Verificá tu conexión y volvé a intentar.',
+        detalle: '<strong>' + escapeHtml(msgErr) + '</strong>'
+      });
     }).always(function () {
       // Garantiza que el overlay bloqueante se oculte en cualquier camino,
       // incluso si el backend responde 2xx sin `Codigo` o si la promesa se
@@ -1477,30 +1515,155 @@
   }
 
   // ============================================================
-  // Diálogos extras
+  // Diálogos extras (mock "Otros diálogos operativos")
   // ============================================================
+
+  // Helper unificado para mostrar uno de los tres modales del mock.
+  // Reemplaza completamente al Swal.fire dentro del flujo de matching.
+  //   tipo: 'confirm-obs' | 'conflict' | 'rechazo-auto'
+  // Para cada tipo hay un set distinto de campos relevantes; ver
+  // MatchingDistribucionPartial.cshtml para los IDs.
+  function mostrarDialogo(opts) {
+    if (!opts || !opts.tipo) return;
+    var tipo = opts.tipo;
+
+    if (tipo === 'confirm-obs') {
+      // Header: configurable (default = "Confirmación con observaciones").
+      if (opts.header) $('#confirm-obs-title').text(opts.header);
+      // Título del diálogo (debajo del header).
+      if (opts.titulo) $('#confirm-obs-message').text(opts.titulo);
+      // Bloque de observaciones (amber). Si llega vacío/null, se oculta.
+      var $texto = $('#confirm-obs-texto');
+      if (opts.observaciones) {
+        $texto.html('<b>Observaciones:</b><br />&laquo;' + escapeHtml(opts.observaciones) + '&raquo;').show();
+      } else {
+        $texto.hide();
+      }
+      // Copy debajo del callout.
+      if (opts.copy) $('#confirm-obs-copy').html(opts.copy);
+      // Meta footer (Solicitante: X · fecha).
+      $('#confirm-obs-solicitante').html(opts.meta ? escapeHtml(opts.meta) : '');
+      // Etiquetas de los botones.
+      var $btnCancel = $('[data-action="confirm-obs-cancelar"]');
+      var $btnConfirm = $('[data-action="confirm-obs-confirmar"]');
+      if (opts.cancelarTexto) $btnCancel.text(opts.cancelarTexto);
+      if (opts.confirmarTexto) $btnConfirm.text(opts.confirmarTexto);
+
+      // Bind handlers (limpia los anteriores para evitar fugas).
+      $(document).off('click.silDialogo', '[data-action="confirm-obs-confirmar"]');
+      $(document).off('click.silDialogo', '[data-action="confirm-obs-cancelar"]');
+      $(document).on('click.silDialogo', '[data-action="confirm-obs-confirmar"]', function () {
+        hideOverlay('sil-modal-confirm-obs');
+        if (typeof opts.onConfirm === 'function') opts.onConfirm();
+      });
+      $(document).on('click.silDialogo', '[data-action="confirm-obs-cancelar"]', function () {
+        hideOverlay('sil-modal-confirm-obs');
+        if (typeof opts.onCancel === 'function') opts.onCancel();
+      });
+
+      showOverlay('sil-modal-confirm-obs');
+      return;
+    }
+
+    if (tipo === 'conflict') {
+      if (opts.header) $('#conflict-title').text(opts.header);
+      if (opts.titulo) $('#conflict-message').text(opts.titulo);
+      if (opts.intro) $('#conflict-intro').html(opts.intro);
+      if (opts.help) $('#conflict-help').html(opts.help);
+
+      // Detalle (callout rojo). Si llega vacío/null, se oculta.
+      var $det = $('#conflict-detail');
+      if (opts.detalle) {
+        $det.html(opts.detalle).show();
+      } else {
+        $det.hide();
+      }
+
+      // Botón: el flujo estándar es recargar la grilla. Si el llamador
+      // quiere otra acción, se puede capturar via onClose y el handler
+      // cancelar-modal-volver-grilla.
+      var $btnClose = $('[data-action="conflict-cerrar-y-recargar"]');
+      if (opts.botonTexto) $btnClose.text(opts.botonTexto);
+
+      $(document).off('click.silDialogo', '[data-action="conflict-cerrar-y-recargar"]');
+      $(document).on('click.silDialogo', '[data-action="conflict-cerrar-y-recargar"]', function () {
+        hideAllOverlays();
+        if (typeof opts.onClose === 'function') {
+          opts.onClose();
+        } else {
+          location.reload();
+        }
+      });
+
+      showOverlay('sil-modal-conflict');
+      return;
+    }
+
+    if (tipo === 'rechazo-auto') {
+      if (opts.header) $('#rechazo-auto-title').text(opts.header);
+      if (opts.titulo) $('#rechazo-auto-message').text(opts.titulo);
+      if (typeof opts.resumen === 'string') $('#rechazo-auto-resumen').text(opts.resumen);
+      if (opts.detalle) $('#rechazo-auto-detalle').text(opts.detalle);
+
+      // Lista opcional.
+      var $lista = $('#rechazo-auto-lista');
+      if (opts.lista && opts.lista.length > 0) {
+        var html = opts.lista.map(function (s) {
+          return '&mdash; ' + escapeHtml(s);
+        }).join('<br />');
+        $lista.html(html).show();
+      } else {
+        $lista.empty().hide();
+      }
+
+      if (opts.metaFooter) $('#rechazo-auto-footer').text(opts.metaFooter);
+
+      var $btnAceptar = $('[data-action="rechazo-auto-aceptar"]');
+      if (opts.botonTexto) $btnAceptar.text(opts.botonTexto);
+
+      $(document).off('click.silDialogo', '[data-action="rechazo-auto-aceptar"]');
+      $(document).on('click.silDialogo', '[data-action="rechazo-auto-aceptar"]', function () {
+        hideOverlay('sil-modal-rechazo-auto');
+        if (typeof opts.onAccept === 'function') opts.onAccept();
+      });
+
+      showOverlay('sil-modal-rechazo-auto');
+      return;
+    }
+  }
+
+  // Backwards-compat: los callers existentes (prepararYMostrarConfirmacionObs,
+  // doAccept, etc.) siguen llamando a mostrarConflicto / mostrarRechazoAutomatico.
+  // Redirigen a mostrarDialogo con el shape del mock.
   function mostrarConflicto(mensaje, fallos) {
     var html = '<strong>' + escapeHtml(mensaje) + '</strong>';
     if (fallos && fallos.length > 0) {
       html += '<ul>';
       fallos.forEach(function (f) {
-        html += '<li>Solicitud #' + f.SolicitudId + ': ' + escapeHtml(f.Motivo) + '</li>';
+        html += '<li>Solicitud #' + escapeHtml(String(f.SolicitudId)) + ': ' + escapeHtml(f.Motivo) + '</li>';
       });
       html += '</ul>';
     }
-    $('#conflict-detail').html(html);
-    showOverlay('sil-modal-conflict');
+    mostrarDialogo({
+      tipo: 'conflict',
+      header: 'Conflicto de concurrencia',
+      titulo: 'La solicitud ya fue procesada',
+      detalle: html
+    });
   }
 
   function mostrarRechazoAutomatico(resumen, lista) {
-    $('#rechazo-auto-resumen').text((resumen || 2) + ' solicitudes');
-    if (lista && lista.length > 0) {
-      var html = lista.map(function (s) {
-        return '&mdash; ' + escapeHtml(s);
-      }).join('<br />');
-      $('#rechazo-auto-lista').html(html);
-    }
-    showOverlay('sil-modal-rechazo-auto');
+    var total = (typeof resumen === 'number') ? resumen : (parseInt(resumen, 10) || 2);
+    mostrarDialogo({
+      tipo: 'rechazo-auto',
+      header: 'Rechazo automático — cierre 18:00 hs',
+      titulo: 'Proceso de cierre ejecutado',
+      resumen: total + ' solicitudes',
+      detalle: 'rechazadas automáticamente por vencimiento del día operativo.',
+      lista: lista || [],
+      metaFooter: 'Los solicitantes fueron notificados automáticamente.',
+      botonTexto: 'Aceptar'
+    });
   }
 
   // ============================================================
@@ -1572,7 +1735,16 @@
         }
       });
       if (solicitudes.length === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ajustá las cantidades en el paso 1 antes de confirmar.' });
+        mostrarDialogo({
+          tipo: 'rechazo-auto',
+          header: 'Nada seleccionado',
+          titulo: 'Ajustá las cantidades antes de confirmar',
+          resumen: '0 cupos',
+          detalle: 'pendientes de asignación en el paso 1.',
+          lista: [],
+          metaFooter: 'Ingresá al menos una cantidad mayor a 0 en las solicitudes del paso 1.',
+          botonTexto: 'Aceptar'
+        });
         return;
       }
       var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
@@ -1597,7 +1769,16 @@
         }
       });
       if (solicitudes.length === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ajustá las cantidades en el paso 3 antes de confirmar.' });
+        mostrarDialogo({
+          tipo: 'rechazo-auto',
+          header: 'Nada seleccionado',
+          titulo: 'Ajustá las cantidades antes de confirmar',
+          resumen: '0 cupos',
+          detalle: 'pendientes de asignación en el paso 3.',
+          lista: [],
+          metaFooter: 'Ingresá al menos una cantidad mayor a 0 en las solicitudes del paso 3.',
+          botonTexto: 'Aceptar'
+        });
         return;
       }
       var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
@@ -1705,7 +1886,16 @@
         });
       });
       if (solicitudes.length === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ingresá al menos una cantidad mayor a 0.' });
+        mostrarDialogo({
+          tipo: 'rechazo-auto',
+          header: 'Nada seleccionado',
+          titulo: 'Ingresá al menos una cantidad mayor a 0',
+          resumen: '0 cupos',
+          detalle: 'pendientes de asignación.',
+          lista: [],
+          metaFooter: 'Ajustá las cantidades en las filas de la tabla y volvé a confirmar.',
+          botonTexto: 'Aceptar'
+        });
         return;
       }
 
@@ -1785,21 +1975,19 @@
           var header = ve.nombre
             ? '<b>' + escapeHtml(ve.nombre) + '</b> (CUIT ' + escapeHtml(ve.cuit) + ')'
             : '<b>CUIT ' + escapeHtml(ve.cuit) + '</b>';
-          return header + ': quer&eacute;s asignar <b>' + ve.solicitado +
-                 '</b> cupos pero su Cupostotalesadist en la tabla de distribuci&oacute;n es <b>' +
-                 ve.limite + '</b> (' + ve.excedente + ' de m&aacute;s). Reduc&iacute; las cantidades de este CUIT antes de confirmar.';
+          return header + ': querés asignar <b>' + ve.solicitado +
+                 '</b> cupos pero su Cupostotalesadist en la tabla de distribución es <b>' +
+                 ve.limite + '</b> (' + ve.excedente + ' de más). Reducí las cantidades de este CUIT antes de confirmar.';
         });
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'Cupostotalesadist excedido por vendedor',
-            html: 'La suma de cupos a distribuir por cada CUIT no puede superar su Cupostotalesadist ' +
-                  '(los cupos pendientes en la tabla de distribuci&oacute;n):<br><br>' +
-                  lineasVend.join('<br><br>'),
-            showConfirmButton: true,
-            confirmButtonText: 'Entendido, voy a ajustar'
-          });
-        }
+        mostrarDialogo({
+          tipo: 'conflict',
+          header: 'Cupostotalesadist excedido por vendedor',
+          titulo: 'La suma de cupos por CUIT supera el disponible',
+          intro: 'La suma de cupos a distribuir por cada CUIT no puede superar su Cupostotalesadist (los cupos pendientes en la tabla de distribución):',
+          help: '<br>' + lineasVend.join('<br><br>'),
+          detalle: null,
+          botonTexto: 'Entendido, voy a ajustar'
+        });
         return;
       }
 
@@ -1814,17 +2002,15 @@
           var cupos = conflicto.conflictosPorSolicitud[solId].join(', ');
           lineas.push('<b>' + escapeHtml(nombre) + '</b>: cupos ' + escapeHtml(cupos));
         });
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'Conflicto de cupos entre solicitudes',
-            html: 'Los siguientes cupos están asignados a más de una solicitud. ' +
-                  'Reducí las cantidades y elegí en cuál solicitud los querés dejar.<br><br>' +
-                  lineas.join('<br>'),
-            showConfirmButton: true,
-            confirmButtonText: 'Entendido'
-          });
-        }
+        mostrarDialogo({
+          tipo: 'conflict',
+          header: 'Conflicto de cupos entre solicitudes',
+          titulo: 'Hay cupos asignados a más de una solicitud',
+          intro: 'Los siguientes cupos están asignados a más de una solicitud. Reducí las cantidades y elegí en cuál solicitud los querés dejar.',
+          help: '<br>' + lineas.join('<br>'),
+          detalle: null,
+          botonTexto: 'Entendido'
+        });
         return;
       }
 

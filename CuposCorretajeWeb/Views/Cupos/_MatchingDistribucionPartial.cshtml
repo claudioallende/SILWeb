@@ -238,9 +238,16 @@
 
 @* ============================================================
      OTROS DIÁLOGOS OPERATIVOS
+     Mock C:\Users\gasparc\Downloads\SIL_Mockups_Matching_v5.html
+     Estos tres modales reemplazan los Swal.fire del flujo de
+     matching. Cada uno es reutilizable según el contexto:
+       · Confirmación con observaciones (amber) — confirmaciones
+         generales o condicionales.
+       · Conflicto de concurrencia (red) — errores / 409 / excedentes.
+       · Rechazo automático (purple) — notificaciones informativas.
      ============================================================ *@
 
-@* Confirmación con observaciones (match Condicional) *@
+@* Confirmación con observaciones (mock: "Confirmación con observaciones") *@
 <div id="sil-modal-confirm-obs"
      class="sil-modal-overlay"
      data-modal="confirm-obs"
@@ -255,12 +262,12 @@
       <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-dialog-title">La solicitud contiene condiciones especiales</div>
+      <div class="sil-modal-dialog-title" id="confirm-obs-message">La solicitud contiene condiciones especiales</div>
       <div class="sil-modal-callout sil-modal-callout-amber" id="confirm-obs-texto">
         <b>Observaciones:</b>
         <em>A&uacute;n sin texto.</em>
       </div>
-      <p class="sil-modal-dialog-copy">Verific&aacute; que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.</p>
+      <p class="sil-modal-dialog-copy" id="confirm-obs-copy">Verific&aacute; que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.</p>
       <div id="confirm-obs-solicitante" class="sil-modal-dialog-meta"></div>
       <div class="sil-modal-foot">
         <button type="button" class="sil-btn" data-action="confirm-obs-cancelar">Cancelar</button>
@@ -270,7 +277,7 @@
   </div>
 </div>
 
-@* Conflicto de concurrencia (409) *@
+@* Conflicto de concurrencia (mock: "Error — Conflicto de concurrencia") *@
 <div id="sil-modal-conflict"
      class="sil-modal-overlay"
      data-modal="conflict"
@@ -285,9 +292,9 @@
       <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-dialog-title">La solicitud ya fue procesada</div>
-      <p class="sil-modal-dialog-copy">La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.</p>
-      <p class="sil-modal-dialog-copy">La tabla se actualiz&oacute;. Seleccion&aacute; otra solicitud pendiente o volv&eacute; a la grilla de cupos.</p>
+      <div class="sil-modal-dialog-title" id="conflict-message">La solicitud ya fue procesada</div>
+      <p class="sil-modal-dialog-copy" id="conflict-intro">La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.</p>
+      <p class="sil-modal-dialog-copy" id="conflict-help">La tabla se actualiz&oacute;. Seleccion&aacute; otra solicitud pendiente o volv&eacute; a la grilla de cupos.</p>
       <div id="conflict-detail" class="sil-modal-callout sil-modal-callout-red"></div>
       <div class="sil-modal-foot">
         <button type="button" class="sil-btn sil-btn-navy" data-action="conflict-cerrar-y-recargar">Volver a la grilla</button>
@@ -296,7 +303,7 @@
   </div>
 </div>
 
-@* Rechazo automático 18:00 hs (informativo, sólo lectura) *@
+@* Rechazo automático 18:00 hs (mock: "Rechazo automático — 18:00 hs") *@
 <div id="sil-modal-rechazo-auto"
      class="sil-modal-overlay"
      data-modal="rechazo-auto"
@@ -311,12 +318,12 @@
       <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     </div>
     <div class="sil-modal-card-body">
-      <div class="sil-modal-dialog-title">Proceso de cierre ejecutado</div>
+      <div class="sil-modal-dialog-title" id="rechazo-auto-message">Proceso de cierre ejecutado</div>
       <div class="sil-modal-callout sil-modal-callout-purple">
-        <div><strong id="rechazo-auto-resumen">2 solicitudes</strong> rechazadas autom&aacute;ticamente por vencimiento del d&iacute;a operativo.</div>
+        <div><strong id="rechazo-auto-resumen">2 solicitudes</strong> <span id="rechazo-auto-detalle">rechazadas autom&aacute;ticamente por vencimiento del d&iacute;a operativo.</span></div>
       </div>
       <div id="rechazo-auto-lista" class="sil-modal-dialog-list"></div>
-      <div class="sil-modal-dialog-meta">Los solicitantes fueron notificados autom&aacute;ticamente.</div>
+      <div class="sil-modal-dialog-meta" id="rechazo-auto-footer">Los solicitantes fueron notificados autom&aacute;ticamente.</div>
       <div class="sil-modal-foot">
         <button type="button" class="sil-btn sil-btn-navy" data-action="rechazo-auto-aceptar">Aceptar</button>
       </div>

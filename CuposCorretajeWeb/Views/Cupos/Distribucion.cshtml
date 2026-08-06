@@ -672,11 +672,18 @@
             if (Array.isArray(cuposCalifican) && cuposCalifican.length > 0) {
               SILMatching.abrir(cuposCalifican);
             } else if (resp && resp.cupos && resp.cupos.length === 0) {
-              if (window.Swal) {
-                Swal.fire({
-                  icon: 'info',
-                  title: 'Sin matches',
-                  text: resp.message || 'No se encontraron solicitudes compatibles con los filtros.'
+              // Modal del mock "Rechazo automático" usado como notificación
+              // informativa (header purple) para "Sin matches".
+              if (window.SILMatching && typeof window.SILMatching.mostrarDialogo === 'function') {
+                window.SILMatching.mostrarDialogo({
+                  tipo: 'rechazo-auto',
+                  header: 'Sin matches',
+                  titulo: 'No se encontraron solicitudes compatibles',
+                  resumen: '0 solicitudes',
+                  detalle: 'compatibles con los filtros aplicados.',
+                  lista: [],
+                  metaFooter: resp.message || 'Ajustá los filtros y volvé a buscar para obtener resultados.',
+                  botonTexto: 'Aceptar'
                 });
               }
             } else {
