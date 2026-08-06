@@ -325,13 +325,148 @@
     return Object.values(grupos);
   }
 
+  // ============================================================
+  // Validación de conflicto de cupos entre solicitudes (Variante B)
+  // ============================================================
+  // Replica la lógica de selección de cupos que usa doAccept: para cada
+  // solicitud se toman los primeros `cantidad` cupoIds del pool
+  // compatible (estado.seleccionados[idx].cupoIds). Si el mismo cupoId
+  // queda asignado a dos o más solicitudes, hay conflicto y la
+  // distribución debe bloquearse.
+  //
+  // Devuelve:
+  //   - hayConflictos: bool
+  //   - conflictosPorSolicitud: { solicitudId: [cupoId, ...] } cupos por
+  //       los que esta solicitud está peleando con otras
+  //   - cuposEnConflicto: [cupoId, ...] ids únicos en conflicto
+  //   - nombresPorSolicitud: { solicitudId: stringHuman } para los mensajes
+  function detectarConflictosCupos(solicitudes) {
+    var nombresPorSolicitud = {};
+    var asignacionesPorCupo = {};
+    var conflictosPorSolicitud = {};
+
+    (solicitudes || []).forEach(function (s) {
+      if (!s || !s.solicitudId || !s.cantidad || s.cantidad <= 0) return;
+
+      // Buscar la entrada de estado correspondiente a esta solicitud.
+      var sel = null;
+      Object.keys(estado.seleccionados).forEach(function (k) {
+        if (sel) return;
+        if (String(estado.seleccionados[k].solicitudId) === String(s.solicitudId)) {
+          sel = estado.seleccionados[k];
+        }
+      });
+      if (!sel) return;
+
+      // Etiqueta humana (vendedor o id de solicitud) para los mensajes.
+      var sol = sel.g && sel.g.solicitud;
+      if (sol) {
+        nombresPorSolicitud[String(s.solicitudId)] =
+          sol.NombreVendedor || sol.Vendedor || ('Solicitud #' + sol.Id);
+      } else {
+        nombresPorSolicitud[String(s.solicitudId)] = 'Solicitud #' + s.solicitudId;
+      }
+
+      // Tomar los primeros N cupos del pool (misma lógica que doAccept).
+      var pool = sel.cupoIds || [];
+      var n = Math.min(s.cantidad, pool.length);
+      for (var i = 0; i < n; i++) {
+        var cupoId = pool[i];
+        if (!asignacionesPorCupo[cupoId]) asignacionesPorCupo[cupoId] = [];
+        asignacionesPorCupo[cupoId].push(String(s.solicitudId));
+      }
+    });
+
+    // Detectar cupos presentes en 2+ solicitudes.
+    var cuposEnConflicto = [];
+    Object.keys(asignacionesPorCupo).forEach(function (cupoId) {
+      var sols = asignacionesPorCupo[cupoId];
+      if (sols.length > 1) {
+        cuposEnConflicto.push(parseInt(cupoId, 10));
+        sols.forEach(function (solId) {
+          if (!conflictosPorSolicitud[solId]) conflictosPorSolicitud[solId] = [];
+          if (conflictosPorSolicitud[solId].indexOf(parseInt(cupoId, 10)) === -1) {
+            conflictosPorSolicitud[solId].push(parseInt(cupoId, 10));
+          }
+        });
+      }
+    });
+
+    return {
+      hayConflictos: cuposEnConflicto.length > 0,
+      conflictosPorSolicitud: conflictosPorSolicitud,
+      cuposEnConflicto: cuposEnConflicto,
+      nombresPorSolicitud: nombresPorSolicitud
+    };
+  }
+
+  // Marca visualmente las filas en conflicto y muestra un banner
+  // informativo debajo de la tabla. Se llama desde los handlers de
+  // ±/input y al confirmar.
+  function actualizarConflictoVisual() {
+    var $wrap = $('#vb-table-wrap');
+    if ($wrap.length === 0) return;
+
+    // Reconstruir el array de solicitudes desde el DOM (mismo criterio
+    // que vb-confirmar para leer el valor vigente del input).
+    var solicitudes = [];
+    $('[data-vb-input]').each(function () {
+      var $i = $(this);
+      var idx = $i.data('idx');
+      var s = estado.seleccionados[idx];
+      if (!s) return;
+      var cant = parseInt($i.val(), 10) || 0;
+      if (cant <= 0) return;
+      solicitudes.push({
+        solicitudId: s.solicitudId,
+        cupoId: s.cupoId || 0,
+        matchType: s.matchType,
+        cantidad: cant
+      });
+    });
+
+    var res = detectarConflictosCupos(solicitudes);
+
+    // Marcar / desmarcar filas en conflicto.
+    $('.sil-modal-data-row').each(function () {
+      var $row = $(this);
+      var idx = $row.find('[data-vb-input]').data('idx');
+      if (idx === undefined) return;
+      var sel = estado.seleccionados[idx];
+      if (!sel) return;
+      var enConflicto = !!res.conflictosPorSolicitud[String(sel.solicitudId)];
+      $row.toggleClass('is-conflict', enConflicto);
+    });
+
+    // Banner de conflicto debajo de la tabla.
+    var $banner = $('#vb-conflict-banner');
+    if (res.hayConflictos) {
+      var lineas = [];
+      Object.keys(res.conflictosPorSolicitud).forEach(function (solId) {
+        var nombre = res.nombresPorSolicitud[solId] || ('Solicitud #' + solId);
+        var cupos = res.conflictosPorSolicitud[solId].join(', ');
+        lineas.push('<b>' + escapeHtml(nombre) + '</b>: cupos ' + escapeHtml(cupos));
+      });
+      var html = '<div class="sil-modal-callout sil-modal-callout-red">' +
+                 '<span class="sil-modal-callout-icon" aria-hidden="true">!</span>' +
+                 '<div><strong>Conflicto de cupos:</strong> los siguientes cupos están asignados a más de una solicitud. ' +
+                 'Ajustá las cantidades y elegí en cuál solicitud los querés dejar.<br>' +
+                 lineas.join('<br>') + '</div></div>';
+      if ($banner.length === 0) {
+        $banner = $('<div id="vb-conflict-banner" class="sil-modal-conflict-banner"></div>');
+        $wrap.after($banner);
+      }
+      $banner.html(html).show();
+    } else if ($banner.length) {
+      $banner.empty().hide();
+    }
+  }
+
   function renderVarianteA(cupo) {
     // Subtítulo del cupo.
     $('#va-title-cupo').text('Match detectado');
     var subtitleParts = [];
     if (cupo.CuposTotales) subtitleParts.push(cupo.CuposTotales + ' cupos disponibles');
-    var fechaCupo = formatFechaCorta(parsearFechaJSON(cupo.Fecha));
-    if (fechaCupo) subtitleParts.push('Fecha: ' + fechaCupo);
     if (cupo.NomGrano) subtitleParts.push(cupo.NomGrano);
     if (cupo.NomCompSIL) subtitleParts.push(cupo.NomCompSIL);
     if (cupo.NomVendSIL) subtitleParts.push('Vendedor: ' + cupo.NomVendSIL);
@@ -503,11 +638,9 @@
   // VARIANTE B — Cupo sin vendedor (input numérico por solicitud)
   // ============================================================
   function renderVarianteB(cupo) {
-    var fechaCupoB = formatFechaCorta(parsearFechaJSON(cupo.Fecha));
     $('#vb-subtitle-cupo').text(
       (cupo.CuposTotales || 0) + ' cupos · ' + (cupo.NomGrano || '') +
       ' · ' + (cupo.NomCompSIL || 'Sin comprador') +
-      (fechaCupoB ? ' · Fecha: ' + fechaCupoB : '') +
       ' · Sin vendedor');
 
     // Agrupar matches por solicitud (dedup). Variante B muestra una fila por
@@ -599,6 +732,7 @@
     $('#vb-table-wrap').html(tableHtml);
 
     actualizarBarraVB();
+    actualizarConflictoVisual();
   }
 
   function actualizarBarraVB() {
@@ -1156,6 +1290,7 @@
       $inp.val(cur);
       if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = cur;
       actualizarBarraVB();
+      actualizarConflictoVisual();
     });
 
     // Cambio manual en el input: clamp + sync con s.cantidad.
@@ -1169,6 +1304,7 @@
       $i.val(raw);
       if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = raw;
       actualizarBarraVB();
+      actualizarConflictoVisual();
     });
 
     $(document).on('click', '[data-action="vb-confirmar"]', function () {
@@ -1193,6 +1329,31 @@
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Nada seleccionado', text: 'Ingresá al menos una cantidad mayor a 0.' });
         return;
       }
+
+      // Validar que un mismo cupo no quede asignado a dos solicitudes.
+      var conflicto = detectarConflictosCupos(solicitudes);
+      if (conflicto.hayConflictos) {
+        actualizarConflictoVisual();
+        var lineas = [];
+        Object.keys(conflicto.conflictosPorSolicitud).forEach(function (solId) {
+          var nombre = conflicto.nombresPorSolicitud[solId] || ('Solicitud #' + solId);
+          var cupos = conflicto.conflictosPorSolicitud[solId].join(', ');
+          lineas.push('<b>' + escapeHtml(nombre) + '</b>: cupos ' + escapeHtml(cupos));
+        });
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Conflicto de cupos entre solicitudes',
+            html: 'Los siguientes cupos están asignados a más de una solicitud. ' +
+                  'Reducí las cantidades y elegí en cuál solicitud los querés dejar.<br><br>' +
+                  lineas.join('<br>'),
+            showConfirmButton: true,
+            confirmButtonText: 'Entendido'
+          });
+        }
+        return;
+      }
+
       var totalCupos = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
       confirmarDistribucion(totalCupos, solicitudes.length).then(function (ok) {
         if (!ok) return;

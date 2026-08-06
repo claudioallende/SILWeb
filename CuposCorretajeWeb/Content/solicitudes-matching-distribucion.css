@@ -661,6 +661,30 @@
     background: #f6f9fd;
 }
 
+/* Fila en conflicto: un mismo cupo quedó asignado a dos o más
+   solicitudes. Borde izquierdo rojo + tinte de fondo para que el
+   operador lo identifique sin abrir el mensaje de error. */
+.sil-modal-data-row.is-conflict > td {
+    background: var(--sil-red-light);
+}
+
+.sil-modal-data-row.is-conflict > td:first-child {
+    box-shadow: inset 3px 0 0 0 var(--sil-red);
+}
+
+.sil-modal-data-row.is-conflict:hover > td {
+    background: var(--sil-red-light);
+}
+
+/* Banner de conflicto debajo de la tabla de Variante B. */
+.sil-modal-conflict-banner {
+    margin-top: 12px;
+}
+
+.sil-modal-conflict-banner:empty {
+    display: none;
+}
+
 .sil-modal-cell-title {
     color: var(--sil-text-primary);
     font-weight: 650;
