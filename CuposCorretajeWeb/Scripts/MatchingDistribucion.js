@@ -181,29 +181,71 @@
     },
 
     /**
-     * Construye un lookup { CuentaVendedor: Cupostotalesadist } a partir de la
-     * tabla HTML de Distribución que Distribucion.cshtml actualiza antes de
-     * pedir matches. Cada fila aporta el valor visible de la celda
-     * `.cupos-disponibles` y la cuenta del vendedor en `data-vendedor`.
-     * Filas sin vendedor válido o con valor no numérico se tratan como 0.
-     * Si hay varias filas para el mismo vendedor se conserva la primera fila
-     * encontrada para no mezclar contextos (comprador/grano/centro distintos).
+     * Construye un lookup { CuentaVendedor: disponible } a partir de la
+     * tabla HTML de Distribución. El disponible por vendedor se calcula
+     * en frontend como:
+     *
+     *   disponible = sum(Cupostotalesadist del vendedor en todas sus filas)
+     *              - sum(cupos ya distribuidos en celdas .dia0..dia20)
+     *
+     * La primera resta es "el total absoluto a distribuir" (lo que muestra
+     * el backend en la celda `.cupos-disponibles`, igual para todas las
+     * filas del mismo CUIT). La segunda resta descuenta lo que el
+     * operador ya tipeó en las celdas de días de la grilla manual.
+     * Resultado = cupos pendientes reales para asignar via matching.
+     *
+     * Filas sin vendedor válido o con valores no numéricos se tratan como
+     * 0. Se recorren TODAS las filas del mismo vendor (no se salta la
+     * segunda en adelante) porque ahora la métrica es agregada.
      */
     obtenerDisponibilidadVendedores: function () {
       var lookup = {};
       try {
+        var cupostotalesadistPorVendor = {};
+        var distribuidosPorVendor = {};
+
         $('#TablaDistribuciones tbody tr.grupo-contrato').each(function () {
           var $row = $(this);
           var rawVendedor = $row.attr('data-vendedor');
           var vendedor = parseInt(rawVendedor, 10);
-          if (!vendedor || vendedor <= 0 || lookup.hasOwnProperty(vendedor)) return;
+          if (!vendedor || vendedor <= 0) return;
 
+          // Sumar el Cupostotalesadist del vendedor en esta fila
           var rawCupos = $row.find('.cupos-disponibles').first().text();
           if (rawCupos === null || rawCupos === undefined) rawCupos = '0';
           var limpio = String(rawCupos).replace(/[^0-9\-]/g, '');
           var cupos = parseInt(limpio, 10);
           if (isNaN(cupos)) cupos = 0;
-          lookup[vendedor] = cupos;
+          cupostotalesadistPorVendor[vendedor] =
+            (cupostotalesadistPorVendor[vendedor] || 0) + cupos;
+
+          // Sumar los cupos ya distribuidos en las celdas de días
+          // (clase .dia0 a .dia20). El backend no actualiza Cuposotorgados
+          // cuando el operador tipea en la grilla manual, así que esta es
+          // la única forma de saber "cuánto ya se distribuyó para este
+          // vendedor" en el frontend.
+          var distribuidos = 0;
+          for (var d = 0; d <= 20; d++) {
+            var $celda = $row.find('.dia' + d).first();
+            if ($celda.length === 0) continue;
+            var raw = $celda.text();
+            if (raw === null || raw === undefined) raw = '0';
+            var limpioCelda = String(raw).replace(/[^0-9\-]/g, '');
+            var v = parseInt(limpioCelda, 10);
+            if (!isNaN(v)) distribuidos += v;
+          }
+          distribuidosPorVendor[vendedor] =
+            (distribuidosPorVendor[vendedor] || 0) + distribuidos;
+        });
+
+        // Calcular el disponible por vendor y armar el lookup
+        Object.keys(cupostotalesadistPorVendor).forEach(function (v) {
+          var key = parseInt(v, 10);
+          var total = cupostotalesadistPorVendor[v] || 0;
+          var dist = distribuidosPorVendor[v] || 0;
+          // Math.max(0, ...) por si el operador tipeó de más en la grilla
+          // y la resta da negativo.
+          lookup[key] = Math.max(0, total - dist);
         });
       } catch (ex) {
         console.warn('[Matching] obtenerDisponibilidadVendedores error:', ex);
