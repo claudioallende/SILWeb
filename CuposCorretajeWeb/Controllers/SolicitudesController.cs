@@ -66,8 +66,20 @@ namespace CuposCorretajeWeb.Controllers
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        var contractuales = GroupBySolicitud(rawList.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
-        var futuros = GroupBySolicitud(rawList.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
+        // Filtramos las solicitudes ya resueltas antes de armar la grilla.
+        // Si CantidadAceptada + CantidadRechazada == Cantidad (contractual)
+        // o CantidadFuturoAceptada + CantidadFuturoRechazada == CantidadFuturo
+        // (futuro), la solicitud ya no tiene cupos pendientes: no hay nada
+        // m&aacute;s para aceptar ni rechazar. Sin este filtro la fila sigue
+        // apareciendo en Pantalla 1 (y se puede entrar a Pantalla 2 a&uacute;n
+        // cuando no haya nada que gestionar).
+        var rawPendientes = rawList.Where(x => x.EsPendiente).ToList();
+        Trace.TraceInformation(
+          $"[Solicitudes] rawList={rawList.Count()}, pendientes={rawPendientes.Count}, " +
+          $"resueltos={rawList.Count() - rawPendientes.Count}.");
+
+        var contractuales = GroupBySolicitud(rawPendientes.Where(x => !x.EsFuturo), fechasVentana, campoCantidadTR: "Cantidad");
+        var futuros = GroupBySolicitud(rawPendientes.Where(x => x.EsFuturo), fechasVentana, campoCantidadTR: "CantidadFuturo");
 
         var cuposAceptadosPorSolicitud = await GetCuposAceptadosPorSolicitudesAsync(
           repo,
