@@ -204,9 +204,9 @@
             <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
               Rechazar solicitud
             </button>
-            <button type="button" class="sil-btn sil-btn-navy sil-btn-block" id="btnCrearCupo" @(esEditable ? "" : "disabled=\"disabled\"")>
-              + Crear nuevo cupo
-            </button>
+            <!-- "+ Crear nuevo cupo" se movió a Pantalla 1 (Solicitudes/Index)
+                 para que la creación de cupos viva al nivel del listado de
+                 solicitudes, no atado a una solicitud puntual. -->
           </div>
         </div>
       </div>
@@ -1192,10 +1192,9 @@
                 html: true
             });
 
-            // "+ Crear nuevo cupo" (placeholder)
-            $('#btnCrearCupo').on('click', function () {
-              Swal.fire({ icon: 'info', title: 'Crear nuevo cupo', text: 'Próximamente: alta manual de cupo compatible.' });
-            });
+            // "+ Crear nuevo cupo" se movió a Pantalla 1 (Solicitudes/Index):
+            // la creación de cupos vive al nivel del listado de solicitudes,
+            // no atado a una solicitud puntual.
 
             // "Confirmar asignaci&oacute;n seleccionada"
             //
