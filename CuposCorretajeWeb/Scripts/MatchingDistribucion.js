@@ -328,27 +328,36 @@
     return Object.values(grupos);
   }
 
-  // Agrupa los grupos (de agruparMatchesPorSolicitud) por solicitante.
-  // Cada grupo resultante contiene todas las solicitudesId del mismo
-  // vendedor, ya que en Variante B un operador puede recibir varias
-  // solicitudes del mismo solicitante para fechas distintas y la UI
-  // las muestra consolidadas en una sola fila expandible.
+  // Agrupa los grupos (de agruparMatchesPorSolicitud) por solicitante,
+  // MatchType y Observacion. La clave incluye esos tres campos para que
+  // matches del mismo vendedor pero con distinta observación (o distinto
+  // tipo) aparezcan como filas separadas en Variante B, ya que el
+  // operador puede querer tratarlos como decisiones independientes.
   //
   // Devuelve:
-  //   { solicitante, records[], conObs, matchType, totalSols,
-  //     fechaMasAntigua, antiguedadDias }
+  //   { solicitante, records[], conObs, matchType, observacion,
+  //     totalSols, fechaMasAntigua }
   // records[] está ordenado por fecha asc (más antigua primero).
   function agruparPorSolicitante(gruposPorSolicitud) {
     var grupos = {};
     (gruposPorSolicitud || []).forEach(function (g) {
       var sol = g.solicitud;
-      var key = (sol.NombreVendedor || sol.Vendedor || '—').toString().trim() || '—';
+      var solicitante = (sol.NombreVendedor || sol.Vendedor || '—').toString().trim() || '—';
+      var tipo = sol.MatchType || 'Parcial';
+      var obs = sol.Observacion || '';
+
+      // Clave compuesta: si dos matches tienen distinta observación (o
+      // uno es Condicional y otro Parcial), no se mezclan aunque sean
+      // del mismo vendedor.
+      var key = solicitante + '||' + tipo + '||' + obs;
+
       if (!grupos[key]) {
         grupos[key] = {
-          solicitante: sol.NombreVendedor || sol.Vendedor || '—',
+          solicitante: solicitante,
+          matchType: tipo,
+          observacion: obs,
           records: [],
           conObs: false,
-          matchType: 'Parcial',
           totalSols: 0,
           fechaMasAntigua: null
         };
@@ -356,16 +365,9 @@
       grupos[key].records.push(g);
       grupos[key].totalSols += Math.max(0, sol.CantidadDisponible || 0);
 
-      if (sol.Observacion || sol.MatchType === 'Condicional') {
+      if (obs || tipo === 'Condicional') {
         grupos[key].conObs = true;
       }
-
-      // Tipo global del grupo = el más fuerte entre sus records
-      // (Directo > Condicional > Parcial).
-      var tipoNuevo = sol.MatchType || 'Parcial';
-      var tipoActual = grupos[key].matchType;
-      if (tipoActual === 'Directo' || tipoNuevo === 'Directo') grupos[key].matchType = 'Directo';
-      else if (tipoActual === 'Condicional' || tipoNuevo === 'Condicional') grupos[key].matchType = 'Condicional';
 
       // Fecha más antigua del grupo.
       var f = parsearFechaJSON(sol.FechaSolicitado);
@@ -690,8 +692,20 @@
       return a + g.totalSols;
     }, 0);
 
+    // Solicitantes = CUITs únicos (campo Vendedor), no cantidad de
+    // grupos. Un mismo CUIT puede aparecer en varios grupos si tiene
+    // matches con distinta observación o tipo.
+    var cuitsUnicos = {};
+    gruposPorSolicitante.forEach(function (g) {
+      g.records.forEach(function (rec) {
+        var cuit = rec.solicitud && rec.solicitud.Vendedor;
+        if (cuit) cuitsUnicos[String(cuit)] = true;
+      });
+    });
+    var solicitantesUnicos = Object.keys(cuitsUnicos).length;
+
     $('#vb-counter-total').text(totalCuposAsignar);
-    $('#vb-counter-solicitantes').text(gruposPorSolicitante.length);
+    $('#vb-counter-solicitantes').text(solicitantesUnicos);
     $('#vb-counter-total-sols').text(totalSolicitudes);
     // "Sin asignar" = cupos pedidos por más de una solicitud (overlap).
     // Es la diferencia entre el total de cupos que piden las solicitudes
@@ -752,14 +766,9 @@
       tableHtml += '  <td colspan="7" class="sil-modal-detail-cell">';
       tableHtml += '    <div class="sil-modal-detail-body">';
       if (grupo.conObs) {
-        var obsTxt = '';
-        for (var i = 0; i < grupo.records.length; i++) {
-          if (grupo.records[i].solicitud && grupo.records[i].solicitud.Observacion) {
-            obsTxt = grupo.records[i].solicitud.Observacion;
-            break;
-          }
-        }
-        if (!obsTxt) obsTxt = 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
+        // Con la nueva clave de agrupación todos los records de este grupo
+        // comparten la misma observación, así que se usa directo.
+        var obsTxt = grupo.observacion || 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
         tableHtml += '      <div class="sil-modal-callout sil-modal-callout-amber sil-modal-obs-callout">';
         tableHtml += '        <span class="sil-modal-callout-icon" aria-hidden="true">!</span>';
         tableHtml += '        <div><strong>Observaciones de la solicitud:</strong> ' + escapeHtml(obsTxt) + '</div>';
