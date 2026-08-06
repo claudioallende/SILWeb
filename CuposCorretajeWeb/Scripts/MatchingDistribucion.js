@@ -53,8 +53,11 @@
   function formatFechaCorta(d) {
     if (!d) return '';
     try {
-      var dt = (typeof d === 'string') ? new Date(d) : d;
-      if (isNaN(dt.getTime())) return '';
+      // Si llega un string (la API ACA responde a veces con /Date(...)/ de
+      // WCF o con ISO 8601), lo pasamos por parsearFechaJSON para que
+      // ambos formatos se manejen de la misma forma que el resto del modal.
+      var dt = (typeof d === 'string') ? parsearFechaJSON(d) : d;
+      if (!dt || isNaN(dt.getTime())) return '';
       return dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch (e) {
       return '';
@@ -812,8 +815,12 @@
           solicitudId: solId,
           cupoIds: record.cupoIds.slice(),
           cupoIdsPorFecha: (sol.Cupos || []).reduce(function (acc, c) {
-            var f = c && c.Fecha ? new Date(c.Fecha).toISOString().slice(0, 10) : '';
-            if (!f) return acc;
+            // La API puede devolver la fecha como Date, como número (ms),
+            // como ISO 8601 o como string WCF /Date(1234567890123)/. Pasamos
+            // siempre por parsearFechaJSON para no romper con el formato WCF.
+            var parsed = c && c.Fecha ? parsearFechaJSON(c.Fecha) : null;
+            if (!parsed) return acc;
+            var f = parsed.toISOString().slice(0, 10);
             (acc[f] = acc[f] || []).push(c.Id);
             return acc;
           }, {}),
