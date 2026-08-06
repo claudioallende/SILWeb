@@ -817,11 +817,13 @@
         var sol = record.solicitud;
         var cantSolicitud = Math.max(0, sol.CantidadDisponible || 0);
         // max del input = cupos físicos que matchearon esta solicitud
-        // (= m.Cupos[].length). El operador debe poder pedir hasta acá;
-        // el tope global por vendedor (Cupostotalesadist) se enforcea
-        // de forma dinámica en los handlers de input y al confirmar.
+        // (= m.Cupos[].length). El operador puede pedir hasta acá por fila;
+        // el tope global por vendedor (Cupostotalesadist) NO se enforcea
+        // en los handlers — se valida y bloquea recién al confirmar, para
+        // que el operador vea los números que tipeó y entienda el motivo
+        // del rechazo en el Swal.
         var disponibles = record.cupoIds.length;
-        var initialQty = disponibles; // por defecto la fila toma el máximo
+        var initialQty = disponibles; // arranca al máximo para que el operador reduzca si quiere
         var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
         var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
         var antiguedadRecord = '';
@@ -1001,39 +1003,6 @@
     var keys = Object.keys(lookup || {});
     if (!keys.length) return 0;
     return keys.reduce(function (a, k) { return a + (lookup[k] || 0); }, 0);
-  }
-
-  // Máximo efectivo que el operador puede tipear en el input de una
-  // solicitud específica, considerando el cap per-vendedor
-  // (Cupostotalesadist). Si el operador ya usó cupo en otras filas del
-  // mismo vendedor, el cap efectivo se reduce proporcionalmente.
-  //
-  //   efectivo = min(m.Cupos[].length, Cupostotalesadist - otros)
-  //
-  // Esto hace que tipear 3 en la fila A cuando ya hay 1 en la fila B
-  // (con Cupostotalesadist=3) se clampee a 2, sin necesidad de esperar
-  // al banner de excedente.
-  function maxEfectivoPorVendedor(solId) {
-    var s = estado.seleccionados[String(solId)];
-    if (!s || !s.solicitud) return 0;
-    var sol = s.solicitud;
-    var vendor = sol.Vendedor != null ? String(sol.Vendedor) : '__cupo__';
-    var cupo = estado.cupoActual;
-    var vendorLimit = (cupo && (cupo.Cupostotalesadist || cupo.CuposTotales)) || 0;
-
-    var otherSum = 0;
-    Object.keys(estado.seleccionados).forEach(function (k) {
-      var ss = estado.seleccionados[k];
-      if (!ss || !ss.solicitud) return;
-      if (String(ss.solicitudId) === String(solId)) return;
-      var v = ss.solicitud.Vendedor != null ? String(ss.solicitud.Vendedor) : '__cupo__';
-      if (v !== vendor) return;
-      if (!ss.grupoChecked) return;
-      otherSum += parseInt(ss.cantidad, 10) || 0;
-    });
-
-    var matchingCupos = (s.cupoIds || []).length;
-    return Math.max(0, Math.min(matchingCupos, vendorLimit - otherSum));
   }
 
   function actualizarBannerExcedente(excedido, asignado, max) {
@@ -1595,39 +1564,38 @@
     });
 
     // ± en inputs numéricos de la subtabla por fecha (data-vb-input-day).
-    // El cap se calcula dinámicamente por vendedor: min(m.Cupos[].length,
-    // Cupostotalesadist - lo ya tipeado en otras filas del mismo vendor).
+    // El cap del input es m.Cupos[].length (los cupos que matchearon esta
+    // solicitud). El tope per-vendedor (Cupostotalesadist) NO se clamp
+    // acá — se valida al confirmar, para que el operador vea los números
+    // que tipeó y entienda el motivo del rechazo en el Swal.
     $(document).on('click', '[data-vb-decr-day], [data-vb-incr-day]', function () {
       var $b = $(this);
       var grupoIdx = $b.data('grupo');
       var recordIdx = $b.data('record');
       var $inp = $('[data-vb-input-day][data-grupo="' + grupoIdx + '"][data-record="' + recordIdx + '"]');
       if ($inp.length === 0 || $inp.prop('disabled')) return;
-      var solId = String($inp.data('solicitud'));
-      var maxEstatico = parseInt($inp.attr('max'), 10) || 0;
-      var maxVend = maxEfectivoPorVendedor(solId);
-      var max = Math.min(maxEstatico, maxVend);
+      var max = parseInt($inp.attr('max'), 10) || 0;
       var cur = parseInt($inp.val(), 10) || 0;
       var inc = $b.is('[data-vb-incr-day]') ? +1 : -1;
       cur = Math.max(0, Math.min(max, cur + inc));
       $inp.val(cur);
+      var solId = String($inp.data('solicitud'));
       if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = cur;
       actualizarBarraVB();
       actualizarConflictoVisual();
     });
 
-    // Cambio manual en el input de la subtabla: clamp dinámico per-vendor.
+    // Cambio manual en el input: clamp sólo al max estático (m.Cupos.length),
+    // NO al cap per-vendor. La validación per-vendor se hace al confirmar.
     $(document).on('input change', '[data-vb-input-day]', function () {
       var $i = $(this);
       if ($i.prop('disabled')) return;
-      var maxEstatico = parseInt($i.attr('max'), 10) || 0;
-      var solId = String($i.data('solicitud'));
-      var maxVend = maxEfectivoPorVendedor(solId);
-      var max = Math.min(maxEstatico, maxVend);
+      var max = parseInt($i.attr('max'), 10) || 0;
       var raw = parseInt($i.val(), 10);
       if (isNaN(raw) || raw < 0) raw = 0;
       if (raw > max) raw = max;
       $i.val(raw);
+      var solId = String($i.data('solicitud'));
       if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = raw;
       actualizarBarraVB();
       actualizarConflictoVisual();
@@ -1690,20 +1658,32 @@
         return;
       }
 
-      // Bloqueo por excedente per-vendedor: si la suma de las cantidades
-      // pedidas para un mismo CUIT supera su Cupostotalesadist, no
-      // dejamos confirmar. Cada fila del modal puede corresponder a
-      // distintos solicitantes con el mismo CUIT (por eso agrupamos por
-      // vendedor y no por fila). El banner inline ya muestra el aviso
-      // en tiempo real, pero acá confirmamos con un Swal explícito.
+      // Bloqueo per-vendedor: si la suma de cupos tipeados en todas las
+      // filas del mismo CUIT supera Cupostotalesadist, no dejamos
+      // confirmar. La validación es NO clamp: el operador ve los
+      // números que tipeó en cada fila (aunque sumen más que el límite)
+      // y acá le explicamos exactamente cuál CUIT se pasó, por cuánto,
+      // y el nombre del solicitante para que ubique la fila.
       var vends = totalesPorVendedor();
       var vendedoresExcedidos = [];
       Object.keys(vends.lookup).forEach(function (v) {
         var limite = vends.lookup[v] || 0;
         var total = vends.totales[v] || 0;
         if (limite > 0 && total > limite) {
+          // Buscar un nombre humano del vendor en cualquier solicitud del
+          // estado para mostrarlo junto al CUIT en el mensaje.
+          var nombreVendor = '';
+          Object.keys(estado.seleccionados).some(function (k) {
+            var ss = estado.seleccionados[k];
+            if (ss && ss.solicitud && String(ss.solicitud.Vendedor) === v && ss.solicitud.NombreVendedor) {
+              nombreVendor = ss.solicitud.NombreVendedor;
+              return true;
+            }
+            return false;
+          });
           vendedoresExcedidos.push({
             cuit: v,
+            nombre: nombreVendor,
             solicitado: total,
             limite: limite,
             excedente: total - limite
@@ -1712,20 +1692,22 @@
       });
       if (vendedoresExcedidos.length > 0) {
         var lineasVend = vendedoresExcedidos.map(function (ve) {
-          return '<b>CUIT ' + escapeHtml(ve.cuit) + '</b>: pediste ' + ve.solicitado +
-                 ' cupos pero su Cupostotalesadist es ' + ve.limite +
-                 ' (' + ve.excedente + ' de m&aacute;s).';
+          var header = ve.nombre
+            ? '<b>' + escapeHtml(ve.nombre) + '</b> (CUIT ' + escapeHtml(ve.cuit) + ')'
+            : '<b>CUIT ' + escapeHtml(ve.cuit) + '</b>';
+          return header + ': quer&eacute;s asignar <b>' + ve.solicitado +
+                 '</b> cupos pero su Cupostotalesadist en la tabla de distribuci&oacute;n es <b>' +
+                 ve.limite + '</b> (' + ve.excedente + ' de m&aacute;s). Reduc&iacute; las cantidades de este CUIT antes de confirmar.';
         });
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'error',
-            title: 'Cupos excedidos por vendedor',
-            html: 'La suma de cupos por cada CUIT no puede superar su l&iacute;mite ' +
-                  'en la tabla de distribuci&oacute;n:<br><br>' +
-                  lineasVend.join('<br>') +
-                  '<br><br>Desactiv&aacute; alg&uacute;n grupo o reduc&iacute; las cantidades antes de confirmar.',
+            title: 'Cupostotalesadist excedido por vendedor',
+            html: 'La suma de cupos a distribuir por cada CUIT no puede superar su Cupostotalesadist ' +
+                  '(los cupos pendientes en la tabla de distribuci&oacute;n):<br><br>' +
+                  lineasVend.join('<br><br>'),
             showConfirmButton: true,
-            confirmButtonText: 'Entendido'
+            confirmButtonText: 'Entendido, voy a ajustar'
           });
         }
         return;
