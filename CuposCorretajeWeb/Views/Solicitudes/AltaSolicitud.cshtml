@@ -1162,20 +1162,24 @@
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
                     if (!res.isConfirmed) return;
-                    // Enviamos TODAS las solicitudes del grupo (una por fecha),
-                    // no sólo la primera. Si no, los turnos de las otras fechas
-                    // siguen quedando como pendientes en Pantalla 1 aunque las
-                    // hayamos rechazado en Pantalla 2. solicitudPorFecha mapea
-                    // fecha → id; idsSolicitudesByGrupo es un array único.
-                    var idsSolicitudesByGrupo = [];
+                    // Sólo rechazamos las solicitudes de los DÍAS SELECCIONADOS
+                    // (los que el operador tildó), NO todas las del grupo.
+                    // Si el operador acepta 3/5 del 8/8 y rechaza los 2 pendientes
+                    // del 8/8, el 9/8 debe quedar intacto para gestionarlo aparte.
+                    // solicitudPorFecha mapea fecha (yyyy-MM-dd) → solicitudId.
+                    var idsSolicitudesSeleccionadas = [];
                     var seen = {};
-                    Object.keys(solicitudPorFecha).forEach(function (f) {
-                        var sid = solicitudPorFecha[f];
-                        if (sid && !seen[sid]) { seen[sid] = true; idsSolicitudesByGrupo.push(sid); }
+                    conPendientes.forEach(function (s) {
+                        var sid = solicitudPorFecha[s.fechaKey];
+                        if (sid && !seen[sid]) { seen[sid] = true; idsSolicitudesSeleccionadas.push(sid); }
                     });
+                    // Fallback legacy: si por algún motivo no pudimos resolver
+                    // ningún id de los seleccionados, mandamos el idSolicitud
+                    // original (el primero del grupo) para no romper el flujo.
+                    var legacyId = idsSolicitudesSeleccionadas.length > 0 ? idsSolicitudesSeleccionadas[0] : idSolicitud;
                     postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', {
-                        idSolicitud: idSolicitud,
-                        idsSolicitudes: idsSolicitudesByGrupo
+                        idSolicitud: legacyId,
+                        idsSolicitudes: idsSolicitudesSeleccionadas
                     })
                         .done(manejarRespuesta)
                         .fail(function (xhr) {
