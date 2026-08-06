@@ -246,7 +246,16 @@
 
           var cupoClonado = $.extend({}, cupo, { Matches: matchesFiltrados });
           var primerMatch = matchesFiltrados[0];
-          var vendedor = primerMatch && primerMatch.Solicitud && primerMatch.Solicitud.CuentaVendedor;
+          // Resolver el vendedor del primer match con el mismo fallback
+          // que usa el filter de arriba. Sin este fallback, si el match
+          // trae "Vendedor" como string en lugar de "Solicitud.CuentaVendedor",
+          // vendedor queda undefined y Cupostotalesadist cae a 0 (en vez
+          // de tomar lookup[vendedor]), haciendo que la validación per-
+          // vendor al confirmar use CuposTotales como fallback y nunca
+          // dispare cuando la suma excede Cupostotalesadist.
+          var vendedor = (primerMatch && primerMatch.Solicitud && primerMatch.Solicitud.CuentaVendedor !== undefined && primerMatch.Solicitud.CuentaVendedor !== null)
+            ? primerMatch.Solicitud.CuentaVendedor
+            : (primerMatch && primerMatch.Vendedor ? parseInt(primerMatch.Vendedor, 10) : NaN);
           cupoClonado.Cupostotalesadist = (vendedor && lookup[vendedor]) ? lookup[vendedor] : 0;
           cuposFiltrados.push(cupoClonado);
         });
