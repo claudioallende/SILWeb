@@ -325,14 +325,73 @@
     return Object.values(grupos);
   }
 
+  // Agrupa los grupos (de agruparMatchesPorSolicitud) por solicitante.
+  // Cada grupo resultante contiene todas las solicitudesId del mismo
+  // vendedor, ya que en Variante B un operador puede recibir varias
+  // solicitudes del mismo solicitante para fechas distintas y la UI
+  // las muestra consolidadas en una sola fila expandible.
+  //
+  // Devuelve:
+  //   { solicitante, records[], conObs, matchType, totalSols,
+  //     fechaMasAntigua, antiguedadDias }
+  // records[] está ordenado por fecha asc (más antigua primero).
+  function agruparPorSolicitante(gruposPorSolicitud) {
+    var grupos = {};
+    (gruposPorSolicitud || []).forEach(function (g) {
+      var sol = g.solicitud;
+      var key = (sol.NombreVendedor || sol.Vendedor || '—').toString().trim() || '—';
+      if (!grupos[key]) {
+        grupos[key] = {
+          solicitante: sol.NombreVendedor || sol.Vendedor || '—',
+          records: [],
+          conObs: false,
+          matchType: 'Parcial',
+          totalSols: 0,
+          fechaMasAntigua: null
+        };
+      }
+      grupos[key].records.push(g);
+      grupos[key].totalSols += Math.max(0, sol.CantidadDisponible || 0);
+
+      if (sol.Observacion || sol.MatchType === 'Condicional') {
+        grupos[key].conObs = true;
+      }
+
+      // Tipo global del grupo = el más fuerte entre sus records
+      // (Directo > Condicional > Parcial).
+      var tipoNuevo = sol.MatchType || 'Parcial';
+      var tipoActual = grupos[key].matchType;
+      if (tipoActual === 'Directo' || tipoNuevo === 'Directo') grupos[key].matchType = 'Directo';
+      else if (tipoActual === 'Condicional' || tipoNuevo === 'Condicional') grupos[key].matchType = 'Condicional';
+
+      // Fecha más antigua del grupo.
+      var f = parsearFechaJSON(sol.FechaSolicitado);
+      if (f && (!grupos[key].fechaMasAntigua || f < grupos[key].fechaMasAntigua)) {
+        grupos[key].fechaMasAntigua = f;
+      }
+    });
+
+    // Ordenar records de cada grupo por fecha asc (antigüedad).
+    Object.keys(grupos).forEach(function (k) {
+      grupos[k].records.sort(function (a, b) {
+        var fa = parsearFechaJSON(a.solicitud.FechaSolicitado);
+        var fb = parsearFechaJSON(b.solicitud.FechaSolicitado);
+        if (!fa) return 1;
+        if (!fb) return -1;
+        return fa - fb;
+      });
+    });
+
+    return Object.values(grupos);
+  }
+
   // ============================================================
   // Validación de conflicto de cupos entre solicitudes (Variante B)
   // ============================================================
-  // Replica la lógica de selección de cupos que usa doAccept: para cada
-  // solicitud se toman los primeros `cantidad` cupoIds del pool
-  // compatible (estado.seleccionados[idx].cupoIds). Si el mismo cupoId
-  // queda asignado a dos o más solicitudes, hay conflicto y la
-  // distribución debe bloquearse.
+  // Itera el estado (indexado por solicitudId) y simula lo que doAccept
+  // haría: para cada solicitud con grupoChecked y cantidad > 0 toma los
+  // primeros `cantidad` cupoIds del pool compatible. Si el mismo cupoId
+  // queda asignado a dos o más solicitudes, hay conflicto.
   //
   // Devuelve:
   //   - hayConflictos: bool
@@ -340,40 +399,30 @@
   //       los que esta solicitud está peleando con otras
   //   - cuposEnConflicto: [cupoId, ...] ids únicos en conflicto
   //   - nombresPorSolicitud: { solicitudId: stringHuman } para los mensajes
-  function detectarConflictosCupos(solicitudes) {
+  function detectarConflictosCupos() {
     var nombresPorSolicitud = {};
     var asignacionesPorCupo = {};
     var conflictosPorSolicitud = {};
 
-    (solicitudes || []).forEach(function (s) {
-      if (!s || !s.solicitudId || !s.cantidad || s.cantidad <= 0) return;
+    Object.keys(estado.seleccionados).forEach(function (solKey) {
+      var sel = estado.seleccionados[solKey];
+      if (!sel || !sel.grupoChecked || !sel.cantidad || sel.cantidad <= 0) return;
 
-      // Buscar la entrada de estado correspondiente a esta solicitud.
-      var sel = null;
-      Object.keys(estado.seleccionados).forEach(function (k) {
-        if (sel) return;
-        if (String(estado.seleccionados[k].solicitudId) === String(s.solicitudId)) {
-          sel = estado.seleccionados[k];
-        }
-      });
-      if (!sel) return;
-
-      // Etiqueta humana (vendedor o id de solicitud) para los mensajes.
-      var sol = sel.g && sel.g.solicitud;
+      var solId = String(sel.solicitudId);
+      var sol = sel.solicitud;
       if (sol) {
-        nombresPorSolicitud[String(s.solicitudId)] =
-          sol.NombreVendedor || sol.Vendedor || ('Solicitud #' + sol.Id);
+        nombresPorSolicitud[solId] = sol.NombreVendedor || sol.Vendedor || ('Solicitud #' + sol.Id);
       } else {
-        nombresPorSolicitud[String(s.solicitudId)] = 'Solicitud #' + s.solicitudId;
+        nombresPorSolicitud[solId] = 'Solicitud #' + solId;
       }
 
       // Tomar los primeros N cupos del pool (misma lógica que doAccept).
       var pool = sel.cupoIds || [];
-      var n = Math.min(s.cantidad, pool.length);
+      var n = Math.min(sel.cantidad, pool.length);
       for (var i = 0; i < n; i++) {
         var cupoId = pool[i];
         if (!asignacionesPorCupo[cupoId]) asignacionesPorCupo[cupoId] = [];
-        asignacionesPorCupo[cupoId].push(String(s.solicitudId));
+        asignacionesPorCupo[cupoId].push(solId);
       }
     });
 
@@ -400,41 +449,20 @@
     };
   }
 
-  // Marca visualmente las filas en conflicto y muestra un banner
-  // informativo debajo de la tabla. Se llama desde los handlers de
-  // ±/input y al confirmar.
+  // Marca visualmente las filas-detalle en conflicto y muestra un
+  // banner informativo debajo de la tabla. Se llama desde los handlers
+  // de input, los ±, el checkbox de grupo y al confirmar.
   function actualizarConflictoVisual() {
     var $wrap = $('#vb-table-wrap');
     if ($wrap.length === 0) return;
 
-    // Reconstruir el array de solicitudes desde el DOM (mismo criterio
-    // que vb-confirmar para leer el valor vigente del input).
-    var solicitudes = [];
-    $('[data-vb-input]').each(function () {
-      var $i = $(this);
-      var idx = $i.data('idx');
-      var s = estado.seleccionados[idx];
-      if (!s) return;
-      var cant = parseInt($i.val(), 10) || 0;
-      if (cant <= 0) return;
-      solicitudes.push({
-        solicitudId: s.solicitudId,
-        cupoId: s.cupoId || 0,
-        matchType: s.matchType,
-        cantidad: cant
-      });
-    });
+    var res = detectarConflictosCupos();
 
-    var res = detectarConflictosCupos(solicitudes);
-
-    // Marcar / desmarcar filas en conflicto.
-    $('.sil-modal-data-row').each(function () {
+    // Marcar / desmarcar las filas-detalle por fecha.
+    $('.sil-modal-detail-data-row').each(function () {
       var $row = $(this);
-      var idx = $row.find('[data-vb-input]').data('idx');
-      if (idx === undefined) return;
-      var sel = estado.seleccionados[idx];
-      if (!sel) return;
-      var enConflicto = !!res.conflictosPorSolicitud[String(sel.solicitudId)];
+      var solId = String($row.data('solicitud'));
+      var enConflicto = !!res.conflictosPorSolicitud[solId];
       $row.toggleClass('is-conflict', enConflicto);
     });
 
@@ -643,33 +671,45 @@
       ' · ' + (cupo.NomCompSIL || 'Sin comprador') +
       ' · Sin vendedor');
 
-    // Agrupar matches por solicitud (dedup). Variante B muestra una fila por
-    // solicitud con un input numérico editable — la cantidad que ingrese el
-    // operador son los cupos que se asignarán a esa solicitud, replicando
-    // la semántica de Variante A (ver doAccept).
-    var grupos = agruparMatchesPorSolicitud(cupo.Matches || []);
+    // Agrupar primero por solicitudId (dedup) y luego consolidar por
+    // solicitante. La tabla principal muestra una fila por solicitante;
+    // al expandir se ve una subtabla con una fila por fecha (solicitudId).
+    var gruposPorSolicitud = agruparMatchesPorSolicitud(cupo.Matches || []);
+    var gruposPorSolicitante = agruparPorSolicitante(gruposPorSolicitud);
     var totalCuposAsignar = cupo.CuposTotales || 0;
 
+    // Total solicitudes = suma de cupos que piden todas las solicitudes
+    // (puede ser > CuposTotales si hay cupos compartidos entre
+    // solicitudes). La diferencia entre este valor y CuposTotales son los
+    // "cupos sin asignar" del mock, que son los que disparan la
+    // validación de conflictos cuando el operador intenta asignarlos.
+    var totalSolicitudes = gruposPorSolicitante.reduce(function (a, g) {
+      return a + g.totalSols;
+    }, 0);
+
     $('#vb-counter-total').text(totalCuposAsignar);
-    $('#vb-counter-solicitantes').text(grupos.length);
-    $('#vb-counter-total-sols').text(grupos.length);
+    $('#vb-counter-solicitantes').text(gruposPorSolicitante.length);
+    $('#vb-counter-total-sols').text(totalSolicitudes);
+    // "Sin asignar" = cupos pedidos por más de una solicitud (overlap).
+    // Es la diferencia entre el total de cupos que piden las solicitudes
+    // y los cupos físicos disponibles para distribuir.
+    $('#vb-counter-sin-asignar').text(Math.max(0, totalSolicitudes - totalCuposAsignar));
     $('#vb-counter-asignados-max').text(totalCuposAsignar);
 
     var tableHtml = '<table class="sil-modal-table sil-modal-table-main"><thead><tr>';
-    tableHtml += '<th class="tl">Solicitud</th>';
-    tableHtml += '<th>Fecha</th>';
-    tableHtml += '<th>Solicitante</th><th>Match</th>';
-    tableHtml += '<th>Cantidad a asignar</th>';
+    tableHtml += '<th class="tl" style="width:32px;"></th>';
+    tableHtml += '<th class="tl">Solicitante</th>';
+    tableHtml += '<th>Sols.</th>';
+    tableHtml += '<th>M&aacute;s antigua</th>';
+    tableHtml += '<th>Match</th>';
+    tableHtml += '<th>Total a asignar</th>';
+    tableHtml += '<th>Detalle</th>';
     tableHtml += '</tr></thead><tbody>';
 
     estado.seleccionados = {};
 
-    grupos.forEach(function (g, idx) {
-      var m = g.solicitud;
-      var disponibles = Math.max(0, m.CantidadDisponible || 0);
-      var cupoIdsCount = g.cupoIds.length;
-      var initialQty = Math.min(disponibles, cupoIdsCount);
-      var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
+    gruposPorSolicitante.forEach(function (grupo, grupoIdx) {
+      var tipoMatch = grupo.matchType;
       var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
         : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
       var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
@@ -677,55 +717,118 @@
       var tipoCss = tipoMatch === 'Directo' ? 'is-direct'
         : (tipoMatch === 'Condicional' ? 'is-cond' : 'is-partial');
 
-      // Nombre del vendedor (preferimos NombreVendedor del backend; caemos
-      // a la cuenta y luego a un em-dash si ninguno está disponible).
-      var vendedorLabel = m.NombreVendedor || m.Vendedor || '—';
-
-      // Observaciones inline para matches Condicionales (sigue siendo útil
-      // que el operador las vea antes de tipear la cantidad).
-      var obsBlock = '';
-      if (tipoMatch === 'Condicional') {
-        var obsTxt = m.Observacion || 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
-        obsBlock += '<div class="sil-modal-cell-meta"><b>&#9888; Obs:</b> ' +
-                    escapeHtml(obsTxt) + '</div>';
+      var fechaAntiguaDisplay = grupo.fechaMasAntigua ? formatFechaCorta(grupo.fechaMasAntigua) : '&mdash;';
+      var antiguedadDisplay = '';
+      if (grupo.fechaMasAntigua) {
+        var dias = Math.max(0, Math.floor((Date.now() - grupo.fechaMasAntigua.getTime()) / 86400000));
+        antiguedadDisplay = 'hace ' + dias + ' d&iacute;a' + (dias !== 1 ? 's' : '');
       }
 
-      tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '">';
-      tableHtml += '  <td class="tl"><div class="sil-modal-cell-title">Solicitud #' + m.Id + '</div>';
-      tableHtml += '    <div class="sil-modal-cell-meta">' +
-                    disponibles + ' disponibles &middot; ' + cupoIdsCount + ' cupos compatibles</div>' +
-                    obsBlock + '</td>';
-      // Fecha solicitada por el operador (SOLTURNOS.FECHASOLICITADA).
-      // parsearFechaJSON maneja Date, ISO 8601 y el formato WCF /Date(...)/.
-      var fechaSolicitadaDisplay = formatFechaCorta(parsearFechaJSON(m.FechaSolicitado));
-      tableHtml += '  <td>' + (fechaSolicitadaDisplay || '&mdash;') + '</td>';
-      tableHtml += '  <td>' + escapeHtml(vendedorLabel) + '</td>';
+      // Fila padre (sin input). El "Total" se actualiza dinámicamente
+      // desde la suma de los inputs de la subtabla (ver actualizarBarraVB).
+      tableHtml += '<tr class="sil-modal-data-row ' + tipoCss + '" data-grupo="' + grupoIdx + '">';
+      tableHtml += '  <td><input type="checkbox" data-vb-chk-grupo data-grupo="' + grupoIdx + '" checked aria-label="Incluir solicitudes de ' + escapeHtml(grupo.solicitante) + '"></td>';
+      tableHtml += '  <td class="tl">';
+      tableHtml += '    <div class="sil-modal-cell-title">' + escapeHtml(grupo.solicitante) + '</div>';
+      tableHtml += '    <div class="sil-modal-cell-meta">Solicitudes agrupadas por vendedor</div>';
+      tableHtml += '  </td>';
+      tableHtml += '  <td>' + grupo.totalSols + '</td>';
+      tableHtml += '  <td>' + fechaAntiguaDisplay + '<div class="sil-modal-cell-meta">' + antiguedadDisplay + '</div></td>';
       tableHtml += '  <td><span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span></td>';
       tableHtml += '  <td>';
-      tableHtml += '    <div class="sil-modal-qty">';
-      tableHtml += '      <button type="button" data-vb-decr data-idx="' + idx + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>';
-      tableHtml += '      <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
-                    '" data-vb-input data-idx="' + idx + '" data-solicitud="' + m.Id +
-                    '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />';
-      tableHtml += '      <button type="button" data-vb-incr data-idx="' + idx + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>';
-      tableHtml += '    </div>';
-      tableHtml += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
+      tableHtml += '    <strong class="sil-modal-grupo-total" data-vb-total-grupo="' + grupoIdx + '">0</strong>';
+      tableHtml += '    <div class="sil-modal-cell-meta">suma de d&iacute;as</div>';
+      tableHtml += '  </td>';
+      tableHtml += '  <td>';
+      tableHtml += '    <button type="button" class="sil-modal-btn-detail" data-vb-toggle data-grupo="' + grupoIdx + '" aria-expanded="false" aria-label="Ver detalle de ' + escapeHtml(grupo.solicitante) + '">&#9662; ver</button>';
       tableHtml += '  </td>';
       tableHtml += '</tr>';
 
-      // Estado inicial. `cantidad` refleja el valor del input numérico y se
-      // mantiene en sync con [data-vb-input] mediante los handlers ± y un
-      // listener explícito de cambio (ver más abajo).
-      estado.seleccionados[idx] = {
-        checked: true,
-        solicitudId: m.Id,
-        cupoIds: g.cupoIds.slice(),
-        cupoId: cupo.Id,
-        matchType: tipoMatch,
-        disponibles: disponibles,
-        cantidad: initialQty,
-        g: g
-      };
+      // Fila detalle (subtabla por fecha), inicialmente oculta.
+      tableHtml += '<tr class="sil-modal-detail-row" data-grupo-detail="' + grupoIdx + '" style="display:none;">';
+      tableHtml += '  <td colspan="7" class="sil-modal-detail-cell">';
+      tableHtml += '    <div class="sil-modal-detail-body">';
+      if (grupo.conObs) {
+        var obsTxt = '';
+        for (var i = 0; i < grupo.records.length; i++) {
+          if (grupo.records[i].solicitud && grupo.records[i].solicitud.Observacion) {
+            obsTxt = grupo.records[i].solicitud.Observacion;
+            break;
+          }
+        }
+        if (!obsTxt) obsTxt = 'La solicitud tiene condiciones registradas. Verificar antes de asignar.';
+        tableHtml += '      <div class="sil-modal-callout sil-modal-callout-amber sil-modal-obs-callout">';
+        tableHtml += '        <span class="sil-modal-callout-icon" aria-hidden="true">!</span>';
+        tableHtml += '        <div><strong>Observaciones de la solicitud:</strong> ' + escapeHtml(obsTxt) + '</div>';
+        tableHtml += '      </div>';
+      }
+      tableHtml += '      <div class="sil-modal-detail-title">Detalle por d&iacute;a &mdash; ' + escapeHtml(grupo.solicitante) + '</div>';
+      tableHtml += '      <table class="sil-modal-table sil-modal-table-detail">';
+      tableHtml += '        <thead><tr>';
+      tableHtml += '          <th class="tl">Fecha</th>';
+      tableHtml += '          <th>Ingresada</th>';
+      tableHtml += '          <th>Sols. TR</th>';
+      tableHtml += '          <th>Sols. TO</th>';
+      tableHtml += '          <th>Cupos a asignar</th>';
+      tableHtml += '        </tr></thead>';
+      tableHtml += '        <tbody>';
+
+      grupo.records.forEach(function (record, recordIdx) {
+        var sol = record.solicitud;
+        var disponibles = Math.max(0, sol.CantidadDisponible || 0);
+        var initialQty = disponibles; // por defecto la fila toma el máximo
+        var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
+        var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
+        var antiguedadRecord = '';
+        if (fechaRecord) {
+          var diasR = Math.max(0, Math.floor((Date.now() - fechaRecord.getTime()) / 86400000));
+          antiguedadRecord = 'hace ' + diasR + ' d&iacute;a' + (diasR !== 1 ? 's' : '');
+        }
+        var solId = sol.Id;
+
+        tableHtml += '          <tr class="sil-modal-detail-data-row" data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '">';
+        tableHtml += '            <td class="tl">' + fechaDisplay + '</td>';
+        tableHtml += '            <td>' + antiguedadRecord + '</td>';
+        tableHtml += '            <td>' + disponibles + '</td>';
+        tableHtml += '            <td>0</td>';
+        tableHtml += '            <td>';
+        tableHtml += '              <div class="sil-modal-qty">';
+        tableHtml += '                <button type="button" data-vb-decr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" aria-label="Disminuir">&minus;</button>';
+        tableHtml += '                <input type="number" min="0" max="' + disponibles + '" value="' + initialQty + '" data-vb-input-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '" aria-label="Cupos para solicitud ' + solId + '" />';
+        tableHtml += '                <button type="button" data-vb-incr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" aria-label="Aumentar">&plus;</button>';
+        tableHtml += '              </div>';
+        tableHtml += '              <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
+        tableHtml += '            </td>';
+        tableHtml += '          </tr>';
+
+        // Estado por solicitudId. La cantidad se mantiene en sync con el
+        // input de la subtabla. doAccept y detectarConflictosCupos iteran
+        // sobre este mapa (clave = solicitudId).
+        estado.seleccionados[String(solId)] = {
+          checked: true,            // checkbox de inclusión individual (hoy siempre true; se mantiene por compat)
+          grupoIdx: grupoIdx,
+          grupoChecked: true,       // checkbox del padre
+          grupoConObs: grupo.conObs,
+          solicitudId: solId,
+          cupoIds: record.cupoIds.slice(),
+          cupoIdsPorFecha: (sol.Cupos || []).reduce(function (acc, c) {
+            var f = c && c.Fecha ? new Date(c.Fecha).toISOString().slice(0, 10) : '';
+            if (!f) return acc;
+            (acc[f] = acc[f] || []).push(c.Id);
+            return acc;
+          }, {}),
+          disponibles: disponibles,
+          cantidad: initialQty,
+          matchType: sol.MatchType || 'Parcial',
+          solicitud: sol
+        };
+      });
+
+      tableHtml += '        </tbody>';
+      tableHtml += '      </table>';
+      tableHtml += '    </div>';
+      tableHtml += '  </td>';
+      tableHtml += '</tr>';
     });
 
     tableHtml += '</tbody></table>';
@@ -736,13 +839,42 @@
   }
 
   function actualizarBarraVB() {
-    // La barra refleja la suma de cantidades tipeadas en los inputs
-    // numéricos, no de checkboxes (ya no hay checkboxes en Variante B).
+    // La barra refleja la suma de cantidades tipeadas en los inputs de
+    // la subtabla por fecha. Cada fila-detalle aporta su valor al grupo
+    // y el "Total" del padre se actualiza con esa suma. Sólo cuentan las
+    // filas cuyo grupo padre está incluido (grupoChecked).
     var asignado = 0;
-    Object.keys(estado.seleccionados).forEach(function (k) {
-      var s = estado.seleccionados[k];
-      if (s.checked) asignado += (parseInt(s.cantidad, 10) || 0);
+    var totalesPorGrupo = {};
+
+    $('[data-vb-input-day]').each(function () {
+      var $i = $(this);
+      var grupoIdx = $i.data('grupo');
+      var solId = String($i.data('solicitud'));
+      var cant = parseInt($i.val(), 10) || 0;
+
+      var s = estado.seleccionados[solId];
+      if (!s) return;
+      s.cantidad = cant;
+      if (s.grupoChecked) {
+        asignado += cant;
+        totalesPorGrupo[grupoIdx] = (totalesPorGrupo[grupoIdx] || 0) + cant;
+      } else {
+        // Aunque no cuente para el total global, guardamos el 0 para
+        // que el badge del padre quede en 0 cuando el grupo está apagado.
+        totalesPorGrupo[grupoIdx] = totalesPorGrupo[grupoIdx] || 0;
+      }
     });
+
+    // Reflejar el total por grupo en la fila padre.
+    Object.keys(totalesPorGrupo).forEach(function (grupoIdx) {
+      var total = totalesPorGrupo[grupoIdx];
+      var $el = $('[data-vb-total-grupo="' + grupoIdx + '"]');
+      if ($el.length) {
+        $el.text(total);
+        $el.toggleClass('is-active', total > 0);
+      }
+    });
+
     var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
     var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
     $('#vb-progress-fill')
@@ -758,23 +890,21 @@
   // Confirmar / Accept / Reject
   // ============================================================
   function prepararYMostrarConfirmacionObs(onContinue) {
-    // Busca un match Condicional entre los grupos seleccionados. Antes del
-    // refactor este helper referenciaba `s.g.sols` y `s.g.hayCondicional`,
-    // campos que `agruparMatchesPorSolicitud` nunca creaba — la confirmación
-    // con observaciones estaba rota en Variante B. Ahora leemos directo del
-    // shape actual: `matchType` en cada grupo y `g.solicitud` para tomar la
-    // observación y el nombre del vendedor.
+    // Busca un match Condicional entre los grupos seleccionados. Estado
+    // nuevo: cada entrada está indexada por solicitudId y trae la
+    // solicitud completa en `solicitud`. El flag de inclusión del grupo
+    // es `grupoChecked` (no `checked`, que ya no se usa).
     var grupoCond = null;
     Object.keys(estado.seleccionados).forEach(function (k) {
       if (grupoCond) return;
       var s = estado.seleccionados[k];
-      if (!s.checked) return;
+      if (!s.grupoChecked) return;
       if (s.matchType !== 'Condicional') return;
       grupoCond = s;
     });
     if (!grupoCond) { onContinue(); return; }
 
-    var solicitud = grupoCond.g && grupoCond.g.solicitud ? grupoCond.g.solicitud : null;
+    var solicitud = grupoCond.solicitud || (grupoCond.g && grupoCond.g.solicitud) || null;
     var obsTxt = (solicitud && solicitud.Observacion) || '(sin texto)';
     var solicitante = (solicitud && (solicitud.NombreVendedor || solicitud.Vendedor)) || '';
 
@@ -1276,50 +1406,88 @@
       hideOverlay('sil-modal-variant-b');
     });
 
-    // ± en inputs numéricos de Variante B (data-vb-input). Mantienen
-    // s.cantidad en sync con el valor del input y refrescan la barra.
-    $(document).on('click', '[data-vb-decr], [data-vb-incr]', function () {
+    // ± en inputs numéricos de la subtabla por fecha (data-vb-input-day).
+    // Mantienen s.cantidad en sync con el valor del input y refrescan la
+    // barra global y los totales por grupo.
+    $(document).on('click', '[data-vb-decr-day], [data-vb-incr-day]', function () {
       var $b = $(this);
-      var idx = $b.data('idx');
-      var $inp = $('[data-vb-input][data-idx="' + idx + '"]');
-      if ($inp.length === 0) return;
+      var grupoIdx = $b.data('grupo');
+      var recordIdx = $b.data('record');
+      var $inp = $('[data-vb-input-day][data-grupo="' + grupoIdx + '"][data-record="' + recordIdx + '"]');
+      if ($inp.length === 0 || $inp.prop('disabled')) return;
       var max = parseInt($inp.attr('max'), 10) || 0;
       var cur = parseInt($inp.val(), 10) || 0;
-      var inc = $b.data('vbIncr') !== undefined ? +1 : -1;
+      var inc = $b.is('[data-vb-incr-day]') ? +1 : -1;
       cur = Math.max(0, Math.min(max, cur + inc));
       $inp.val(cur);
-      if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = cur;
+      var solId = String($inp.data('solicitud'));
+      if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = cur;
       actualizarBarraVB();
       actualizarConflictoVisual();
     });
 
-    // Cambio manual en el input: clamp + sync con s.cantidad.
-    $(document).on('input change', '[data-vb-input]', function () {
+    // Cambio manual en el input de la subtabla: clamp + sync.
+    $(document).on('input change', '[data-vb-input-day]', function () {
       var $i = $(this);
-      var idx = $i.data('idx');
+      if ($i.prop('disabled')) return;
       var max = parseInt($i.attr('max'), 10) || 0;
       var raw = parseInt($i.val(), 10);
       if (isNaN(raw) || raw < 0) raw = 0;
       if (raw > max) raw = max;
       $i.val(raw);
-      if (estado.seleccionados[idx]) estado.seleccionados[idx].cantidad = raw;
+      var solId = String($i.data('solicitud'));
+      if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = raw;
+      actualizarBarraVB();
+      actualizarConflictoVisual();
+    });
+
+    // Expandir / colapsar la subtabla por fecha de un solicitante.
+    $(document).on('click', '[data-vb-toggle]', function () {
+      var $btn = $(this);
+      var grupoIdx = $btn.data('grupo');
+      var $det = $('[data-grupo-detail="' + grupoIdx + '"]');
+      if ($det.length === 0) return;
+      var open = $det.is(':visible');
+      $det.toggle(!open);
+      $btn.attr('aria-expanded', open ? 'false' : 'true')
+          .html(open ? '&#9662; ver' : '&#9652; cerrar');
+    });
+
+    // Checkbox del grupo: habilita / deshabilita los inputs de la subtabla.
+    // Para grupos Condicionales sirve como opt-in; para los demás, mantiene
+    // el comportamiento anterior (incluir / excluir el grupo del total).
+    $(document).on('change', '[data-vb-chk-grupo]', function () {
+      var $chk = $(this);
+      var grupoIdx = $chk.data('grupo');
+      var enabled = $chk.is(':checked');
+      $('[data-vb-input-day][data-grupo="' + grupoIdx + '"]').each(function () {
+        var $inp = $(this);
+        var solId = String($inp.data('solicitud'));
+        var s = estado.seleccionados[solId];
+        $inp.prop('disabled', !enabled);
+        if (s) s.grupoChecked = enabled;
+      });
+      $('[data-vb-decr-day][data-grupo="' + grupoIdx + '"], [data-vb-incr-day][data-grupo="' + grupoIdx + '"]')
+        .prop('disabled', !enabled);
       actualizarBarraVB();
       actualizarConflictoVisual();
     });
 
     $(document).on('click', '[data-action="vb-confirmar"]', function () {
       var solicitudes = [];
-      // Leemos directo del DOM para tomar el valor actual del input, aunque
-      // s.cantidad ya esté sincronizado por los handlers ± / change de arriba.
-      $('[data-vb-input]').each(function () {
+      // Leemos directo del DOM para tomar el valor vigente del input de la
+      // subtabla por fecha, aunque s.cantidad ya esté sincronizado por los
+      // handlers ± / change de arriba. Sólo se incluyen los inputs cuyo
+      // grupo padre está marcado (grupoChecked).
+      $('[data-vb-input-day]').each(function () {
         var $i = $(this);
-        var idx = $i.data('idx');
-        var s = estado.seleccionados[idx];
-        if (!s || !s.checked) return;
+        var solId = String($i.data('solicitud'));
+        var s = estado.seleccionados[solId];
+        if (!s || !s.grupoChecked) return;
         var cant = parseInt($i.val(), 10) || 0;
         if (cant <= 0) return;
         solicitudes.push({
-          cupoId: s.cupoId || 0,
+          cupoId: s.cupoIds && s.cupoIds[0] ? s.cupoIds[0] : 0,  // sentinela, doAccept ignora esto y lee de m.Cupos
           solicitudId: s.solicitudId,
           matchType: s.matchType,
           cantidad: cant
@@ -1331,7 +1499,8 @@
       }
 
       // Validar que un mismo cupo no quede asignado a dos solicitudes.
-      var conflicto = detectarConflictosCupos(solicitudes);
+      // detectarConflictosCupos ahora lee directo de estado.seleccionados.
+      var conflicto = detectarConflictosCupos();
       if (conflicto.hayConflictos) {
         actualizarConflictoVisual();
         var lineas = [];
