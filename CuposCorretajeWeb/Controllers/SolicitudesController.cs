@@ -63,6 +63,22 @@ namespace CuposCorretajeWeb.Controllers
           $"Sin Comprador: {sinComprador}. Sin Destino: {sinDestino}. " +
           $"Sin Comprador y Sin Destino: {sinCompradorYDestino}.");
 
+        // Diagnóstico: logueamos los acumuladores de TODAS las solicitudes
+        // que tuvieron alguna acción (Aceptada > 0 ó Rechazada > 0). Si el
+        // back no está poblando CantidadRechazada en este endpoint, lo vamos
+        // a ver acá — sin este log el filtro EsPendiente puede fallar
+        // silenciosamente (devuelve true aunque la solicitud ya esté
+        // completamente rechazada, porque Aceptada + 0 < Cantidad).
+        foreach (var it in rawList.Where(x => x.CantidadAceptada > 0 || x.CantidadRechazada > 0
+                                            || x.CantidadFuturoAceptada > 0 || x.CantidadFuturoRechazada > 0))
+        {
+          Trace.TraceInformation(
+            $"[Solicitudes] diag id={it.Id} fut={it.EsFuturo} " +
+            $"Cantidad={it.Cantidad} Aceptada={it.CantidadAceptada} Rechazada={it.CantidadRechazada} " +
+            $"CantidadFuturo={it.CantidadFuturo} FutAceptada={it.CantidadFuturoAceptada} FutRechazada={it.CantidadFuturoRechazada} " +
+            $"EsPendiente={it.EsPendiente}");
+        }
+
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
