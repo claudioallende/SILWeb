@@ -1665,31 +1665,70 @@
       // y acá le explicamos exactamente cuál CUIT se pasó, por cuánto,
       // y el nombre del solicitante para que ubique la fila.
       var vends = totalesPorVendedor();
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[Matching] validar excedente per-vendor:', {
+          cupoId: estado.cupoActual && estado.cupoActual.Id,
+          cupostotalesadist: estado.cupoActual && estado.cupoActual.Cupostotalesadist,
+          cupostotales: estado.cupoActual && estado.cupoActual.CuposTotales,
+          lookupVendedor: vends.lookup,
+          totalesPorVendedor: vends.totales
+        });
+      }
       var vendedoresExcedidos = [];
-      Object.keys(vends.lookup).forEach(function (v) {
-        var limite = vends.lookup[v] || 0;
-        var total = vends.totales[v] || 0;
-        if (limite > 0 && total > limite) {
-          // Buscar un nombre humano del vendor en cualquier solicitud del
-          // estado para mostrarlo junto al CUIT en el mensaje.
-          var nombreVendor = '';
+      // Si el lookup por vendor no tiene entradas (caso edge: matches
+      // vacíos o keys no coincidentes), caemos a comparar contra el
+      // Cupostotalesadist del cupo como defensa. Así, aunque el lookup
+      // falle, la validación sigue disparándose con el límite correcto.
+      var keys = Object.keys(vends.lookup);
+      if (keys.length === 0 && estado.cupoActual) {
+        var cupostotalesadistCopo = estado.cupoActual.Cupostotalesadist
+          || estado.cupoActual.CuposTotales || 0;
+        var totalGlobal = Object.keys(vends.totales)
+          .reduce(function (a, k) { return a + (vends.totales[k] || 0); }, 0);
+        if (cupostotalesadistCopo > 0 && totalGlobal > cupostotalesadistCopo) {
+          var nombreFallback = '';
           Object.keys(estado.seleccionados).some(function (k) {
             var ss = estado.seleccionados[k];
-            if (ss && ss.solicitud && String(ss.solicitud.Vendedor) === v && ss.solicitud.NombreVendedor) {
-              nombreVendor = ss.solicitud.NombreVendedor;
+            if (ss && ss.solicitud && ss.solicitud.NombreVendedor) {
+              nombreFallback = ss.solicitud.NombreVendedor;
               return true;
             }
             return false;
           });
           vendedoresExcedidos.push({
-            cuit: v,
-            nombre: nombreVendor,
-            solicitado: total,
-            limite: limite,
-            excedente: total - limite
+            cuit: '(lookup no poblado)',
+            nombre: nombreFallback,
+            solicitado: totalGlobal,
+            limite: cupostotalesadistCopo,
+            excedente: totalGlobal - cupostotalesadistCopo
           });
         }
-      });
+      } else {
+        keys.forEach(function (v) {
+          var limite = vends.lookup[v] || 0;
+          var total = vends.totales[v] || 0;
+          if (limite > 0 && total > limite) {
+            // Buscar un nombre humano del vendor en cualquier solicitud del
+            // estado para mostrarlo junto al CUIT en el mensaje.
+            var nombreVendor = '';
+            Object.keys(estado.seleccionados).some(function (k) {
+              var ss = estado.seleccionados[k];
+              if (ss && ss.solicitud && String(ss.solicitud.Vendedor) === v && ss.solicitud.NombreVendedor) {
+                nombreVendor = ss.solicitud.NombreVendedor;
+                return true;
+              }
+              return false;
+            });
+            vendedoresExcedidos.push({
+              cuit: v,
+              nombre: nombreVendor,
+              solicitado: total,
+              limite: limite,
+              excedente: total - limite
+            });
+          }
+        });
+      }
       if (vendedoresExcedidos.length > 0) {
         var lineasVend = vendedoresExcedidos.map(function (ve) {
           var header = ve.nombre
