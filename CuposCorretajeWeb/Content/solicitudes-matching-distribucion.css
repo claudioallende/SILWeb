@@ -814,6 +814,15 @@
     margin-bottom: 10px;
 }
 
+/* Nota inline al lado del "máx. N" cuando CantidadDisponible >
+   Cupos[].length. Le avisa al operador por qué el tope es menor al
+   que esperaba (cupos pendientes en SOLTURNOS que no matchearon los
+   filtros del Buscar). */
+.sil-modal-qty-limit-note {
+    color: var(--sil-text-tertiary, #9aa3b5);
+    font-style: italic;
+}
+
 /* Inputs deshabilitados (grupo Condicional no aceptado, etc.) */
 .sil-modal-qty input[type="number"]:disabled,
 .sil-modal-qty button:disabled {

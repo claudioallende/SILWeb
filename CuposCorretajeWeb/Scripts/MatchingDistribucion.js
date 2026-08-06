@@ -363,7 +363,12 @@
         };
       }
       grupos[key].records.push(g);
-      grupos[key].totalSols += Math.max(0, sol.CantidadDisponible || 0);
+      // totalSols = suma de los cupos físicos que doAccept puede
+      // efectivamente asignar para este grupo (suma de m.Cupos[].length).
+      // CantidadDisponible puede ser mayor (cupos de SOLTURNOS que no
+      // matchearon los filtros del Buscar); esa diferencia se ve en la
+      // columna "Sols." del padre y en el contador "Total solicitudes".
+      grupos[key].totalSols += Math.max(0, (sol.Cupos || []).length);
 
       if (obs || tipo === 'Condicional') {
         grupos[key].conObs = true;
@@ -790,7 +795,12 @@
 
       grupo.records.forEach(function (record, recordIdx) {
         var sol = record.solicitud;
-        var disponibles = Math.max(0, sol.CantidadDisponible || 0);
+        var cantSolicitud = Math.max(0, sol.CantidadDisponible || 0);
+        // Cupos físicos que doAccept puede efectivamente distribuir para
+        // esta solicitud (= m.Cupos[].length). Es el tope real del input;
+        // CantidadDisponible puede ser mayor porque incluye cupos de
+        // SOLTURNOS que no matchearon los filtros del Buscar.
+        var disponibles = Math.min(cantSolicitud, record.cupoIds.length);
         var initialQty = disponibles; // por defecto la fila toma el máximo
         var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
         var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
@@ -812,7 +822,17 @@
         tableHtml += '                <input type="number" min="0" max="' + disponibles + '" value="' + initialQty + '" disabled data-vb-input-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '" aria-label="Cupos para solicitud ' + solId + '" />';
         tableHtml += '                <button type="button" data-vb-incr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Aumentar">&plus;</button>';
         tableHtml += '              </div>';
-        tableHtml += '              <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
+        tableHtml += '              <div class="sil-modal-qty-limit">';
+        if (cantSolicitud > disponibles) {
+          // Hay cupos en SOLTURNOS que no matchearon los filtros del
+          // Buscar: el máximo efectivo es el de los cupos matcheados.
+          tableHtml += 'm&aacute;x. ' + disponibles +
+                       ' <span class="sil-modal-qty-limit-note">(de ' + cantSolicitud +
+                       ' disp.)</span>';
+        } else {
+          tableHtml += 'm&aacute;x. ' + disponibles;
+        }
+        tableHtml += '              </div>';
         tableHtml += '            </td>';
         tableHtml += '          </tr>';
 
