@@ -392,7 +392,19 @@
       });
     });
 
-    return Object.values(grupos);
+    // Ordenar los grupos por fechaMasAntigua asc — la solicitud más
+    // vieja arriba. Coincide con el chip "Ordenado: Antigüedad" del
+    // header del modal y con el comportamiento del mock v5.
+    var lista = Object.values(grupos);
+    lista.sort(function (a, b) {
+      var fa = a.fechaMasAntigua;
+      var fb = b.fechaMasAntigua;
+      if (!fa && !fb) return 0;
+      if (!fa) return 1;
+      if (!fb) return -1;
+      return fa - fb;
+    });
+    return lista;
   }
 
   // ============================================================
@@ -677,22 +689,30 @@
   // ============================================================
   function renderVarianteB(cupo) {
     $('#vb-subtitle-cupo').text(
-      (cupo.CuposTotales || 0) + ' cupos · ' + (cupo.NomGrano || '') +
-      ' · ' + (cupo.NomCompSIL || 'Sin comprador') +
-      ' · Sin vendedor');
+      // Mostramos el límite real (Cupostotalesadist) y no CuposTotales,
+      // porque es lo que efectivamente puede asignar el modal.
+      (cupo.Cupostotalesadist || cupo.CuposTotales || 0) + ' cupos · ' +
+      (cupo.NomGrano || '') + ' · ' +
+      (cupo.NomCompSIL || 'Sin comprador') + ' · Sin vendedor');
 
     // Agrupar primero por solicitudId (dedup) y luego consolidar por
     // solicitante. La tabla principal muestra una fila por solicitante;
     // al expandir se ve una subtabla con una fila por fecha (solicitudId).
     var gruposPorSolicitud = agruparMatchesPorSolicitud(cupo.Matches || []);
     var gruposPorSolicitante = agruparPorSolicitante(gruposPorSolicitud);
-    var totalCuposAsignar = cupo.CuposTotales || 0;
+    // Tope real: Cupostotalesadist (los cupos pendientes en la tabla de
+    // distribución para este cupo) y NO CuposTotales (que cuenta todos
+    // los cupos físicos que matchearon los filtros, incluyendo los que
+    // ya están agotados). Si vienen 0, caemos a CuposTotales como
+    // defensa por si el backend aún no setea Cupostotalesadist.
+    var totalCuposAsignar = cupo.Cupostotalesadist || cupo.CuposTotales || 0;
+    var cuposFisicosMatcheados = cupo.CuposTotales || 0;
 
-    // Total solicitudes = suma de cupos que piden todas las solicitudes
-    // (puede ser > CuposTotales si hay cupos compartidos entre
-    // solicitudes). La diferencia entre este valor y CuposTotales son los
-    // "cupos sin asignar" del mock, que son los que disparan la
-    // validación de conflictos cuando el operador intenta asignarlos.
+    // Total solicitudes = suma de cupos físicos que matchearon todas
+    // las solicitudes (puede ser > totalCuposAsignar si hay cupos
+    // compartidos entre solicitudes o si Cupostotalesadist < CuposTotales).
+    // La diferencia entre este valor y totalCuposAsignar son los "cupos
+    // sin asignar" del mock.
     var totalSolicitudes = gruposPorSolicitante.reduce(function (a, g) {
       return a + g.totalSols;
     }, 0);
@@ -796,11 +816,11 @@
       grupo.records.forEach(function (record, recordIdx) {
         var sol = record.solicitud;
         var cantSolicitud = Math.max(0, sol.CantidadDisponible || 0);
-        // Cupos físicos que doAccept puede efectivamente distribuir para
-        // esta solicitud (= m.Cupos[].length). Es el tope real del input;
-        // CantidadDisponible puede ser mayor porque incluye cupos de
-        // SOLTURNOS que no matchearon los filtros del Buscar.
-        var disponibles = Math.min(cantSolicitud, record.cupoIds.length);
+        // max del input = cupos físicos que matchearon esta solicitud
+        // (= m.Cupos[].length). El operador debe poder pedir hasta acá;
+        // el tope global por vendedor (Cupostotalesadist) se enforcea
+        // de forma dinámica en los handlers de input y al confirmar.
+        var disponibles = record.cupoIds.length;
         var initialQty = disponibles; // por defecto la fila toma el máximo
         var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
         var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
@@ -880,10 +900,11 @@
   function actualizarBarraVB() {
     // La barra refleja la suma de cantidades tipeadas en los inputs de
     // la subtabla por fecha. Cada fila-detalle aporta su valor al grupo
-    // y el "Total" del padre se actualiza con esa suma. Sólo cuentan las
-    // filas cuyo grupo padre está incluido (grupoChecked).
+    // y al total del vendedor (CUIT). Sólo cuentan las filas cuyo grupo
+    // padre está incluido (grupoChecked).
     var asignado = 0;
     var totalesPorGrupo = {};
+    var lookupVendedor = lookupCupostotalesadistPorVendedor();
 
     $('[data-vb-input-day]').each(function () {
       var $i = $(this);
@@ -914,7 +935,12 @@
       }
     });
 
-    var max = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
+    // El tope se calcula como el máximo Cupostotalesadist entre los
+    // vendedores presentes. Cuando todos los matches son del mismo
+    // vendedor (caso típico), equivale a su Cupostotalesadist.
+    var max = estado.cupoActual
+      ? topeMaximoVendedor(lookupVendedor)
+      : 0;
     var pct = max > 0 ? Math.min(100, Math.round(asignado / max * 100)) : 0;
     var excedido = max > 0 && asignado > max;
     $('#vb-progress-fill')
@@ -932,6 +958,84 @@
     actualizarBannerExcedente(excedido, asignado, max);
   }
 
+  // Construye un lookup { CUIT: Cupostotalesadist } a partir de los
+  // matches vigentes. En el flujo actual todos los matches del modal
+  // suelen ser del mismo vendedor, pero la estructura soporta varios.
+  function lookupCupostotalesadistPorVendedor() {
+    var lookup = {};
+    var cupo = estado.cupoActual;
+    if (!cupo) return lookup;
+    var limite = cupo.Cupostotalesadist || cupo.CuposTotales || 0;
+    (cupo.Matches || []).forEach(function (m) {
+      var v = m && m.Vendedor != null ? String(m.Vendedor) : null;
+      if (v && !lookup.hasOwnProperty(v)) lookup[v] = limite;
+    });
+    // Si por alguna razón no quedó ningún vendedor mapeado, caemos al
+    // límite del cupo como único "vendor".
+    if (Object.keys(lookup).length === 0) {
+      lookup['__cupo__'] = limite;
+    }
+    return lookup;
+  }
+
+  // Suma las cantidades tipeadas por cada vendedor (CUIT) y devuelve
+  // los totales para validar contra el lookup por vendedor.
+  function totalesPorVendedor() {
+    var lookupVendedor = lookupCupostotalesadistPorVendedor();
+    var totales = {};
+    Object.keys(lookupVendedor).forEach(function (v) { totales[v] = 0; });
+
+    $('[data-vb-input-day]').each(function () {
+      var $i = $(this);
+      var solId = String($i.data('solicitud'));
+      var cant = parseInt($i.val(), 10) || 0;
+      var s = estado.seleccionados[solId];
+      if (!s || !s.grupoChecked || cant <= 0) return;
+      var v = s.solicitud && s.solicitud.Vendedor != null ? String(s.solicitud.Vendedor) : '__cupo__';
+      totales[v] = (totales[v] || 0) + cant;
+    });
+    return { totales: totales, lookup: lookupVendedor };
+  }
+
+  function topeMaximoVendedor(lookup) {
+    var keys = Object.keys(lookup || {});
+    if (!keys.length) return 0;
+    return keys.reduce(function (a, k) { return a + (lookup[k] || 0); }, 0);
+  }
+
+  // Máximo efectivo que el operador puede tipear en el input de una
+  // solicitud específica, considerando el cap per-vendedor
+  // (Cupostotalesadist). Si el operador ya usó cupo en otras filas del
+  // mismo vendedor, el cap efectivo se reduce proporcionalmente.
+  //
+  //   efectivo = min(m.Cupos[].length, Cupostotalesadist - otros)
+  //
+  // Esto hace que tipear 3 en la fila A cuando ya hay 1 en la fila B
+  // (con Cupostotalesadist=3) se clampee a 2, sin necesidad de esperar
+  // al banner de excedente.
+  function maxEfectivoPorVendedor(solId) {
+    var s = estado.seleccionados[String(solId)];
+    if (!s || !s.solicitud) return 0;
+    var sol = s.solicitud;
+    var vendor = sol.Vendedor != null ? String(sol.Vendedor) : '__cupo__';
+    var cupo = estado.cupoActual;
+    var vendorLimit = (cupo && (cupo.Cupostotalesadist || cupo.CuposTotales)) || 0;
+
+    var otherSum = 0;
+    Object.keys(estado.seleccionados).forEach(function (k) {
+      var ss = estado.seleccionados[k];
+      if (!ss || !ss.solicitud) return;
+      if (String(ss.solicitudId) === String(solId)) return;
+      var v = ss.solicitud.Vendedor != null ? String(ss.solicitud.Vendedor) : '__cupo__';
+      if (v !== vendor) return;
+      if (!ss.grupoChecked) return;
+      otherSum += parseInt(ss.cantidad, 10) || 0;
+    });
+
+    var matchingCupos = (s.cupoIds || []).length;
+    return Math.max(0, Math.min(matchingCupos, vendorLimit - otherSum));
+  }
+
   function actualizarBannerExcedente(excedido, asignado, max) {
     var $banner = $('#vb-excedente-banner');
     if (!excedido) {
@@ -939,11 +1043,24 @@
       return;
     }
     var diff = asignado - max;
+    // Mensaje per-vendedor: listamos qué CUIT se pasó y por cuánto.
+    var vends = totalesPorVendedor();
+    var lineas = [];
+    Object.keys(vends.lookup).forEach(function (v) {
+      var limite = vends.lookup[v] || 0;
+      var total = vends.totales[v] || 0;
+      if (limite > 0 && total > limite) {
+        lineas.push('CUIT <b>' + escapeHtml(v) + '</b>: ' + total +
+                    ' pedidos / ' + limite + ' disponibles (' + (total - limite) + ' de m&aacute;s)');
+      }
+    });
+    var detalle = lineas.length
+      ? lineas.join('<br>')
+      : 'est&aacute;s pidiendo <b>' + asignado + '</b> cupos pero s&oacute;lo hay <b>' + max + '</b> disponibles.';
     var html = '<div class="sil-modal-callout sil-modal-callout-red">' +
                '<span class="sil-modal-callout-icon" aria-hidden="true">!</span>' +
-               '<div><strong>Excediste los cupos disponibles:</strong> estás pidiendo ' +
-               '<b>' + asignado + '</b> cupos pero sólo hay <b>' + max + '</b> disponibles ' +
-               '(' + diff + ' de m&aacute;s). Reduc&iacute; las cantidades antes de confirmar.</div>' +
+               '<div><strong>Excediste los cupos disponibles por vendedor:</strong> ' +
+               detalle + ' Reduc&iacute; las cantidades o desactiv&aacute; un grupo antes de confirmar.</div>' +
                '</div>';
     if ($banner.length === 0) {
       $banner = $('<div id="vb-excedente-banner" class="sil-modal-excedente-banner"></div>');
@@ -1478,35 +1595,39 @@
     });
 
     // ± en inputs numéricos de la subtabla por fecha (data-vb-input-day).
-    // Mantienen s.cantidad en sync con el valor del input y refrescan la
-    // barra global y los totales por grupo.
+    // El cap se calcula dinámicamente por vendedor: min(m.Cupos[].length,
+    // Cupostotalesadist - lo ya tipeado en otras filas del mismo vendor).
     $(document).on('click', '[data-vb-decr-day], [data-vb-incr-day]', function () {
       var $b = $(this);
       var grupoIdx = $b.data('grupo');
       var recordIdx = $b.data('record');
       var $inp = $('[data-vb-input-day][data-grupo="' + grupoIdx + '"][data-record="' + recordIdx + '"]');
       if ($inp.length === 0 || $inp.prop('disabled')) return;
-      var max = parseInt($inp.attr('max'), 10) || 0;
+      var solId = String($inp.data('solicitud'));
+      var maxEstatico = parseInt($inp.attr('max'), 10) || 0;
+      var maxVend = maxEfectivoPorVendedor(solId);
+      var max = Math.min(maxEstatico, maxVend);
       var cur = parseInt($inp.val(), 10) || 0;
       var inc = $b.is('[data-vb-incr-day]') ? +1 : -1;
       cur = Math.max(0, Math.min(max, cur + inc));
       $inp.val(cur);
-      var solId = String($inp.data('solicitud'));
       if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = cur;
       actualizarBarraVB();
       actualizarConflictoVisual();
     });
 
-    // Cambio manual en el input de la subtabla: clamp + sync.
+    // Cambio manual en el input de la subtabla: clamp dinámico per-vendor.
     $(document).on('input change', '[data-vb-input-day]', function () {
       var $i = $(this);
       if ($i.prop('disabled')) return;
-      var max = parseInt($i.attr('max'), 10) || 0;
+      var maxEstatico = parseInt($i.attr('max'), 10) || 0;
+      var solId = String($i.data('solicitud'));
+      var maxVend = maxEfectivoPorVendedor(solId);
+      var max = Math.min(maxEstatico, maxVend);
       var raw = parseInt($i.val(), 10);
       if (isNaN(raw) || raw < 0) raw = 0;
       if (raw > max) raw = max;
       $i.val(raw);
-      var solId = String($i.data('solicitud'));
       if (estado.seleccionados[solId]) estado.seleccionados[solId].cantidad = raw;
       actualizarBarraVB();
       actualizarConflictoVisual();
@@ -1569,21 +1690,40 @@
         return;
       }
 
-      // Bloqueo por excedente: si la suma de las cantidades pedidas
-      // supera los cupos físicos disponibles, no dejamos confirmar.
-      // El banner inline (#vb-excedente-banner) ya muestra el aviso en
-      // tiempo real, pero en el confirmamos con un Swal explícito.
-      var maxCupos = estado.cupoActual && estado.cupoActual.CuposTotales ? estado.cupoActual.CuposTotales : 0;
-      var totalAsignado = solicitudes.reduce(function (a, s) { return a + (s.cantidad || 1); }, 0);
-      if (maxCupos > 0 && totalAsignado > maxCupos) {
+      // Bloqueo por excedente per-vendedor: si la suma de las cantidades
+      // pedidas para un mismo CUIT supera su Cupostotalesadist, no
+      // dejamos confirmar. Cada fila del modal puede corresponder a
+      // distintos solicitantes con el mismo CUIT (por eso agrupamos por
+      // vendedor y no por fila). El banner inline ya muestra el aviso
+      // en tiempo real, pero acá confirmamos con un Swal explícito.
+      var vends = totalesPorVendedor();
+      var vendedoresExcedidos = [];
+      Object.keys(vends.lookup).forEach(function (v) {
+        var limite = vends.lookup[v] || 0;
+        var total = vends.totales[v] || 0;
+        if (limite > 0 && total > limite) {
+          vendedoresExcedidos.push({
+            cuit: v,
+            solicitado: total,
+            limite: limite,
+            excedente: total - limite
+          });
+        }
+      });
+      if (vendedoresExcedidos.length > 0) {
+        var lineasVend = vendedoresExcedidos.map(function (ve) {
+          return '<b>CUIT ' + escapeHtml(ve.cuit) + '</b>: pediste ' + ve.solicitado +
+                 ' cupos pero su Cupostotalesadist es ' + ve.limite +
+                 ' (' + ve.excedente + ' de m&aacute;s).';
+        });
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'error',
-            title: 'Cupos excedidos',
-            html: 'Est&aacute;s intentando asignar <b>' + totalAsignado +
-                  '</b> cupos pero s&oacute;lo hay <b>' + maxCupos +
-                  '</b> disponibles para distribuir (' + (totalAsignado - maxCupos) +
-                  ' de m&aacute;s).<br><br>Desactiv&aacute; alg&uacute;n grupo o reduc&iacute; las cantidades antes de confirmar.',
+            title: 'Cupos excedidos por vendedor',
+            html: 'La suma de cupos por cada CUIT no puede superar su l&iacute;mite ' +
+                  'en la tabla de distribuci&oacute;n:<br><br>' +
+                  lineasVend.join('<br>') +
+                  '<br><br>Desactiv&aacute; alg&uacute;n grupo o reduc&iacute; las cantidades antes de confirmar.',
             showConfirmButton: true,
             confirmButtonText: 'Entendido'
           });
