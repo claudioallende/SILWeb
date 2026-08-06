@@ -31,9 +31,11 @@
         <h2>Sistema Integral de Logística</h2>
         <div id="wrap_iconos">
             <ul>
-                <li class="boton_proximamente">
+                <li>
+                  <a href="@Url.Action("Index","Solicitudes")" target="_blank">
                     <img src="~/img/iconos/turnos.png" alt="Icono Solicitud de Turnos">
                     <p>Solicitud de <br> turnos</p>
+                  </a>
                 </li>
                 <li>
                     <a href="@System.Configuration.ConfigurationManager.AppSettings["SILReportes"]" target="_blank">
