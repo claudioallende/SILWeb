@@ -41,7 +41,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     // GET: Cupos/Create
-    public async Task<ActionResult> Nuevo(int id = 0)
+    public async Task<ActionResult> Nuevo(int id = 0, string returnUrl = null)
     {
       var model = new NuevoCupoViewModel();
       try
@@ -60,13 +60,21 @@ namespace CuposCorretajeWeb.Controllers
       {
         throw e;
       }
+      // Guardamos el returnUrl en ViewBag para que Nuevo.cshtml lo renderee
+      // como hidden y sobreviva al POST. Validamos que sea URL relativa
+      // (comienza con "/") para evitar open-redirect a sitios externos.
+      ViewBag.ReturnUrl = EsReturnUrlSeguro(returnUrl) ? returnUrl : null;
       return View(model);
     }
 
     // POST: Cupos/Create
     [HttpPost]
-    public async Task<ActionResult> Nuevo(FormCollection collection, NuevoCupoViewModel model)
+    public async Task<ActionResult> Nuevo(FormCollection collection, NuevoCupoViewModel model, string returnUrl = null)
     {
+      // Re-publicamos el returnUrl para que sobreviva un re-render del form
+      // (cuando ModelState no es válido o la API devuelve ApiException).
+      ViewBag.ReturnUrl = EsReturnUrlSeguro(returnUrl) ? returnUrl : null;
+
       if (!ModelState.IsValid)
       {
         model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
@@ -76,7 +84,7 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
-          model.ContactoComercial = string.IsNullOrEmpty(model.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x)); 
+          model.ContactoComercial = string.IsNullOrEmpty(model.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
           await repo.RequestPostAndDeserializeAsync<NuevoCupoViewModel>("Cupos", "Nuevo", model);
         }
       }
@@ -90,7 +98,29 @@ namespace CuposCorretajeWeb.Controllers
       {
         throw e;
       }
+
+      // El caller pasó returnUrl por query string/hidden → volvemos a esa
+      // pantalla (ej. Solicitudes/Index cuando se creó el cupo desde el
+      // listado de solicitudes). Si no vino (flujo legacy u otro caller),
+      // mantenemos el redirect original a Cupos/Index.
+      if (!string.IsNullOrEmpty(ViewBag.ReturnUrl as string))
+      {
+        return Redirect(ViewBag.ReturnUrl as string);
+      }
       return RedirectToAction("Index");
+    }
+
+    /// <summary>
+    /// Valida que un <c>returnUrl</c> sea seguro de usar como destino de
+    /// redirect: sólo aceptamos URLs relativas (que empiecen con "/") y
+    /// que NO sean protocol-relative ("//example.com" sería open-redirect).
+    /// </summary>
+    private static bool EsReturnUrlSeguro(string returnUrl)
+    {
+      if (string.IsNullOrWhiteSpace(returnUrl)) return false;
+      if (!returnUrl.StartsWith("/")) return false;
+      if (returnUrl.StartsWith("//")) return false;
+      return true;
     }
 
     // GET: Cupos/Editar/5

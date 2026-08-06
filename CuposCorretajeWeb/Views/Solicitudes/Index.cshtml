@@ -22,6 +22,17 @@
         @(string.IsNullOrEmpty(Model.Subtitulo) ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " + Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)
       </p>
     </div>
+    <div class="sil-page-hd-actions">
+      <!-- Alta de cupo a nivel del listado (no atado a una solicitud puntual).
+           La creación se hace en /Cupos/Nuevo/0; el parámetro returnUrl le
+           indica a CuposController.Nuevo que vuelva a esta misma pantalla
+           (Solicitudes/Index) al guardar, en lugar de ir a Cupos/Index. -->
+      <a class="sil-btn sil-btn-navy"
+         href="@Url.Action("Nuevo", "Cupos", new { id = 0, returnUrl = Url.Action("Index", "Solicitudes") })"
+         title="Crear nuevo cupo compatible">
+        + Crear nuevo cupo
+      </a>
+    </div>
   </div>
 
   <!-- ===== Toolbar ===== -->
