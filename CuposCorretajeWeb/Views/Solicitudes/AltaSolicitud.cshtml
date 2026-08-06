@@ -136,13 +136,13 @@
                       title="Fecha del turno solicitado.">Fecha</th>
                   <th style="text-align:center;"
                       data-toggle="tooltip" data-placement="top"
-                      title="TR &mdash; Turnos requeridos para esta fecha.">Sol. TR</th>
+                      title="TS &mdash; Turnos solicitados para esta fecha.">Sol. TS</th>
                   <th style="text-align:center;"
                       data-toggle="tooltip" data-placement="top"
-                      title="TO &mdash; Turnos que ya fueron otorgados (asignados a un cupo) en esta fecha.">Sol. TO</th>
+                      title="TO &mdash; Turnos otorgados (asignados a un cupo) en esta fecha.">Sol. TO</th>
                   <th style="text-align:center;"
                       data-toggle="tooltip" data-placement="top"
-                      title="TP &mdash; Turnos pendientes de asignar. Es lo que queda por aceptar/rechazar.">Sol. TP</th>
+                      title="TP &mdash; Turnos pendientes de asignar. Es lo que queda por aceptar/rechazar (TS - TO).">Sol. TP</th>
                   <th style="text-align:center;"
                       data-toggle="tooltip" data-placement="top"
                       title="Estado de la fila: Seleccionado, Pendiente o Sin solicitudes.">Estado</th>
@@ -1162,7 +1162,21 @@
                     confirmButtonColor: '#a93226'
                 }).then(function (res) {
                     if (!res.isConfirmed) return;
-                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', { idSolicitud: idSolicitud })
+                    // Enviamos TODAS las solicitudes del grupo (una por fecha),
+                    // no sólo la primera. Si no, los turnos de las otras fechas
+                    // siguen quedando como pendientes en Pantalla 1 aunque las
+                    // hayamos rechazado en Pantalla 2. solicitudPorFecha mapea
+                    // fecha → id; idsSolicitudesByGrupo es un array único.
+                    var idsSolicitudesByGrupo = [];
+                    var seen = {};
+                    Object.keys(solicitudPorFecha).forEach(function (f) {
+                        var sid = solicitudPorFecha[f];
+                        if (sid && !seen[sid]) { seen[sid] = true; idsSolicitudesByGrupo.push(sid); }
+                    });
+                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', {
+                        idSolicitud: idSolicitud,
+                        idsSolicitudes: idsSolicitudesByGrupo
+                    })
                         .done(manejarRespuesta)
                         .fail(function (xhr) {
                             Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });

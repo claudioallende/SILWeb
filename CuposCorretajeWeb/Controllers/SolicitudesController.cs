@@ -390,9 +390,15 @@ namespace CuposCorretajeWeb.Controllers
     public async Task<JsonResult> RechazarSolicitud(RechazarSolicitudRequest req)
     {
       long idSolicitud = req != null ? req.IdSolicitud : 0;
+      // Si el caller manda la lista completa del grupo (uno por fecha), la usamos;
+      // si no, caemos al id único legacy para no romper integraciones externas.
+      var solicitudIds = (req != null && req.IdsSolicitudes != null && req.IdsSolicitudes.Count > 0)
+        ? req.IdsSolicitudes.Where(x => x > 0).Distinct().ToList()
+        : new List<long> { idSolicitud };
+
       try
       {
-        if (idSolicitud <= 0)
+        if (idSolicitud <= 0 && solicitudIds.Count == 0)
           return Json(new SolicitudActionResponseViewModel
           {
             Success = false,
@@ -401,7 +407,7 @@ namespace CuposCorretajeWeb.Controllers
 
         var payload = new ShiftRequestRejectDataViewModel
         {
-          SolicitudIds = new List<long> { idSolicitud },
+          SolicitudIds = solicitudIds,
           Motivo = "Rechazo manual desde Pantalla 2.",
           Automatico = false
         };
@@ -517,7 +523,21 @@ namespace CuposCorretajeWeb.Controllers
           ? $"Asignaste {asignados} de {solicitados} cupos. {pendientes} quedaron pendientes."
           : $"Asignación confirmada: {asignados} cupos.";
 
-        RefreshTempDataSolicitud(asignados, rechazada: false);
+        // Delta por fecha: en el flujo legacy un cupo = 1 turno aceptado
+        // (no hay subdivisión intra-cupo), así que cada fecha del request
+        // recibe +1. Lo pasamos al RefreshTempDataSolicitud para que el
+        // FechasAceptadas se actualice en TempData antes del reload, y la
+        // columna "Sol. TO" muestre el valor nuevo sin tener que volver al Index.
+        var deltaPorFecha = new Dictionary<string, int>();
+        if (req.Fechas != null)
+        {
+          foreach (var f in req.Fechas.Keys)
+          {
+            if (string.IsNullOrEmpty(f)) continue;
+            deltaPorFecha[f] = 1;
+          }
+        }
+        RefreshTempDataSolicitud(asignados, rechazada: false, deltaPorFecha: deltaPorFecha);
 
         return Json(new ConfirmarAsignacionResponse
         {
@@ -647,7 +667,21 @@ namespace CuposCorretajeWeb.Controllers
 
       if (ok)
       {
-        RefreshTempDataSolicitud(resultado.Asignados, rechazada: false);
+        // Construimos el delta por fecha desde AsignacionesPorSolicitud
+        // (cada cupo = 1 turno aceptado en su fecha). Esto actualiza
+        // FechasAceptadas en TempData para que al recargar la pantalla
+        // (window.location.reload() desde Pantalla 2) la columna "Sol. TO"
+        // muestre los valores nuevos sin tener que volver al Index.
+        var deltaPorFechaMatch = new Dictionary<string, int>();
+        foreach (var a in req.AsignacionesPorSolicitud)
+        {
+          if (a == null || string.IsNullOrEmpty(a.Fecha)) continue;
+          int cuposEnFecha = a.CupoIds != null ? a.CupoIds.Count(c => c > 0) : 0;
+          if (cuposEnFecha <= 0) continue;
+          if (!deltaPorFechaMatch.ContainsKey(a.Fecha)) deltaPorFechaMatch[a.Fecha] = 0;
+          deltaPorFechaMatch[a.Fecha] += cuposEnFecha;
+        }
+        RefreshTempDataSolicitud(resultado.Asignados, rechazada: false, deltaPorFecha: deltaPorFechaMatch);
       }
 
       return Json(new ConfirmarAsignacionResponse
@@ -783,7 +817,7 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
-    private void RefreshTempDataSolicitud(int asignadosDelta, bool rechazada)
+    private void RefreshTempDataSolicitud(int asignadosDelta, bool rechazada, IDictionary<string, int> deltaPorFecha = null)
     {
       var vm = TempData["Solicitud"] as SolicitudViewModel;
       if (vm == null) return;
@@ -796,6 +830,22 @@ namespace CuposCorretajeWeb.Controllers
       else
       {
         vm.CantidadAceptada += Math.Max(0, asignadosDelta);
+        // Sumar al acumulador por fecha (FechasAceptadas) para que al hacer
+        // window.location.reload() desde Pantalla 2 la columna "Sol. TO" muestre
+        // el valor actualizado por fecha. Sin esto, el operador ve el TO viejo
+        // después del reload y tiene que volver al Index para refrescar.
+        if (deltaPorFecha != null && deltaPorFecha.Count > 0)
+        {
+          if (vm.FechasAceptadas == null) vm.FechasAceptadas = new Dictionary<string, int>();
+          foreach (var kv in deltaPorFecha)
+          {
+            if (string.IsNullOrEmpty(kv.Key)) continue;
+            int delta = Math.Max(0, kv.Value);
+            if (delta == 0) continue;
+            if (!vm.FechasAceptadas.ContainsKey(kv.Key)) vm.FechasAceptadas[kv.Key] = 0;
+            vm.FechasAceptadas[kv.Key] += delta;
+          }
+        }
         if (vm.CantidadOriginal > 0 && vm.CantidadAceptada >= vm.CantidadOriginal)
         {
           vm.EstadoBadge = "asig";
@@ -819,7 +869,7 @@ namespace CuposCorretajeWeb.Controllers
           FechaDisplay = f.ToString("dd/MM"),
           DiaSemana = (int)f.DayOfWeek,
           Cantidad = 0,
-          CantidadFuturo = 0,
+          CantidadAceptada = 0,
           TieneCupoDisponible = false
         });
       }
@@ -859,7 +909,7 @@ namespace CuposCorretajeWeb.Controllers
             FechaDisplay = v.FechaDisplay,
             DiaSemana = v.DiaSemana,
             Cantidad = 0,
-            CantidadFuturo = 0,
+            CantidadAceptada = 0,
             TieneCupoDisponible = v.TieneCupoDisponible
           })
           .ToDictionary(k => k.Fecha, k => k);
@@ -869,14 +919,29 @@ namespace CuposCorretajeWeb.Controllers
           string fechaKey = item.FechaSolicitado.ToString("yyyy-MM-dd");
           if (!detalles.ContainsKey(fechaKey)) continue; // fuera de la ventana
 
-          // TR (Cantidad/CantidadFuturo segun corresponda a la tabla)
+          // TS (Solicitados = TR). En tabla CONTRACTUAL se popula con item.Cantidad;
+          // en tabla FUTURO con item.CantidadFuturo (la cantidad FUTURA pedida, no la
+          // cantidad de cupos futuros).
           int valor = campoCantidadTR == "Cantidad" ? item.Cantidad : item.CantidadFuturo;
           if (valor > 0) detalles[fechaKey].Cantidad += valor;
 
+          // TO (Aceptados/Otorgados). Mapeamos item.CantidadAceptada o
+          // item.CantidadFuturoAceptada según la tabla. CantidadAceptada NO es
+          // la cantidad futura pedida — es la cantidad ya aceptada para esta fecha.
           int aceptados = campoCantidadTR == "Cantidad"
             ? item.CantidadAceptada
             : item.CantidadFuturoAceptada;
-          if (aceptados > 0) detalles[fechaKey].CantidadFuturo = aceptados;
+          if (aceptados > 0) detalles[fechaKey].CantidadAceptada = aceptados;
+        }
+
+        // TP (Pendientes) por fecha = Cantidad - CantidadAceptada, clampeado a 0.
+        // La columna TS de Pantalla 1 lo muestra al operador: lo que aún resta
+        // aceptar o rechazar para esa fecha. Mismo cálculo que la columna "Sol. TP"
+        // de Pantalla 2 (TS - TO).
+        foreach (var kv in detalles)
+        {
+          int pendiente = kv.Value.Cantidad - kv.Value.CantidadAceptada;
+          kv.Value.CantidadPendiente = pendiente > 0 ? pendiente : 0;
         }
 
         var first = g.First();
@@ -1017,7 +1082,7 @@ namespace CuposCorretajeWeb.Controllers
 
           var fechasConSolicitud = new HashSet<string>(
             (row.CantidadFechas ?? Enumerable.Empty<SolicitudTurnoDetalleGrupoView>())
-              .Where(d => (d.Cantidad + d.CantidadFuturo) > 0)
+              .Where(d => (d.Cantidad + d.CantidadAceptada) > 0)
               .Select(d => d.Fecha),
             StringComparer.Ordinal);
 

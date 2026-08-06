@@ -71,7 +71,15 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 
   /// <summary>
   /// Detalle por fecha de una fila de la grilla.
-  /// Permite distinguir TR (Toneladas Requeridas) y TO (Toneladas Ofrecidas/cupo disponible).
+  /// Permite distinguir TS (Solicitados = TR), TO (Aceptados/Otorgados) y
+  /// TP (Pendientes = TS - TO).
+  ///
+  /// El campo <see cref="CantidadAceptada"/> guarda la cantidad de cupos YA
+  /// aceptados para esa fecha (≤ Cantidad): <c>item.CantidadAceptada</c> si
+  /// la fila pertenece a la tabla CONTRACTUAL, <c>item.CantidadFuturoAceptada</c>
+  /// si pertenece a la tabla FUTURO. No confundir con la cantidad futura pedida:
+  /// para eso está <see cref="Cantidad"/> en la fila FUTURO (que se popula con
+  /// <c>item.CantidadFuturo</c>).
   /// </summary>
   public class SolicitudTurnoDetalleGrupoView
   {
@@ -84,15 +92,34 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// <summary>Día de la semana (1=lunes ... 7=domingo) para mostrar en el header de la grilla.</summary>
     public int DiaSemana { get; set; }
 
-    /// <summary>Cantidad de solicitudes contractuales (TR) para esta fecha.</summary>
+    /// <summary>
+    /// Cantidad de turnos SOLICITADOS para esta fecha (TS en la UI = TR del
+    /// negocio). En filas CONTRACTuales se popula con <c>item.Cantidad</c>;
+    /// en filas FUTURO se popula con <c>item.CantidadFuturo</c>.
+    /// </summary>
     public int Cantidad { get; set; }
 
-    /// <summary>Cantidad de solicitudes futuras (TO) para esta fecha. 0 si no hay TO para esta fecha.</summary>
-    public int CantidadFuturo { get; set; }
+    /// <summary>
+    /// Cantidad de turnos ya ACEPTADOS/OTORGADOS (TO en la UI). Equivale a la
+    /// cantidad de cupos que ya fueron asignados para esa fecha. Se popula con
+    /// <c>item.CantidadAceptada</c> o <c>item.CantidadFuturoAceptada</c> según
+    /// la tabla a la que pertenece la fila. <b>No</b> es la cantidad futura
+    /// pedida — para eso está <see cref="Cantidad"/>.
+    /// </summary>
+    public int CantidadAceptada { get; set; }
+
+    /// <summary>
+    /// Turnos PENDIENTES para esta fecha: <c>Cantidad - CantidadAceptada</c>
+    /// (clamp a 0). Es lo que Pantalla 1 muestra en la columna TS: lo que aún
+    /// falta aceptar o rechazar. NO se resta <c>CantidadRechazada</c> porque
+    /// la columna TS en la UI muestra "pendientes de gestión" (lo que aún no
+    /// se resolvió ni como aceptado ni como rechazado), igual que Pantalla 2.
+    /// </summary>
+    public int CantidadPendiente { get; set; }
 
     /// <summary>
     /// Indica si para esta fecha hay cupos disponibles sin asignar.
-    /// Cuando es true y Cantidad es 0, la celda de TR/TO se pinta con chip rojo.
+    /// Cuando es true y Cantidad es 0, la celda de TS/TO se pinta con chip rojo.
     /// </summary>
     public bool TieneCupoDisponible { get; set; }
   }

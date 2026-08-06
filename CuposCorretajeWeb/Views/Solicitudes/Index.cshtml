@@ -359,12 +359,20 @@
                     // Calcular totales por fecha sobre el set FILTRADO COMPLETO
                     // (no la página actual) para que el footer muestre la suma
                     // de lo que efectivamente coincide con el filtro.
-                    const totales = fechasHeader.map(function () { return { tr: 0, to: 0, tieneCupoDisponible: false }; });
+                    // TS (ts) = pendientes = Cantidad - CantidadAceptada (lo que se
+                    // muestra en la columna). TO (to) = CantidadAceptada (otorgados).
+                    const totales = fechasHeader.map(function () { return { ts: 0, to: 0, tieneCupoDisponible: false }; });
                     filteredRows.forEach(function (r) {
                         (r.CantidadFechas || []).forEach(function (d, idx) {
                             if (idx < totales.length) {
-                                totales[idx].tr += d.Cantidad || 0;
-                                totales[idx].to += d.CantidadFuturo || 0;
+                                totales[idx].to += d.CantidadAceptada || 0;
+                                // El backend ya calcula CantidadPendiente clamped a 0
+                                // (Cantidad - CantidadAceptada); por defensa legacy
+                                // si no viene lo computamos acá.
+                                var pendiente = (typeof d.CantidadPendiente === 'number')
+                                    ? d.CantidadPendiente
+                                    : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                                totales[idx].ts += pendiente;
                                 if (d.TieneCupoDisponible) totales[idx].tieneCupoDisponible = true;
                             }
                         });
@@ -411,10 +419,19 @@
                     let footHtml = '<tr class="sil-tr-total">' +
                         '<td colspan="5" class="tl">Total Diario</td>';
                     totales.forEach(function (t) {
-                        const mostrarTrRojo = t.tr === 0 && t.tieneCupoDisponible;
-                        footHtml += '<td>' + (t.tr > 0 ? t.tr : (mostrarTrRojo ? '<span class="sil-cell-red">0</span>' : '<span class="sil-zero">0</span>')) + '</td>';
+                        // TS (pendientes): pintamos rojo si hay cupo disponible y
+                        // pendiente=0 (mismo criterio que antes pero aplicado al
+                        // pendiente en vez del TR original).
+                        const tsVal = t.ts || 0;
+                        if (tsVal > 0) {
+                            footHtml += '<td>' + tsVal + '</td>';
+                        } else if (t.tieneCupoDisponible) {
+                            footHtml += '<td><span class="sil-cell-red">0</span></td>';
+                        } else {
+                            footHtml += '<td><span class="sil-zero">0</span></td>';
+                        }
                         // TO: ahora muestra la suma de cupos aceptados para esa fecha.
-                        // Mismo criterio de color que TR.
+                        // Mismo criterio de color que TS.
                         const toVal = t.to || 0;
                         if (toVal > 0) {
                             footHtml += '<td>' + toVal + '</td>';
@@ -457,7 +474,7 @@
                         // operador cu&aacute;ntos cupos ya fueron otorgados
                         // para esa fecha antes de aceptar m&aacute;s.
                         const fechasAceptadas = (row.CantidadFechas || []).reduce(function (acc, d) {
-                            acc[d.Fecha] = d.CantidadFuturo || 0;
+                            acc[d.Fecha] = d.CantidadAceptada || 0;
                             return acc;
                         }, {});
 
@@ -582,36 +599,41 @@
                 }
 
                 function renderCeldaFecha(d, isFirstDate) {
-                    // TR: el controller deposita aquí Cantidad (CONTRACTUAL) o CantidadFuturo
-                    // (FUTURO) según la tabla a la que pertenece la fila. El render es
-                    // genérico: si hay valor se muestra, si no y hay cupo disponible
-                    // se pinta el chip rojo, si no, el 0 gris.
+                    // TS: la columna muestra los turnos PENDIENTES
+                    // (Cantidad - CantidadAceptada) en lugar de los solicitados
+                    // originales. El controller deposita CantidadPendiente por
+                    // fecha; si no viene (defensa legacy) lo computamos acá.
+                    // Mismo criterio de color: si hay valor se muestra, si no y
+                    // hay cupo disponible se pinta el chip rojo, si no, el 0 gris.
                     //
-                    // La celda TR arranca cada bloque de fecha. Marcamos la primera
+                    // La celda TS arranca cada bloque de fecha. Marcamos la primera
                     // con sil-td-date-first para que el CSS no le dibuje divisor a
                     // la izquierda (quedaría pegado al borde de "Cupos compatibles").
                     // Las siguientes sí llevan sil-td-date, que dibuja una línea
                     // vertical separando cada fecha.
-                    let trCls = isFirstDate ? 'sil-td-date sil-td-date-first' : 'sil-td-date';
-                    let trCell = '<td class="' + trCls + '">';
-                    if (d.Cantidad > 0) trCell += d.Cantidad;
-                    else if (d.TieneCupoDisponible) trCell += '<span class="sil-cell-red">0</span>';
-                    else trCell += '<span class="sil-zero">0</span>';
-                    trCell += '</td>';
+                    let tsCls = isFirstDate ? 'sil-td-date sil-td-date-first' : 'sil-td-date';
+                    let tsCell = '<td class="' + tsCls + '">';
+                    var tsVal = (typeof d.CantidadPendiente === 'number')
+                        ? d.CantidadPendiente
+                        : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                    if (tsVal > 0) tsCell += tsVal;
+                    else if (d.TieneCupoDisponible) tsCell += '<span class="sil-cell-red">0</span>';
+                    else tsCell += '<span class="sil-zero">0</span>';
+                    tsCell += '</td>';
 
-                    // TO: cupos aceptados para esta fecha (total depositado por el
-                    // controller en la celda de la fecha del primer item del grupo).
-                    // Mismo criterio de color que TR. No lleva clase: el divisor
-                    // entre fechas ya quedó del lado izquierdo del TR de la
+                    // TO: cupos aceptados/otorgados para esta fecha (total depositado
+                    // por el controller en la celda de la fecha del primer item del
+                    // grupo). Mismo criterio de color que TS. No lleva clase: el
+                    // divisor entre fechas ya quedó del lado izquierdo del TS de la
                     // siguiente fecha.
                     let toCell = '<td>';
-                    var toVal = d.CantidadFuturo || 0;
+                    var toVal = d.CantidadAceptada || 0;
                     if (toVal > 0) toCell += toVal;
                     else if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
                     else toCell += '<span class="sil-zero">0</span>';
                     toCell += '</td>';
 
-                    return trCell + toCell;
+                    return tsCell + toCell;
                 }
 
                 function renderCeldaCupos(cc) {
