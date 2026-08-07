@@ -896,6 +896,7 @@
       tableHtml += '        <thead><tr>';
       tableHtml += '          <th class="tl">Fecha</th>';
       tableHtml += '          <th>Ingresada</th>';
+      tableHtml += '          <th>Sols.</th>';
       tableHtml += '          <th>Cupos a asignar</th>';
       tableHtml += '        </tr></thead>';
       tableHtml += '        <tbody>';
@@ -926,6 +927,7 @@
         tableHtml += '          <tr class="sil-modal-detail-data-row" data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" data-solicitud="' + solId + '">';
         tableHtml += '            <td class="tl">' + fechaDisplay + '</td>';
         tableHtml += '            <td>' + antiguedadRecord + '</td>';
+        tableHtml += '            <td><strong>' + cantSolicitud + '</strong></td>';
         tableHtml += '            <td>';
         tableHtml += '              <div class="sil-modal-qty">';
         tableHtml += '                <button type="button" data-vb-decr-day data-grupo="' + grupoIdx + '" data-record="' + recordIdx + '" disabled aria-label="Disminuir">&minus;</button>';
