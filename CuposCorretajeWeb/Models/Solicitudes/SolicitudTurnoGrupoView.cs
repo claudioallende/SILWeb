@@ -67,6 +67,18 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// ya fueron otorgados para esa fecha antes de aceptar m&aacute;s.
     /// </summary>
     public Dictionary<string, int> FechasAceptadas { get; set; }
+
+    /// <summary>
+    /// Total de cupos rechazados para este grupo, sumando todas las fechas
+    /// del mismo. El controller lo usa para diagnosticar si el backend est&aacute;
+    /// exponiendo <c>CantidadRechazada</c> en el response de
+    /// <c>GetAllPendingShiftRequestAsync</c>: si este campo siempre vale 0
+    /// pese a haber rechazos en BD, el endpoint no lo est&aacute; serializando
+    /// y el filtro <c>EsPendiente</c> no puede distinguir una solicitud
+    /// completamente rechazada de una pendiente. Una vez validado que el
+    /// back lo expone correctamente, este campo queda como metadato de UI.
+    /// </summary>
+    public int CantidadRechazada { get; set; }
   }
 
   /// <summary>

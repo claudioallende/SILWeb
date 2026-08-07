@@ -224,6 +224,37 @@
                             '| Sin Comprador:', sinComp,
                             '| Sin Destino:', sinDest,
                             '| Sin ambos:', sinAmbos);
+
+                        // Diagnóstico: por cada fila con Aceptada > 0 (es decir,
+                        // donde hubo alguna acción previa), logueamos los
+                        // acumuladores para verificar si el backend está
+                        // exponiendo CantidadRechazada. Si CantidadRechazada
+                        // es 0 cuando la BD tiene rechazos, el endpoint
+                        // GetAllPendingShiftRequestAsync no está populando
+                        // el campo y el filtro EsPendiente del controller no
+                        // puede distinguir una solicitud completamente
+                        // rechazada de una pendiente.
+                        var conAccion = todas.filter(function (r) {
+                            var ts = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.Cantidad || 0); }, 0);
+                            var to = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.CantidadAceptada || 0); }, 0);
+                            return to > 0 || (r.CantidadRechazada || 0) > 0;
+                        });
+                        if (conAccion.length > 0) {
+                            console.log('[Solicitudes] diag - filas con Aceptada > 0 ó Rechazada > 0:');
+                            conAccion.forEach(function (r) {
+                                var ts = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.Cantidad || 0); }, 0);
+                                var to = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.CantidadAceptada || 0); }, 0);
+                                console.log('  id=' + r.Id,
+                                    '| grano=' + r.NombreGrano,
+                                    '| vendedor=' + r.NombreVendedor,
+                                    '| TS(total)=' + ts,
+                                    '| TO(total)=' + to,
+                                    '| Rechazada=' + (r.CantidadRechazada || 0),
+                                    '| pendiente_gestion=' + (ts - to),
+                                    '| estado=' + r.EstadoLabel);
+                            });
+                        }
+
                         if (sinComp || sinDest) {
                             console.log('[Solicitudes] Filas sin Comprador/Destino (muestra):',
                                 todas.filter(function (r) { return !r.CuentaComprador || !r.CuentaDestino; })
