@@ -71,14 +71,43 @@ namespace CuposCorretajeWeb.Models.Solicitudes
 
     /// <summary>
     /// True si la solicitud está pendiente (a&uacute;n no cubierta ni rechazada).
+    /// Toma el set de acumuladores seg&uacute;n <see cref="EsFuturo"/>:
+    /// contractuales usan <see cref="Cantidad"/>; futuras usan
+    /// <see cref="CantidadFuturo"/>. Es la &uacute;nica condici&oacute;n que
+    /// usa la grilla de Pantalla 1 para decidir si la solicitud sigue
+    /// figurando una vez que el operador acept&oacute; parte y rechaz&oacute;
+    /// el remanente (Aceptada + Rechazada == Cantidad ⇒ ya no hay nada
+    /// que gestionar ⇒ la fila desaparece).
     /// </summary>
-    public bool EsPendiente => CantidadAceptada + CantidadRechazada < Cantidad;
+    public bool EsPendiente
+    {
+      get
+      {
+        if (EsFuturo)
+          return CantidadFuturoAceptada + CantidadFuturoRechazada < CantidadFuturo;
+        return CantidadAceptada + CantidadRechazada < Cantidad;
+      }
+    }
 
     /// <summary>True si la solicitud fue rechazada (rechazo manual).</summary>
-    public bool EsRechazada => CantidadRechazada > 0;
+    public bool EsRechazada
+    {
+      get
+      {
+        if (EsFuturo) return CantidadFuturoRechazada > 0;
+        return CantidadRechazada > 0;
+      }
+    }
 
     /// <summary>True si la solicitud recibió todos los cupos pedidos.</summary>
-    public bool EsCubierta => CantidadAceptada >= Cantidad;
+    public bool EsCubierta
+    {
+      get
+      {
+        if (EsFuturo) return CantidadFuturoAceptada >= CantidadFuturo;
+        return CantidadAceptada >= Cantidad;
+      }
+    }
 
     /// <summary>
     /// Devuelve la clave CSS del badge de estado para la grilla de Pantalla 1.
