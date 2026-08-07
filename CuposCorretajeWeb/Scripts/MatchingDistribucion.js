@@ -657,6 +657,10 @@
     var disponibles = Math.max(0, m.CantidadDisponible || 0);
     var total = Math.max(0, m.Cantidad || 0);
     var cupoIdsCount = g.cupoIds.length;
+    // Max asignable = min(CantidadDisponible, cupos matcheados). El
+    // operador no puede pedir más unidades que cupos físicos tiene la
+    // solicitud, aunque la CantidadDisponible diga que faltan más.
+    var maxAsignable = Math.min(disponibles, cupoIdsCount);
     var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
     var cssTipo = tipoMatch === 'Directo' ? 'is-direct'
       : (tipoMatch === 'Condicional' ? 'is-cond' : 'is-partial');
@@ -664,7 +668,7 @@
       : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
     var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
       : (tipoMatch === 'Condicional' ? 'Con obs.' : 'Parcial');
-    var initialQty = Math.min(disponibles, cupoIdsCount);
+    var initialQty = maxAsignable;
 
     return '<div class="sil-match-row ' + cssTipo + '">' +
       '  <div class="sil-match-row-info">' +
@@ -679,7 +683,7 @@
       '  </div>' +
       '  <div class="sil-modal-qty">' +
       '    <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>' +
-      '    <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
+      '    <input type="number" min="0" max="' + maxAsignable + '" value="' + initialQty +
                   '" data-' + prefix + '-input data-solicitud="' + m.Id +
                   '" data-cupo-count="' + cupoIdsCount + '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />' +
       '    <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>' +
@@ -694,12 +698,15 @@
     var disponibles = Math.max(0, m.CantidadDisponible || 0);
     var total = Math.max(0, m.Cantidad || 0);
     var cupoIdsCount = g.cupoIds.length;
+    // Max asignable = min(CantidadDisponible, cupos matcheados). Ver comentario
+    // en renderFilaSolicitud.
+    var maxAsignable = Math.min(disponibles, cupoIdsCount);
     var tipoMatch = m.MatchType || g.matchTypes[0] || 'Parcial';
     var badgeClass = tipoMatch === 'Directo' ? 'sil-badge-dir'
       : (tipoMatch === 'Condicional' ? 'sil-badge-obs' : 'sil-badge-par');
     var badgeLabel = tipoMatch === 'Directo' ? 'Match directo'
       : (tipoMatch === 'Condicional' ? 'Con obs.' : 'Parcial');
-    var initialQty = Math.min(disponibles, cupoIdsCount);
+    var initialQty = maxAsignable;
 
     var html = '';
     html += '<tr class="sil-modal-data-row">';
@@ -712,12 +719,12 @@
     html += '  <td>';
     html += '    <div class="sil-modal-qty">';
     html += '      <button type="button" data-' + prefix + '-decr data-solicitud="' + m.Id + '" aria-label="Disminuir cupos de la solicitud ' + m.Id + '">&minus;</button>';
-    html += '      <input type="number" min="0" max="' + disponibles + '" value="' + initialQty +
+    html += '      <input type="number" min="0" max="' + maxAsignable + '" value="' + initialQty +
                   '" data-' + prefix + '-input data-solicitud="' + m.Id +
                   '" data-cupo-count="' + cupoIdsCount + '" aria-label="Cupos a asignar a la solicitud ' + m.Id + '" />';
     html += '      <button type="button" data-' + prefix + '-incr data-solicitud="' + m.Id + '" aria-label="Aumentar cupos de la solicitud ' + m.Id + '">&plus;</button>';
     html += '    </div>';
-    html += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + disponibles + '</div>';
+    html += '    <div class="sil-modal-qty-limit">m&aacute;x. ' + maxAsignable + '</div>';
     html += '  </td>';
     html += '</tr>';
     return html;
@@ -895,11 +902,17 @@
 
       grupo.records.forEach(function (record, recordIdx) {
         var sol = record.solicitud;
-        // Tope del input = unidades disponibles para asignar en esta
-        // solicitud (sol.CantidadDisponible). Es lo que el backend va a
-        // aceptar como máximo para esta fila; alineamos el input con el
-        // límite real en lugar de con los cupos físicos matcheados.
-        var disponibles = Math.max(0, sol.CantidadDisponible || 0);
+        // Tope del input = min(CantidadDisponible, Cupos.length).
+        //   · CantidadDisponible = unidades que el solicitante pidió
+        //     pendientes de asignar (lo que el operador quiere mover).
+        //   · Cupos.length = cupos físicos que matchearon esta solicitud
+        //     (lo que realmente podemos asignar).
+        // Si CantidadDisponible > Cupos.length, el input tenía un max
+        // imposible (el operador tipeaba 2 sin haber 2 cupos para
+        // satisfacerlo). El tope correcto es el mínimo de los dos.
+        var cantSolicitud = Math.max(0, sol.CantidadDisponible || 0);
+        var cuposMatcheados = (sol.Cupos || []).length;
+        var disponibles = Math.min(cantSolicitud, cuposMatcheados);
         var initialQty = disponibles; // arranca al máximo para que el operador reduzca si quiere
         var fechaRecord = parsearFechaJSON(sol.FechaSolicitado);
         var fechaDisplay = fechaRecord ? formatFechaCorta(fechaRecord) : '&mdash;';
