@@ -1003,7 +1003,13 @@ namespace CuposCorretajeWeb.Controllers
               gg => gg.Key.ToString("yyyy-MM-dd"),
               gg => campoCantidadTR == "Cantidad"
                 ? gg.Sum(x => x.CantidadAceptada)
-                : gg.Sum(x => x.CantidadFuturoAceptada))
+                : gg.Sum(x => x.CantidadFuturoAceptada)),
+          // Suma de rechazos por grupo. Si el back no expone
+          // CantidadRechazada en el response, este campo queda en 0
+          // y se usa como señal diagnóstica en consola del browser.
+          CantidadRechazada = campoCantidadTR == "Cantidad"
+            ? g.Sum(x => x.CantidadRechazada)
+            : g.Sum(x => x.CantidadFuturoRechazada)
         };
 
         result.Add(row);
