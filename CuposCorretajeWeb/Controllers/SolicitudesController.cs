@@ -987,7 +987,12 @@ namespace CuposCorretajeWeb.Controllers
           CodigoCentro = first.CodigoCentro,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
-          Observacion = first.Observacion,
+          // Tomamos la primera Observacion no vacía del grupo. Si nos
+          // quedamos con `first.Observacion` y la primera solicitud del
+          // grupo no trae observación pero otra sí, perderíamos la señal
+          // que EnriquecerResumenesMatchingAsync usa para forzar la
+          // clasificación a Condicional.
+          Observacion = g.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Observacion))?.Observacion,
           CantidadFechas = detalles.Values
             .OrderBy(d => d.Fecha)
             .ToList(),
@@ -1125,12 +1130,17 @@ namespace CuposCorretajeWeb.Controllers
           {
             var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
-            // Log diagnóstico: cuántos items llegaron del backend y cuántos
-            // tienen Cupo.Fecha null (suelen ser los Condicional, ya que
-            // esos cupos no están atados a una fecha puntual y requieren
-            // confirmación manual del operador).
-            int itemsSinFecha = 0;
-            int itemsRechazadosPorFecha = 0;
+            // Regla de negocio: si la solicitud (o cualquiera del grupo) trae
+            // Observacion populada, el match requiere confirmación manual y
+            // SIEMPRE se clasifica como Condicional, sin importar lo que
+            // diga el motor. Antes esta lógica no existía y el operador veía
+            // "X directos" cuando en realidad tenía que aceptar manualmente
+            // por la observación que el solicitante había dejado.
+            bool tieneObservacion = !string.IsNullOrWhiteSpace(row.Observacion);
+
+            // Log diagnóstico: cuántas items llegaron y si la regla de
+            // observación terminó forzando la reclasificación.
+            int itemsBack = resp.Items.Count;
             int itemsRechazadosPorAceptado = 0;
             int itemsRechazadosPorDedup = 0;
             int itemsContados = 0;
@@ -1151,21 +1161,9 @@ namespace CuposCorretajeWeb.Controllers
               string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
                 ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
                 : null;
-
-              // Si el item trae Cupo.Fecha, verificamos que coincida con una
-              // de las fechas de la solicitud; si NO trae fecha (caso típico
-              // de matches Condicional, donde el cupo no está atado a una
-              // fecha puntual), lo dejamos pasar para que se cuente como
-              // Observaciones. Antes se descartaban con `continue` y por eso
-              // los matches con observación nunca aparecían en Pantalla 1.
-              if (cupoFechaKey != null && !fechasConSolicitud.Contains(cupoFechaKey))
+              if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
               {
-                itemsRechazadosPorFecha++;
                 continue;
-              }
-              if (cupoFechaKey == null)
-              {
-                itemsSinFecha++;
               }
 
               var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
@@ -1175,7 +1173,9 @@ namespace CuposCorretajeWeb.Controllers
                 continue;
               }
 
-              switch (it.MatchType)
+              // Si la solicitud tiene observación, override: Condicional.
+              string tipoEfectivo = tieneObservacion ? "Condicional" : it.MatchType;
+              switch (tipoEfectivo)
               {
                 case "Directo": resumen.Directos++; break;
                 case "Parcial": resumen.Parciales++; break;
@@ -1186,8 +1186,8 @@ namespace CuposCorretajeWeb.Controllers
 
             Trace.TraceInformation(
               $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
-              $"itemsBack={resp.Items.Count} sinFecha={itemsSinFecha} rechazadosFecha={itemsRechazadosPorFecha} " +
-              $"rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosDedup={itemsRechazadosPorDedup} " +
+              $"observacion='{row.Observacion ?? "<null>"}' tieneObs={tieneObservacion} " +
+              $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosDedup={itemsRechazadosPorDedup} " +
               $"contados={itemsContados} -> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
           }
 
