@@ -334,7 +334,21 @@
     <div class="row">
       <div class="col-sm-12 text-right">
         <button type="submit" id="btnCrear" class="btn btn-primary">Crear cupo</button>
-        @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+        @{
+          // Si el caller pasó returnUrl (ej. cuando se entró desde el botón
+          // "+ Crear nuevo cupo" de Solicitudes/Index), el Cancelar vuelve
+          // a esa pantalla en lugar de ir al listado genérico de cupos.
+          // Si no, mantenemos el comportamiento legacy: Cancelar → Cupos/Index.
+          var cancelarReturnUrl = ViewBag.ReturnUrl as string;
+        }
+        @if (!string.IsNullOrEmpty(cancelarReturnUrl))
+        {
+          <a href="@cancelarReturnUrl" class="btn btn-danger">Cancelar</a>
+        }
+        else
+        {
+          @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+        }
       </div>
     </div>
   </div>
