@@ -467,26 +467,27 @@
                     let bodyHtml = '';
                     let lastGrano = null;
                     let dataRowIndex = 0;
+                    // pendingSeparator acumula el HTML del "Total por Grano"
+                    // del ÚLTIMO grupo visto, y se emite cuando el grano
+                    // cambia (o al final del loop). Así el separador queda
+                    // ABAJO de las filas del grupo al que totaliza — no
+                    // arriba como antes, que era confuso.
+                    let pendingSeparator = null;
                     pageRows.forEach(function (r) {
-                        // Separador visual por cambio de Grano. Aparece
-                        // antes de CADA grupo (incluido el primero) y
-                        // muestra:
-                        //   - en la primera celda: la etiqueta "Total por Grano"
-                        //     (constante, no el nombre del grano — el operador
-                        //     ya lo ve en las filas siguientes)
-                        //   - debajo de cada fecha: la suma de TS y TO
-                        //     de las filas de ESE grano (mismo formato
-                        //     que la fila "Total Diario" del tfoot).
                         if (lastGrano !== r.NombreGrano) {
+                            // Cerrar el grupo anterior: volcar el pending.
+                            if (pendingSeparator) {
+                                bodyHtml += pendingSeparator;
+                            }
+                            // Armar el separador del grupo nuevo para
+                            // emitirlo DESPUÉS de sus data rows.
                             var buckets = totalesPorGrano[r.NombreGrano] || [];
-                            bodyHtml += '<tr class="sil-row-grupo">' +
+                            pendingSeparator = '<tr class="sil-row-grupo">' +
                                 '<td colspan="5" class="tl">' +
                                 '<strong class="sil-grupo-label">Total por Grano</strong>' +
-                                '</td>';
-                            buckets.forEach(function (b) {
-                                bodyHtml += renderCeldaTotalBucket(b);
-                            });
-                            bodyHtml += '<td></td></tr>';
+                                '</td>' +
+                                buckets.map(function (b) { return renderCeldaTotalBucket(b); }).join('') +
+                                '<td></td></tr>';
                         }
                         lastGrano = r.NombreGrano;
 
@@ -517,6 +518,11 @@
                         bodyHtml += '</tr>';
                         dataRowIndex++;
                     });
+                    // Última fila de la página: volcar el pending del último
+                    // grupo (no hubo un próximo cambio de grano que lo dispare).
+                    if (pendingSeparator) {
+                        bodyHtml += pendingSeparator;
+                    }
                     $(tbodyId).html(bodyHtml);
                     console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
 
