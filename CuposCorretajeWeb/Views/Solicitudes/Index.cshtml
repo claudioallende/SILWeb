@@ -471,7 +471,9 @@
                         // Separador visual por cambio de Grano. Aparece
                         // antes de CADA grupo (incluido el primero) y
                         // muestra:
-                        //   - en la primera celda: el nombre del grano
+                        //   - en la primera celda: la etiqueta "Total por Grano"
+                        //     (constante, no el nombre del grano — el operador
+                        //     ya lo ve en las filas siguientes)
                         //   - debajo de cada fecha: la suma de TS y TO
                         //     de las filas de ESE grano (mismo formato
                         //     que la fila "Total Diario" del tfoot).
@@ -479,7 +481,7 @@
                             var buckets = totalesPorGrano[r.NombreGrano] || [];
                             bodyHtml += '<tr class="sil-row-grupo">' +
                                 '<td colspan="5" class="tl">' +
-                                '<strong class="sil-grupo-label">' + escapeHtml(r.NombreGrano || '—') + '</strong>' +
+                                '<strong class="sil-grupo-label">Total por Grano</strong>' +
                                 '</td>';
                             buckets.forEach(function (b) {
                                 bodyHtml += renderCeldaTotalBucket(b);

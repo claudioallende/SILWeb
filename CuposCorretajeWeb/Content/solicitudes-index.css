@@ -318,26 +318,25 @@
 
 .sil-tbl tbody tr:hover td { background: #f0f4fa; }
 
-/* Zebra striping: pintamos las filas de datos IMPARES (1, 3, 5...) en
+/* Zebra striping: pintamos las filas de datos pares (1, 3, 5...) en
    gris claro para mejorar la lectura. La clase sil-row-even la pone el
    JS sólo sobre filas de datos (NO sobre los separadores sil-row-grupo),
    así el contador no se desfasa cuando hay separadores visibles. El
    hover (#f0f4fa) sigue funcionando porque va después en la cascada. */
 .sil-tbl tbody tr.sil-row-data.sil-row-even td {
-    background: #eef2f7;
+    background: #e2e8f0;
 }
 
-/* Cabecera de grupo (separador por grano). Antes era un tr vacío sin
-   estilo; ahora muestra el nombre del grano y la suma de TS/TO por fecha
-   (mismo formato que el tfoot "Total Diario"), con un fondo destacado
-   para que el operador lo identifique de un vistazo. */
+/* Cabecera de grupo (separador por grano). Fila destacada con fondo
+   navy oscuro para que el operador identifique el subtotal por grano
+   de un vistazo. Color coordinado con el navy del thead. */
 .sil-tbl tbody tr.sil-row-grupo td {
-    background: #dde6f0;
-    color: var(--sil-navy);
+    background: var(--sil-navy);
+    color: #fff;
     font-weight: 700;
-    padding: 6px 9px;
-    border-top: 1px solid var(--sil-border);
-    border-bottom: 1px solid var(--sil-border);
+    padding: 7px 9px;
+    border-top: 1px solid var(--sil-navy-dark);
+    border-bottom: 1px solid var(--sil-navy-dark);
     text-align: center; /* numéricos centrados por defecto */
     font-size: 11.5px;
     letter-spacing: 0;
@@ -351,11 +350,17 @@
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: .3px;
+    color: #fff;
 }
 
-/* Numéricos del separador: el cero gris y el chip rojo heredan el
-   mismo criterio visual que el tfoot (mismo helper). */
-.sil-tbl tbody tr.sil-row-grupo td .sil-zero,
+/* Numéricos del separador: forzamos el color blanco para que contraste
+   con el fondo navy. El chip rojo y el cero gris mantienen el helper
+   original — el cero lo vamos a sobreescribir para que se vea. */
+.sil-tbl tbody tr.sil-row-grupo td .sil-zero {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 600;
+}
+
 .sil-tbl tbody tr.sil-row-grupo td .sil-cell-red {
     font-weight: 600;
 }
