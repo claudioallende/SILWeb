@@ -1125,6 +1125,16 @@ namespace CuposCorretajeWeb.Controllers
           {
             var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
+            // Log diagnóstico: cuántos items llegaron del backend y cuántos
+            // tienen Cupo.Fecha null (suelen ser los Condicional, ya que
+            // esos cupos no están atados a una fecha puntual y requieren
+            // confirmación manual del operador).
+            int itemsSinFecha = 0;
+            int itemsRechazadosPorFecha = 0;
+            int itemsRechazadosPorAceptado = 0;
+            int itemsRechazadosPorDedup = 0;
+            int itemsContados = 0;
+
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
@@ -1134,20 +1144,34 @@ namespace CuposCorretajeWeb.Controllers
                   && aceptados != null
                   && aceptados.Contains(it.CupoId))
               {
+                itemsRechazadosPorAceptado++;
                 continue;
               }
 
               string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
                 ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
                 : null;
-              if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
+
+              // Si el item trae Cupo.Fecha, verificamos que coincida con una
+              // de las fechas de la solicitud; si NO trae fecha (caso típico
+              // de matches Condicional, donde el cupo no está atado a una
+              // fecha puntual), lo dejamos pasar para que se cuente como
+              // Observaciones. Antes se descartaban con `continue` y por eso
+              // los matches con observación nunca aparecían en Pantalla 1.
+              if (cupoFechaKey != null && !fechasConSolicitud.Contains(cupoFechaKey))
               {
+                itemsRechazadosPorFecha++;
                 continue;
+              }
+              if (cupoFechaKey == null)
+              {
+                itemsSinFecha++;
               }
 
               var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
               if (!cuposContadosPorTipo.Add(dedupKey))
               {
+                itemsRechazadosPorDedup++;
                 continue;
               }
 
@@ -1157,7 +1181,14 @@ namespace CuposCorretajeWeb.Controllers
                 case "Parcial": resumen.Parciales++; break;
                 case "Condicional": resumen.Observaciones++; break;
               }
+              itemsContados++;
             }
+
+            Trace.TraceInformation(
+              $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
+              $"itemsBack={resp.Items.Count} sinFecha={itemsSinFecha} rechazadosFecha={itemsRechazadosPorFecha} " +
+              $"rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosDedup={itemsRechazadosPorDedup} " +
+              $"contados={itemsContados} -> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
           }
 
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
