@@ -460,16 +460,6 @@
                         });
                     });
 
-                    // Cantidad de solicitudes (filas) por grano. Es información
-                    // distinta de los buckets de totales: los buckets suman
-                    // TS/TO por fecha, esto cuenta filas. Lo usamos en la
-                    // etiqueta del separador como resumen rápido.
-                    const cantidadPorGrano = {};
-                    filteredRows.forEach(function (r) {
-                        var grano = r.NombreGrano || '—';
-                        cantidadPorGrano[grano] = (cantidadPorGrano[grano] || 0) + 1;
-                    });
-
                     // Slice de la página actual
                     const startIdx = (page - 1) * pageSize;
                     const pageRows = filteredRows.slice(startIdx, startIdx + pageSize);
@@ -481,19 +471,15 @@
                         // Separador visual por cambio de Grano. Aparece
                         // antes de CADA grupo (incluido el primero) y
                         // muestra:
-                        //   - en la primera celda: nombre del grano y
-                        //     cantidad de solicitudes del grupo
+                        //   - en la primera celda: el nombre del grano
                         //   - debajo de cada fecha: la suma de TS y TO
                         //     de las filas de ESE grano (mismo formato
                         //     que la fila "Total Diario" del tfoot).
                         if (lastGrano !== r.NombreGrano) {
                             var buckets = totalesPorGrano[r.NombreGrano] || [];
-                            var cantGrupo = cantidadPorGrano[r.NombreGrano] || 0;
-                            var labelTxt = (cantGrupo === 1) ? 'solicitud' : 'solicitudes';
                             bodyHtml += '<tr class="sil-row-grupo">' +
                                 '<td colspan="5" class="tl">' +
                                 '<strong class="sil-grupo-label">' + escapeHtml(r.NombreGrano || '—') + '</strong>' +
-                                '<span class="sil-grupo-count">(' + cantGrupo + ' ' + labelTxt + ')</span>' +
                                 '</td>';
                             buckets.forEach(function (b) {
                                 bodyHtml += renderCeldaTotalBucket(b);
