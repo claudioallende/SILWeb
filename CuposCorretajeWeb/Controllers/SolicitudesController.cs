@@ -101,12 +101,25 @@ namespace CuposCorretajeWeb.Controllers
           repo,
           rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
 
+        // Diccionario SolicitudId → Observación, para que
+        // EnriquecerResumenesMatchingAsync pueda clasificar cada match
+        // individualmente: si la solicitud ESPECÍFICA del item trae
+        // observación, ese match es Condicional; si no, se respeta lo
+        // que diga el motor. Sin este diccionario terminábamos marcando
+        // como Condicional todos los items de la fila cuando al menos
+        // una solicitud del grupo tenía observación.
+        var observacionPorSolicitud = rawPendientes
+          .Where(x => !string.IsNullOrWhiteSpace(x.Observacion))
+          .GroupBy(x => x.Id)
+          .ToDictionary(g => g.Key, g => g.First().Observacion);
+
         var cuposCompatiblesPorGrupo = await EnriquecerResumenesMatchingAsync(
           repo,
           contractuales.Concat(futuros).ToList(),
           fechaDesde,
           filterSolicitud.Dias,
-          cuposAceptadosPorSolicitud);
+          cuposAceptadosPorSolicitud,
+          observacionPorSolicitud);
         foreach (var row in contractuales.Concat(futuros))
         {
           row.CuposCompatibles = cuposCompatiblesPorGrupo.TryGetValue(row, out var c) && c != null
@@ -987,12 +1000,7 @@ namespace CuposCorretajeWeb.Controllers
           CodigoCentro = first.CodigoCentro,
           EstadoBadge = first.GetEstadoBadgeClass(),
           EstadoLabel = first.GetEstadoBadgeLabel(),
-          // Tomamos la primera Observacion no vacía del grupo. Si nos
-          // quedamos con `first.Observacion` y la primera solicitud del
-          // grupo no trae observación pero otra sí, perderíamos la señal
-          // que EnriquecerResumenesMatchingAsync usa para forzar la
-          // clasificación a Condicional.
-          Observacion = g.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Observacion))?.Observacion,
+          Observacion = first.Observacion,
           CantidadFechas = detalles.Values
             .OrderBy(d => d.Fecha)
             .ToList(),
@@ -1088,7 +1096,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
-      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
+      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud, Dictionary<long, string> observacionPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 
@@ -1130,20 +1138,22 @@ namespace CuposCorretajeWeb.Controllers
           {
             var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
-            // Regla de negocio: si la solicitud (o cualquiera del grupo) trae
-            // Observacion populada, el match requiere confirmación manual y
-            // SIEMPRE se clasifica como Condicional, sin importar lo que
-            // diga el motor. Antes esta lógica no existía y el operador veía
-            // "X directos" cuando en realidad tenía que aceptar manualmente
-            // por la observación que el solicitante había dejado.
-            bool tieneObservacion = !string.IsNullOrWhiteSpace(row.Observacion);
-
-            // Log diagnóstico: cuántas items llegaron y si la regla de
-            // observación terminó forzando la reclasificación.
+            // Regla de negocio: la observación es POR SOLICITUD, no por fila
+            // visual. Una misma fila agrupa varias solicitudes (una por fecha)
+            // y sólo algunas pueden traer observación. El matching devuelve
+            // items con SolicitudId, así que consultamos observación por
+            // solicitud individual para no sobre-contar matches de fechas
+            // que NO tienen observación.
+            //
+            // Si la solicitud específica del item trae Observacion, el match
+            // requiere confirmación manual y se clasifica como Condicional,
+            // sin importar lo que diga el motor.
             int itemsBack = resp.Items.Count;
             int itemsRechazadosPorAceptado = 0;
+            int itemsRechazadosPorFecha = 0;
             int itemsRechazadosPorDedup = 0;
             int itemsContados = 0;
+            int itemsForzadosAObservacion = 0;
 
             foreach (var it in resp.Items)
             {
@@ -1163,6 +1173,7 @@ namespace CuposCorretajeWeb.Controllers
                 : null;
               if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
               {
+                itemsRechazadosPorFecha++;
                 continue;
               }
 
@@ -1173,8 +1184,14 @@ namespace CuposCorretajeWeb.Controllers
                 continue;
               }
 
-              // Si la solicitud tiene observación, override: Condicional.
-              string tipoEfectivo = tieneObservacion ? "Condicional" : it.MatchType;
+              // Clasificación por solicitud: si ESA solicitud tiene observación,
+              // override a Condicional. Si no, respetamos lo del motor.
+              bool solConObs = observacionPorSolicitud != null
+                && observacionPorSolicitud.TryGetValue(it.SolicitudId, out var obsTxt)
+                && !string.IsNullOrWhiteSpace(obsTxt);
+              string tipoEfectivo = solConObs ? "Condicional" : it.MatchType;
+              if (solConObs && it.MatchType != "Condicional") itemsForzadosAObservacion++;
+
               switch (tipoEfectivo)
               {
                 case "Directo": resumen.Directos++; break;
@@ -1186,9 +1203,9 @@ namespace CuposCorretajeWeb.Controllers
 
             Trace.TraceInformation(
               $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
-              $"observacion='{row.Observacion ?? "<null>"}' tieneObs={tieneObservacion} " +
-              $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosDedup={itemsRechazadosPorDedup} " +
-              $"contados={itemsContados} -> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
+              $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosFecha={itemsRechazadosPorFecha} " +
+              $"rechazadosDedup={itemsRechazadosPorDedup} contados={itemsContados} forzadosObs={itemsForzadosAObservacion} " +
+              $"-> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
           }
 
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
