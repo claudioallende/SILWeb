@@ -243,18 +243,23 @@
    es el mismo divisor visualmente). Para eso ponemos border-left en
    TODAS las celdas a partir de la posición 8, EXCEPTO la última (acción).
    En la fila 1 del thead las fechas son colspan=2; los bordes entre fechas
-   se manejan con la clase sil-th-date-first (no en la primera). */
+   se manejan con la clase sil-th-date-first (no en la primera).
+
+   Antes el border era gris claro (1px / var(--sil-border)); el operador
+   lo perdía de vista cuando la grilla tenía muchas columnas. Pasamos a
+   negro semitransparente y 2px para remarcar la separación entre fechas
+   sin oscurecer demasiado el contenido. */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
 .sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child),
 .sil-tbl tbody td:nth-child(n+8):not(:last-child) {
-    border-left: 1px solid var(--sil-border);
+    border-left: 2px solid rgba(0, 0, 0, 0.55);
 }
 
 /* En el thead el fondo es navy/gris-claro, así que el borde necesita un
    color claro para que se vea. Sobreescribimos sólo para esas celdas. */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
 .sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child) {
-    border-left-color: rgba(255, 255, 255, 0.35);
+    border-left-color: rgba(255, 255, 255, 0.7);
 }
 
 /* ---- Filtro tipeable ---- */
@@ -330,14 +335,19 @@
 /* Subtotal por grano. Fila destacada con el mismo gris del tfoot
    ("Total Diario") para que el operador la reconozca de un vistazo como
    una fila de totales. Los números van en negrita para reforzar que
-   son cifras agregadas, no datos de una solicitud puntual. */
+   son cifras agregadas, no datos de una solicitud puntual.
+
+   Antes los bordes eran 1px / var(--sil-border) (gris claro) y el
+   separador se "comía" contra el fondo. Lo engrosamos a 2px y le damos
+   negro semitransparente para que la división entre la última fila de
+   datos y el subtotal se lea sin esfuerzo. */
 .sil-tbl tbody tr.sil-row-grupo td {
     background: var(--sil-bg);
     color: var(--sil-text-primary);
     font-weight: 700;
     padding: 7px 9px;
-    border-top: 1px solid var(--sil-border);
-    border-bottom: 1px solid var(--sil-border);
+    border-top: 2px solid rgba(0, 0, 0, 0.65);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.65);
     text-align: center; /* numéricos centrados por defecto */
     font-size: 12px;
     letter-spacing: 0;
@@ -357,7 +367,7 @@
 .sil-tbl tfoot tr.sil-tr-total td {
     background: var(--sil-bg);
     font-weight: 600;
-    border-top: 1px solid var(--sil-border);
+    border-top: 2px solid rgba(0, 0, 0, 0.65);
     position: sticky;
     bottom: 0;
     z-index: 2;
