@@ -82,13 +82,6 @@ namespace CuposCorretajeWeb.Controllers
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        // Filtramos las solicitudes ya resueltas antes de armar la grilla.
-        // Si CantidadAceptada + CantidadRechazada == Cantidad (contractual)
-        // o CantidadFuturoAceptada + CantidadFuturoRechazada == CantidadFuturo
-        // (futuro), la solicitud ya no tiene cupos pendientes: no hay nada
-        // m&aacute;s para aceptar ni rechazar. Sin este filtro la fila sigue
-        // apareciendo en Pantalla 1 (y se puede entrar a Pantalla 2 a&uacute;n
-        // cuando no haya nada que gestionar).
         var rawPendientes = rawList.Where(x => x.EsPendiente).ToList();
         Trace.TraceInformation(
           $"[Solicitudes] rawList={rawList.Count()}, pendientes={rawPendientes.Count}, " +
@@ -101,13 +94,6 @@ namespace CuposCorretajeWeb.Controllers
           repo,
           rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
 
-        // Diccionario SolicitudId → Observación, para que
-        // EnriquecerResumenesMatchingAsync pueda clasificar cada match
-        // individualmente: si la solicitud ESPECÍFICA del item trae
-        // observación, ese match es Condicional; si no, se respeta lo
-        // que diga el motor. Sin este diccionario terminábamos marcando
-        // como Condicional todos los items de la fila cuando al menos
-        // una solicitud del grupo tenía observación.
         var observacionPorSolicitud = rawPendientes
           .Where(x => !string.IsNullOrWhiteSpace(x.Observacion))
           .GroupBy(x => x.Id)
