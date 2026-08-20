@@ -337,20 +337,27 @@
    una fila de totales. Los números van en negrita para reforzar que
    son cifras agregadas, no datos de una solicitud puntual.
 
-   Antes los bordes eran 1px / var(--sil-border) (gris claro) y el
-   separador se "comía" contra el fondo. Lo engrosamos a 2px y le damos
-   negro semitransparente para que la división entre la última fila de
-   datos y el subtotal se lea sin esfuerzo. */
+   El border-top queda como el resto de los separadores internos (1px
+   gris claro) para no gritar arriba del subtotal; el border-bottom sí
+   se engrosa a 2px negro porque es la línea que separa el cierre de
+   grano del siguiente bloque. */
 .sil-tbl tbody tr.sil-row-grupo td {
     background: var(--sil-bg);
     color: var(--sil-text-primary);
     font-weight: 700;
     padding: 7px 9px;
-    border-top: 2px solid rgba(0, 0, 0, 0.65);
+    border-top: 1px solid var(--sil-border);
     border-bottom: 2px solid rgba(0, 0, 0, 0.65);
     text-align: center; /* numéricos centrados por defecto */
     font-size: 12px;
     letter-spacing: 0;
+}
+
+/* En la fila "Total por grano" no queremos los divisores verticales
+   entre las fechas (el operador no las necesita para sumar). Sólo
+   dejamos el separador genérico 1px gris del tbody. */
+.sil-tbl tbody tr.sil-row-grupo td:nth-child(n+8):not(:last-child) {
+    border-left: none;
 }
 
 .sil-tbl tbody tr.sil-row-grupo td.tl {
@@ -367,7 +374,7 @@
 .sil-tbl tfoot tr.sil-tr-total td {
     background: var(--sil-bg);
     font-weight: 600;
-    border-top: 2px solid rgba(0, 0, 0, 0.65);
+    border-top: 1px solid var(--sil-border);
     position: sticky;
     bottom: 0;
     z-index: 2;
