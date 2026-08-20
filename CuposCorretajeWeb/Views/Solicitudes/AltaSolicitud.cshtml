@@ -275,6 +275,16 @@
             // JS (manejo correcto de comillas, acentos y caracteres de
             // control). Ver también escHtml() abajo.
             var solicitudObservacion = @Html.Raw(JsonConvert.SerializeObject(observacion ?? ""));
+
+            // Derivados de la observación de la solicitud activa. Se usan en
+            // matchCardHtml y pintarMatches para forzar el tratamiento
+            // "MATCH CON OBSERVACION" (rojo + texto) sobre TODOS los cards
+            // cuando la solicitud tiene una observación textual cargada,
+            // sin importar el MatchType del backend. Si está vacía, el
+            // comportamiento es el clásico: cada card respeta el tipo que
+            // devolvió el motor de matching (Directo / Parcial / Condicional).
+            var parentObservacion = (solicitudObservacion || '').toString().trim();
+            var hasParentObs = parentObservacion.length > 0;
             var solicitanteNombre    = @Html.Raw(JsonConvert.SerializeObject(Model != null ? (Model.Solicitante ?? "") : ""));
             // Cantidad PEDIDA ORIGINALMENTE (suma de TR en el mapa Fechas).
             // Se usa para validar que el operador no asigne más de lo que pidió
@@ -488,11 +498,19 @@
             }
 
             function matchCardHtml(item) {
+                // Override de MatchType: si la solicitud activa tiene
+                // observación textual (parentObservacion != ''), TODOS los
+                // cards se renderizan como "MATCH CON OBSERVACIÓN" sin
+                // importar el MatchType que devolvió el backend. El operador
+                // tiene que leer la condición del solicitante antes de
+                // asignar cualquier cupo, sea match directo, parcial o
+                // condicional. El MatchType del backend sólo manda cuando no
+                // hay observación de la solicitud.
                 var tipo = item.MatchType;
-                var isCond = tipo === 'Condicional';
-                var isPar  = tipo === 'Parcial';
+                var isCond = hasParentObs || tipo === 'Condicional';
+                var isPar  = !hasParentObs && tipo === 'Parcial';
                 var badgeClass = isCond ? 'sil-badge-obs' : (isPar ? 'sil-badge-par' : 'sil-badge-dir');
-                var badgeLabel = isCond ? 'Con observaciones' : (isPar ? 'Match parcial' : 'Match directo');
+                var badgeLabel = isCond ? 'MATCH CON OBSERVACION' : (isPar ? 'Match parcial' : 'Match directo');
                 var hdFill    = isCond ? '#fff0f0' : (isPar ? '#fffbea' : '#eafaf1');
                 var borderCol = isCond ? 'var(--sil-red-border)' : (isPar ? 'var(--sil-amber-border)' : 'var(--sil-green-border)');
                 var matchShort = isCond ? 'cond' : (isPar ? 'par' : 'dir');
@@ -524,9 +542,19 @@
                     ? pad2(fechaRaw.getDate()) + '/' + pad2(fechaRaw.getMonth() + 1)
                     : '';
 
+                // Texto de la observación: si la solicitud padre tiene
+                // observación textual, esa es la fuente de verdad (es lo que
+                // el operador ve en el banner ámbar de la parte superior de
+                // Pantalla 2). Si no, caemos a la observación del match
+                // puntual (Razon o la Observacion embebida en el item) o, en
+                // último caso, a un texto genérico de "verificar antes de
+                // asignar" para matches Condicional sin texto cargado.
+                var obsTexto = hasParentObs
+                    ? parentObservacion
+                    : (item.Razon || s.Observacion || 'Verificar antes de asignar.');
                 var obsHtml = isCond
-                    ? '<div class="sil-cupo-obs"><strong>Obs.:</strong> ' +
-                        escHtml(item.Razon || s.Observacion || 'Verificar antes de asignar.') +
+                    ? '<div class="sil-cupo-obs"><strong>Observaci&oacute;n:</strong> ' +
+                        escHtml(obsTexto) +
                       '</div>'
                     : '';
 
@@ -827,9 +855,21 @@
 
                 $hd.text('Cupos compatibles — ' + items.length + ' encontrado' + (items.length !== 1 ? 's' : ''));
 
-                var dirs  = items.filter(function (i) { return i.MatchType === 'Directo';     });
-                var pars  = items.filter(function (i) { return i.MatchType === 'Parcial';     });
-                var conds = items.filter(function (i) { return i.MatchType === 'Condicional'; });
+                // Agrupamos por tipo, pero si la solicitud activa tiene
+                // observación textual (hasParentObs), todos los cards caen
+                // en una única sección "MATCH CON OBSERVACION" — el operador
+                // tiene que verificar la condición antes de asignar
+                // cualquier cupo, sea match directo, parcial o condicional.
+                var dirs, pars, conds;
+                if (hasParentObs) {
+                    dirs = [];
+                    pars = [];
+                    conds = items;
+                } else {
+                    dirs  = items.filter(function (i) { return i.MatchType === 'Directo';     });
+                    pars  = items.filter(function (i) { return i.MatchType === 'Parcial';     });
+                    conds = items.filter(function (i) { return i.MatchType === 'Condicional'; });
+                }
 
                 var html = '';
                 if (dirs.length) {
@@ -839,7 +879,11 @@
                     html += renderSeccion('par', 'Match parcial', pars);
                 }
                 if (conds.length) {
-                    html += renderSeccion('cond', 'Con observaciones', conds);
+                    // Cuando hay observación del padre, el header cambia a
+                    // "MATCH CON OBSERVACION" para reforzar visualmente que
+                    // TODOS los cards requieren leer la nota del solicitante.
+                    var condLabel = hasParentObs ? 'MATCH CON OBSERVACION' : 'Con observaciones';
+                    html += renderSeccion('cond', condLabel, conds);
                 }
 
                 $listado.html(html).show();
