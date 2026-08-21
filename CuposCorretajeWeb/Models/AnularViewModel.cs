@@ -19,6 +19,24 @@ namespace CuposCorretajeWeb.Models
     }
 
     /// <summary>
+    /// Body del action MVC <c>CuposController.AnularDistribucion</c>.
+    /// Se usa en lugar de <c>[FromBody] long[]</c> porque en ASP.NET MVC 4.6.1
+    /// <c>[FromBody]</c> no funciona (es de Web API). En su lugar, el
+    /// <c>JsonValueProviderFactory</c> builtin de MVC deserializa el body
+    /// JSON cuando el <c>contentType</c> del request es
+    /// <c>application/json</c> y el parámetro del action es un tipo
+    /// complejo (no <c>long[]</c>, que no se bindea por JSON).
+    ///
+    /// Contrato esperado por el cliente:
+    /// <code>{ "cupoIds": [123, 456, 789] }</code>
+    /// </summary>
+    public class AnularDistribucionRequestDto
+    {
+        /// <summary>PKs de los cupos cuyas distribuciones se quieren revertir.</summary>
+        public long[] CupoIds { get; set; }
+    }
+
+    /// <summary>
     /// DTO para deserializar la respuesta del endpoint
     /// <c>POST /api/ShiftRequest/AnularDistribucion</c> de SILData.
     /// Se usa desde <c>CuposController.AnularDistribucion</c> (proxy MVC).

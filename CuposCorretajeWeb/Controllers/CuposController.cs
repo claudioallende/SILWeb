@@ -204,13 +204,22 @@ namespace CuposCorretajeWeb.Controllers
     /// tengan solicitud asociada quedan como Skipped (el flujo legacy ya
     /// los cubrió en CUPOSCORRE).
     /// </summary>
-    /// <param name="cupoIds">PKs de los cupos cuyas distributions se quieren revertir.</param>
+    /// <param name="req">DTO con la lista de cupos. Se bindea vía
+    /// <c>JsonValueProviderFactory</c> (builtin de MVC 4.6.1) — NO se usa
+    /// <c>[FromBody]</c> porque es un atributo de Web API que MVC ignora.
+    /// El JS debe mandar <c>contentType: application/json</c> y
+    /// <c>data: JSON.stringify({ cupoIds: [...] })</c>.</param>
     [HttpPost]
-    public async Task<ActionResult> AnularDistribucion([FromBody] long[] cupoIds)
+    public async Task<ActionResult> AnularDistribucion(AnularDistribucionRequestDto req)
     {
+      // Defensa: req puede venir null si el body no se bindeó (p.ej.
+      // content-type incorrecto o body vacío). En ese caso devolvemos
+      // un resultado neutro para que el JS no rompa.
+      var cupoIds = req?.CupoIds ?? Array.Empty<long>();
+
       try
       {
-        if (cupoIds == null || cupoIds.Length == 0)
+        if (cupoIds.Length == 0)
         {
           return Json(new AnularDistribucionResponseDto
           {
@@ -256,14 +265,13 @@ namespace CuposCorretajeWeb.Controllers
         // status no-2xx (400 lista vacía, 409 conflicto de estado, etc.).
         // Devolvemos un JSON con todos los cupos como Fallo para que el JS
         // muestre un Swal.fire informativo en vez de propagar la excepción.
-        var cupoIdsEcho = cupoIds ?? Array.Empty<long>();
         return Json(new AnularDistribucionResponseDto
         {
           AlMenosUnoExitoso = false,
           CantidadExitosos = 0,
           CantidadSkipped = 0,
-          CantidadFallos = cupoIdsEcho.Length,
-          Items = cupoIdsEcho
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
             .Where(id => id > 0)
             .Select(id => new AnularDistribucionItemResponseDto
             {
@@ -276,14 +284,13 @@ namespace CuposCorretajeWeb.Controllers
       }
       catch (Exception e)
       {
-        var cupoIdsEcho = cupoIds ?? Array.Empty<long>();
         return Json(new AnularDistribucionResponseDto
         {
           AlMenosUnoExitoso = false,
           CantidadExitosos = 0,
           CantidadSkipped = 0,
-          CantidadFallos = cupoIdsEcho.Length,
-          Items = cupoIdsEcho
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
             .Where(id => id > 0)
             .Select(id => new AnularDistribucionItemResponseDto
             {
