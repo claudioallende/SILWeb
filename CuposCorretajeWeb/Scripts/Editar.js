@@ -105,7 +105,60 @@ function handleResponse(data) {
         if (data.Tipo == "Cupo") {
             handleCupoAnulado();
         } else if (data.Tipo == "Distribucion") {
+            // Antes de limpiar idsEditar capturamos los ids para disparar
+            // la anulación lógica en batch (revierte la asociación
+            // cupo ↔ solicitud en SOLTURNOS + SOLTURNOS_DETALLE). Sin
+            // esto, las solicitudes quedaban con CANTIDAD_ACEPTADA
+            // inflada y no volvían a aparecer como Pendientes en
+            // Pantalla 1.
+            //
+            // IMPORTANTE: el backend sólo revierte los cupos que tienen
+            // una solicitud asociada en SOLTURNOS_DETALLE. Los cupos sin
+            // asociación quedan como Skipped (el flujo legacy de Anular
+            // ya los cubrió en CUPOSCORRE), así que el comportamiento es
+            // exactamente el mismo que antes para esos cupos.
+            var cuposAnularDistribucion = idsEditar.split("-")
+                .map(function (v) { return parseInt(v, 10); })
+                .filter(function (v) { return v && v > 0; });
             handleDistribucionAnulada();
+            // Una sola llamada batch con todos los cupos. Si la lista
+            // quedó vacía (caso patológico, p.ej. sólo ids inválidos),
+            // no llamamos al backend.
+            if (cuposAnularDistribucion.length > 0) {
+                $.ajax({
+                    type: "POST",
+                    url: window.modelData.actionAnularDistribucion,
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: JSON.stringify({ cupoIds: cuposAnularDistribucion })
+                })
+                .done(function (r) {
+                    if (r && r.CantidadExitosos > 0) {
+                        console.log("[AnularDistribucion] " + r.CantidadExitosos +
+                            " solicitud(es) re-habilitada(s); " + r.CantidadSkipped +
+                            " cupo(s) sin distribución activa; " + r.CantidadFallos +
+                            " fallo(s).");
+                    } else if (r && r.CantidadExitosos === 0 && r.CantidadSkipped > 0) {
+                        console.log("[AnularDistribucion] ningún cupo tenía solicitud asociada (" +
+                            r.CantidadSkipped + " skipped). El flujo legacy ya los cubrió.");
+                    }
+                    if (r && r.CantidadFallos > 0) {
+                        console.warn("[AnularDistribucion] " + r.CantidadFallos +
+                            " cupo(s) no se pudieron revertir. Ver consola para detalle por item.");
+                        if (r.Items) {
+                            r.Items.forEach(function (it) {
+                                if (it.Estado === 2) {
+                                    console.warn("  cupo " + it.CupoId + " (solicitud " +
+                                        it.SolicitudId + "): " + it.MotivoFalla);
+                                }
+                            });
+                        }
+                    }
+                })
+                .fail(function (xhr) {
+                    console.warn("[AnularDistribucion] fallo de red:", xhr && (xhr.statusText || xhr.responseText));
+                });
+            }
         }
         actualizarLista(data.Cupos);
         idsEditar = "";

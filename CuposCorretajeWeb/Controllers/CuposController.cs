@@ -189,6 +189,113 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
+    /// <summary>
+    /// Proxy al endpoint <c>POST /api/ShiftRequest/AnularDistribucion</c> de
+    /// SILData. Se invoca desde <c>Scripts/Editar.js</c> cuando el operador
+    /// anula una distribución, después de que la acción legacy
+    /// <see cref="Anular"/> ya marcó los cupos en CUPOSCORRE como anulados.
+    ///
+    /// Objetivo: revertir la asociación cupo ↔ solicitud en
+    /// <c>SOLTURNOS</c> + <c>SOLTURNOS_DETALLE</c> para que las solicitudes
+    /// vuelvan a figurar como Pendientes (y por lo tanto vuelvan a aparecer
+    /// en Pantalla 1 con un cupo menos aceptado cada una).
+    ///
+    /// El backend procesa cada cupo de forma independiente. Los que NO
+    /// tengan solicitud asociada quedan como Skipped (el flujo legacy ya
+    /// los cubrió en CUPOSCORRE).
+    /// </summary>
+    /// <param name="cupoIds">PKs de los cupos cuyas distributions se quieren revertir.</param>
+    [HttpPost]
+    public async Task<ActionResult> AnularDistribucion([FromBody] long[] cupoIds)
+    {
+      try
+      {
+        if (cupoIds == null || cupoIds.Length == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        // Filtramos ids no positivos antes de mandar al backend (defensa).
+        var idsValidos = cupoIds.Where(id => id > 0).Distinct().ToList();
+        if (idsValidos.Count == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        using (WebServiceSILRespository repo = new WebServiceSILRespository())
+        {
+          // El endpoint de SILData vive bajo ShiftRequestController.
+          // Una sola llamada HTTP con todos los cupos en una lista
+          // (RequestSILDataPostAndDeserializeAsync serializa el objeto a
+          // JSON, que coincide con el contrato del backend).
+          var resultado = await repo.RequestSILDataPostAndDeserializeAsync<AnularDistribucionResponseDto>(
+            "ShiftRequest",
+            "AnularDistribucion",
+            new { cupoIds = idsValidos });
+
+          return Json(resultado ?? new AnularDistribucionResponseDto());
+        }
+      }
+      catch (ApiException e)
+      {
+        // ApiException viene del helper cuando SILData responde con un
+        // status no-2xx (400 lista vacía, 409 conflicto de estado, etc.).
+        // Devolvemos un JSON con todos los cupos como Fallo para que el JS
+        // muestre un Swal.fire informativo en vez de propagar la excepción.
+        var cupoIdsEcho = cupoIds ?? Array.Empty<long>();
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIdsEcho.Length,
+          Items = cupoIdsEcho
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
+      }
+      catch (Exception e)
+      {
+        var cupoIdsEcho = cupoIds ?? Array.Empty<long>();
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIdsEcho.Length,
+          Items = cupoIdsEcho
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
+      }
+    }
+
     public async Task<ActionResult> Distribucion(string id, string centroorigen, string centrodistribucion, string cyo)
     {
       try
