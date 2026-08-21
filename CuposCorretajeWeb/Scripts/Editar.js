@@ -97,14 +97,23 @@ tipoAnulacionDistribucion(document.getElementsByClassName("distribuido-borde"), 
 });
 
 function handleResponse(data) {
+    // [DEBUG] Traza para diagnosticar qué branch se toma.
+    console.log("[handleResponse] data crudo:", JSON.stringify(data));
+    console.log("[handleResponse] data.Respuesta =", JSON.stringify(data.Respuesta),
+        "| data.Tipo =", JSON.stringify(data.Tipo),
+        "| idsEditar =", JSON.stringify(idsEditar),
+        "| actionAnularDistribucion =", window.modelData && window.modelData.actionAnularDistribucion);
     if (data.Respuesta == "ANULADOS") {
+        console.log("[handleResponse] -> entró en if (Respuesta == ANULADOS)");
         addAlert("Se anularon los cupos seleccionados con éxito", "alert-success");
         cambiarEstadoBtnAceptar();
         cambiarEstadoBtnCancelar();
         $('#modalMotivo').modal('hide');
         if (data.Tipo == "Cupo") {
+            console.log("[handleResponse] -> entró en if (Tipo == Cupo)");
             handleCupoAnulado();
         } else if (data.Tipo == "Distribucion") {
+            console.log("[handleResponse] -> entró en else if (Tipo == Distribucion)");
             // Antes de limpiar idsEditar capturamos los ids para disparar
             // la anulación lógica en batch (revierte la asociación
             // cupo ↔ solicitud en SOLTURNOS + SOLTURNOS_DETALLE). Sin
@@ -120,11 +129,15 @@ function handleResponse(data) {
             var cuposAnularDistribucion = idsEditar.split("-")
                 .map(function (v) { return parseInt(v, 10); })
                 .filter(function (v) { return v && v > 0; });
+            console.log("[handleResponse] cuposAnularDistribucion =", JSON.stringify(cuposAnularDistribucion));
             handleDistribucionAnulada();
             // Una sola llamada batch con todos los cupos. Si la lista
             // quedó vacía (caso patológico, p.ej. sólo ids inválidos),
             // no llamamos al backend.
             if (cuposAnularDistribucion.length > 0) {
+                console.log("[handleResponse] -> disparando POST AnularDistribucion con",
+                    cuposAnularDistribucion.length, "cupo(s). Payload:",
+                    JSON.stringify({ cupoIds: cuposAnularDistribucion }));
                 $.ajax({
                     type: "POST",
                     url: window.modelData.actionAnularDistribucion,
@@ -163,8 +176,10 @@ function handleResponse(data) {
         actualizarLista(data.Cupos);
         idsEditar = "";
     } else if (data.Respuesta == "ERROR") {
+        console.log("[handleResponse] -> entró en else if (Respuesta == ERROR)");
         handleResponseError("Se produjo un error durante el proceso");
     } else {
+        console.log("[handleResponse] -> entró en else (Respuesta desconocida):", JSON.stringify(data.Respuesta));
         handleResponseError(data.Respuesta);
     }
 }
