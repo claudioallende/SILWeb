@@ -121,11 +121,22 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public int CantidadAceptada { get; set; }
 
     /// <summary>
-    /// Turnos PENDIENTES para esta fecha: <c>Cantidad - CantidadAceptada</c>
-    /// (clamp a 0). Es lo que Pantalla 1 muestra en la columna TS: lo que aún
-    /// falta aceptar o rechazar. NO se resta <c>CantidadRechazada</c> porque
-    /// la columna TS en la UI muestra "pendientes de gestión" (lo que aún no
-    /// se resolvió ni como aceptado ni como rechazado), igual que Pantalla 2.
+    /// Cantidad de turnos RECHAZADOS al cierre de la solicitud para esta
+    /// fecha (R del modelo acumulativo). Vale 0 mientras la solicitud sigue
+    /// pendiente. Se popula con <c>item.CantidadRechazada</c> o
+    /// <c>item.CantidadFuturoRechazada</c> según la tabla. Invariante:
+    /// <c>CantidadAceptada + CantidadRechazada &lt;= Cantidad</c>.
+    /// </summary>
+    public int CantidadRechazada { get; set; }
+
+    /// <summary>
+    /// Turnos PENDIENTES para esta fecha: <c>Cantidad - CantidadAceptada -
+    /// CantidadRechazada</c> (clamp a 0). Es lo que Pantalla 1 muestra en la
+    /// columna TP: lo que aún falta aceptar o rechazar. La fórmula descuenta
+    /// tanto los cupos ya aceptados como los ya rechazados al cierre, para
+    /// ser consistente con el filtro SQL <c>C - A - R &gt; 0</c> que decide
+    /// si la solicitud aparece en Pantalla 1 (mismo criterio que la columna
+    /// "Sol. TP" de Pantalla 2).
     /// </summary>
     public int CantidadPendiente { get; set; }
 

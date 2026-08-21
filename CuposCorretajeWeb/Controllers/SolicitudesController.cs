@@ -937,6 +937,7 @@ namespace CuposCorretajeWeb.Controllers
             DiaSemana = v.DiaSemana,
             Cantidad = 0,
             CantidadAceptada = 0,
+            CantidadRechazada = 0,
             TieneCupoDisponible = v.TieneCupoDisponible
           })
           .ToDictionary(k => k.Fecha, k => k);
@@ -959,15 +960,30 @@ namespace CuposCorretajeWeb.Controllers
             ? item.CantidadAceptada
             : item.CantidadFuturoAceptada;
           if (aceptados > 0) detalles[fechaKey].CantidadAceptada = aceptados;
+
+          // Rechazados (R del modelo acumulativo). Mapeamos
+          // item.CantidadRechazada o item.CantidadFuturoRechazada según la tabla.
+          // Vale 0 mientras la solicitud siga pendiente; pasa a tener valor
+          // cuando se rechaza (parcial o totalmente) la solicitud.
+          int rechazados = campoCantidadTR == "Cantidad"
+            ? item.CantidadRechazada
+            : item.CantidadFuturoRechazada;
+          if (rechazados > 0) detalles[fechaKey].CantidadRechazada = rechazados;
         }
 
-        // TP (Pendientes) por fecha = Cantidad - CantidadAceptada, clampeado a 0.
-        // La columna TS de Pantalla 1 lo muestra al operador: lo que aún resta
-        // aceptar o rechazar para esa fecha. Mismo cálculo que la columna "Sol. TP"
-        // de Pantalla 2 (TS - TO).
+        // TP (Pendientes) por fecha = Cantidad - CantidadAceptada -
+        // CantidadRechazada, clampeado a 0. La columna TP de Pantalla 1 lo
+        // muestra al operador: lo que aún resta aceptar o rechazar para esa
+        // fecha. Mismo cálculo que la columna "Sol. TP" de Pantalla 2 y que el
+        // filtro SQL C - A - R > 0 que decide si la solicitud aparece.
+        //
+        // Si no se restara CantidadRechazada, una solicitud con
+        // (C=5, A=3, R=2) mostraría TP=2 aunque el pendiente real sea 0
+        // (solicitud cerrada), y tras una anulación de un aceptado
+        // (C=5, A=2, R=2) mostraría TP=3 cuando el pendiente real es 1.
         foreach (var kv in detalles)
         {
-          int pendiente = kv.Value.Cantidad - kv.Value.CantidadAceptada;
+          int pendiente = kv.Value.Cantidad - kv.Value.CantidadAceptada - kv.Value.CantidadRechazada;
           kv.Value.CantidadPendiente = pendiente > 0 ? pendiente : 0;
         }
 
