@@ -1,6 +1,7 @@
 using CuposCorretajeWeb.Models;
 using CuposCorretajeWeb.Models.Data;
 using CuposCorretajeWeb.Models.Error;
+using CuposCorretajeWeb.Models.Identity;
 using CuposCorretajeWeb.Models.Solicitudes;
 using CuposCorretajeWeb.Models.Solicitudes.Mapping;
 using Newtonsoft.Json;
@@ -19,19 +20,29 @@ namespace CuposCorretajeWeb.Controllers
   [Authorize]
   public class SolicitudesController : Controller
   {
-    // Centros por defecto sobre los que se consultan las solicitudes.
-    // En una iteración posterior esto debería salir de ClaimsUtil (centro del operador).
+    // Centros por defecto sobre los que se consultan las solicitudes cuando el
+    // operador no tiene centros configurados en sus claims (no debería ocurrir
+    // porque el login lo bloquea, pero queda como fallback defensivo).
     private static readonly List<string> CentrosDefault = new List<string> { "ROS", "BSAS", "CBA" };
+
+    // Centro por defecto del operador (claim "CentroPorDefecto"). Si no existe
+    // el claim o está vacío, cae a "ROS" para preservar el comportamiento previo.
+    private string ResolverCentroPorDefecto()
+    {
+      string centro = ClaimsUtil.GetClaimValue(User, "CentroPorDefecto");
+      return string.IsNullOrEmpty(centro) ? "ROS" : centro;
+    }
 
     // GET: Solicitudes
     public ActionResult Index()
     {
+      string centroDefecto = ResolverCentroPorDefecto();
       IndexModel model = new IndexModel
       {
         CantidadDias = 7,
-        Centro = "ROS",
+        Centro = centroDefecto,
         FechaReferencia = DateTime.Today,
-        Subtitulo = $"Solicitudes pendientes de asignación — Centro {NombreCentro("ROS")} · {DateTime.Today:dd/MM/yyyy}"
+        Subtitulo = $"Solicitudes pendientes de asignación — Centro {NombreCentro(centroDefecto)} · {DateTime.Today:dd/MM/yyyy}"
       };
       return View(model);
     }
@@ -41,9 +52,24 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
+        // Tomamos los centros configurados para el operador desde los claims.
+        // Si el operador no tiene ningún "Centro" (caso anómalo bloqueado en el
+        // login por DatosUsuario.IsAuthorized) caemos a CentrosDefault y
+        // dejamos rastro en el log.
+        IList<string> centrosUsuario = ClaimsUtil.GetListClaims("Centro");
+        List<string> centrosParaFiltro = centrosUsuario.Count > 0
+          ? centrosUsuario.ToList()
+          : CentrosDefault;
+        if (centrosParaFiltro == CentrosDefault)
+        {
+          Trace.TraceWarning(
+            "[Solicitudes] El operador no tiene claims 'Centro' configurados. " +
+            "Se utiliza CentrosDefault como fallback.");
+        }
+
         SILSolicitudDeTurnosFilterViewModel filterSolicitud = new SILSolicitudDeTurnosFilterViewModel
         {
-          Centros = CentrosDefault,
+          Centros = centrosParaFiltro,
           Dias = 7
         };
 
@@ -116,7 +142,7 @@ namespace CuposCorretajeWeb.Controllers
         // 4) Armar la respuesta final.
         SolicitudesIndexResponseViewModel response = new SolicitudesIndexResponseViewModel
         {
-          Centro = "ROS",
+          Centro = ResolverCentroPorDefecto(),
           FechaDesde = fechaDesde,
           CantidadDias = filterSolicitud.Dias,
           FechasHeader = fechasVentana.Select(f => f.FechaDisplay).ToList(),
