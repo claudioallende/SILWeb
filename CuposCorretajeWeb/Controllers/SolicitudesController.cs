@@ -1123,6 +1123,27 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
+    /// <summary>
+    /// Calcula el resumen de cupos compatibles ("Cupos compatibles") de cada
+    /// fila de la grilla.
+    ///
+    /// Antes esto disparaba un <c>POST ShiftRequest/Matches</c> POR FILA, en
+    /// paralelo: con R filas eran R requests HTTP contra SILData y ~4R queries
+    /// a Oracle, repitiendo el mismo scan de <c>cuposcorre</c> de la ventana
+    /// una y otra vez, y trayendo por red la solicitud y el cupo hidratados
+    /// (nombres de vendedor, comprador, destino y zona) para terminar usando
+    /// sólo cuatro campos.
+    ///
+    /// Ahora es UNA llamada a <c>POST ShiftRequest/MatchesVentana</c>, que
+    /// devuelve los pares de toda la ventana con los campos justos. La
+    /// atribución de cada par a su fila se hace acá, replicando exactamente
+    /// el filtro que antes iba en el body de cada request (ver
+    /// <see cref="ItemPerteneceAFila"/>).
+    ///
+    /// Las reglas de negocio NO se movieron: exclusión de cupos ya aceptados,
+    /// filtro por fecha con solicitud, dedup por (cupo, tipo) y override a
+    /// Condicional por observación siguen ejecutándose acá, igual que antes.
+    /// </summary>
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
       EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud, Dictionary<long, string> observacionPorSolicitud)
     {
@@ -1136,25 +1157,62 @@ namespace CuposCorretajeWeb.Controllers
       if (pendientes.Count == 0)
         return resultado;
 
-      var tareas = pendientes.Select(async row =>
+      // 2) Una sola llamada al backend para toda la ventana.
+      List<MatchVentanaItemDto> items;
+      try
+      {
+        var ventana = await repo.RequestSILDataPostAndDeserializeAsync<MatchesVentanaResponseDto>(
+          "ShiftRequest",
+          "MatchesVentana",
+          // Kind=Unspecified a propósito: DateTime.Today es Kind=Local y
+          // Newtonsoft lo serializaría con offset ("-03:00"). Si SILData
+          // corre en otra zona horaria (p. ej. UTC en Azure), el backend
+          // recibiría el instante convertido y podría caer en otro día.
+          // Sin offset viaja la fecha calendario, que es lo que significa.
+          new MatchesVentanaFilterDto
+          {
+            FechaDesde = DateTime.SpecifyKind(fechaDesde.Date, DateTimeKind.Unspecified),
+            Dias = cantidadDias
+          });
+
+        items = ventana?.Items ?? new List<MatchVentanaItemDto>();
+
+        Trace.TraceInformation(
+          $"[Solicitudes] MatchesVentana devolvio {items.Count} items para {pendientes.Count} filas pendientes " +
+          $"(desde={fechaDesde:yyyy-MM-dd} dias={cantidadDias}).");
+      }
+      catch (Exception ex)
+      {
+        // Mismo criterio de degradación que antes, pero ahora aplica a todas
+        // las filas: si el backend no responde, cada fila cae a su resumen
+        // derivado del estado en vez de romper la grilla.
+        Trace.TraceWarning("EnriquecerResumenesMatchingAsync: fallo MatchesVentana: " + ex.Message);
+        foreach (var row in pendientes)
+          resultado[row] = BuildResumenMatching(row);
+        return resultado;
+      }
+
+      // 3) Pre-agrupamos por (grano, vendedor), que son las dos claves de
+      // coincidencia exacta. Evita recorrer la lista completa de items una
+      // vez por fila cuando la ventana trae varios miles de pares.
+      var itemsPorGranoYVendedor = new Dictionary<string, List<MatchVentanaItemDto>>(StringComparer.Ordinal);
+      foreach (var it in items)
+      {
+        if (it == null) continue;
+        var clave = it.CodigoGrano + "|" + it.CuentaVendedor;
+        if (!itemsPorGranoYVendedor.TryGetValue(clave, out var lista))
+        {
+          lista = new List<MatchVentanaItemDto>();
+          itemsPorGranoYVendedor[clave] = lista;
+        }
+        lista.Add(it);
+      }
+
+      // 4) Un resumen por fila, con las mismas reglas de siempre.
+      foreach (var row in pendientes)
       {
         try
         {
-          var filter = new MatchesFilterDto
-          {
-            CodigoGrano = row.CodigoGrano,
-            CuentaVendedor = row.CuentaVendedor,
-            CuentaComprador = row.CuentaComprador,
-            ZonaGeograficaId = row.CuentaDestino,
-            FechaDesde = fechaDesde,
-            FechaHasta = fechaDesde.AddDays(cantidadDias - 1),
-            IncluirIncompatibles = false
-            // AgruparPor se omite: default = Solicitud (= 0) en el DTO.
-          };
-
-          var resp = await repo.RequestSILDataPostAndDeserializeAsync<GrillaMatchResumenDto>(
-            "ShiftRequest", "Matches", filter);
-
           var fechasConSolicitud = new HashSet<string>(
             (row.CantidadFechas ?? Enumerable.Empty<SolicitudTurnoDetalleGrupoView>())
               .Where(d => (d.Cantidad + d.CantidadAceptada) > 0)
@@ -1162,100 +1220,122 @@ namespace CuposCorretajeWeb.Controllers
             StringComparer.Ordinal);
 
           var resumen = new CupoCompatibleResumenViewModel();
-          if (resp != null && resp.Items != null)
+          var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
+
+          List<MatchVentanaItemDto> candidatos;
+          if (!itemsPorGranoYVendedor.TryGetValue(row.CodigoGrano + "|" + row.CuentaVendedor, out candidatos))
+            candidatos = new List<MatchVentanaItemDto>();
+
+          int itemsBack = candidatos.Count;
+          int itemsRechazadosPorFila = 0;
+          int itemsRechazadosPorAceptado = 0;
+          int itemsRechazadosPorFecha = 0;
+          int itemsRechazadosPorDedup = 0;
+          int itemsContados = 0;
+          int itemsForzadosAObservacion = 0;
+
+          foreach (var it in candidatos)
           {
-            var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
-
-            // Regla de negocio: la observación es POR SOLICITUD, no por fila
-            // visual. Una misma fila agrupa varias solicitudes (una por fecha)
-            // y sólo algunas pueden traer observación. El matching devuelve
-            // items con SolicitudId, así que consultamos observación por
-            // solicitud individual para no sobre-contar matches de fechas
-            // que NO tienen observación.
-            //
-            // Si la solicitud específica del item trae Observacion, el match
-            // requiere confirmación manual y se clasifica como Condicional,
-            // sin importar lo que diga el motor.
-            int itemsBack = resp.Items.Count;
-            int itemsRechazadosPorAceptado = 0;
-            int itemsRechazadosPorFecha = 0;
-            int itemsRechazadosPorDedup = 0;
-            int itemsContados = 0;
-            int itemsForzadosAObservacion = 0;
-
-            foreach (var it in resp.Items)
+            // Filtro que antes viajaba en el body del request de esta fila.
+            if (!ItemPerteneceAFila(it, row))
             {
-              if (it == null) continue;
-
-              if (cuposAceptadosPorSolicitud != null
-                  && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
-                  && aceptados != null
-                  && aceptados.Contains(it.CupoId))
-              {
-                itemsRechazadosPorAceptado++;
-                continue;
-              }
-
-              string cupoFechaKey = (it.Cupo != null && it.Cupo.Fecha.HasValue)
-                ? it.Cupo.Fecha.Value.ToString("yyyy-MM-dd")
-                : null;
-              if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
-              {
-                itemsRechazadosPorFecha++;
-                continue;
-              }
-
-              var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
-              if (!cuposContadosPorTipo.Add(dedupKey))
-              {
-                itemsRechazadosPorDedup++;
-                continue;
-              }
-
-              // Clasificación por solicitud: si ESA solicitud tiene observación,
-              // override a Condicional. Si no, respetamos lo del motor.
-              bool solConObs = observacionPorSolicitud != null
-                && observacionPorSolicitud.TryGetValue(it.SolicitudId, out var obsTxt)
-                && !string.IsNullOrWhiteSpace(obsTxt);
-              string tipoEfectivo = solConObs ? "Condicional" : it.MatchType;
-              if (solConObs && it.MatchType != "Condicional") itemsForzadosAObservacion++;
-
-              switch (tipoEfectivo)
-              {
-                case "Directo": resumen.Directos++; break;
-                case "Parcial": resumen.Parciales++; break;
-                case "Condicional": resumen.Observaciones++; break;
-              }
-              itemsContados++;
+              itemsRechazadosPorFila++;
+              continue;
             }
 
-            Trace.TraceInformation(
-              $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
-              $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosFecha={itemsRechazadosPorFecha} " +
-              $"rechazadosDedup={itemsRechazadosPorDedup} contados={itemsContados} forzadosObs={itemsForzadosAObservacion} " +
-              $"-> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
+            if (cuposAceptadosPorSolicitud != null
+                && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
+                && aceptados != null
+                && aceptados.Contains(it.CupoId))
+            {
+              itemsRechazadosPorAceptado++;
+              continue;
+            }
+
+            string cupoFechaKey = it.CupoFecha.HasValue
+              ? it.CupoFecha.Value.ToString("yyyy-MM-dd")
+              : null;
+            if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
+            {
+              itemsRechazadosPorFecha++;
+              continue;
+            }
+
+            var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
+            if (!cuposContadosPorTipo.Add(dedupKey))
+            {
+              itemsRechazadosPorDedup++;
+              continue;
+            }
+
+            // Clasificación por solicitud: si ESA solicitud tiene observación,
+            // override a Condicional. Si no, respetamos lo del motor.
+            bool solConObs = observacionPorSolicitud != null
+              && observacionPorSolicitud.TryGetValue(it.SolicitudId, out var obsTxt)
+              && !string.IsNullOrWhiteSpace(obsTxt);
+            string tipoEfectivo = solConObs ? "Condicional" : it.MatchType;
+            if (solConObs && it.MatchType != "Condicional") itemsForzadosAObservacion++;
+
+            switch (tipoEfectivo)
+            {
+              case "Directo": resumen.Directos++; break;
+              case "Parcial": resumen.Parciales++; break;
+              case "Condicional": resumen.Observaciones++; break;
+            }
+            itemsContados++;
           }
+
+          Trace.TraceInformation(
+            $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
+            $"itemsBack={itemsBack} rechazadosFila={itemsRechazadosPorFila} rechazadosAceptado={itemsRechazadosPorAceptado} " +
+            $"rechazadosFecha={itemsRechazadosPorFecha} rechazadosDedup={itemsRechazadosPorDedup} contados={itemsContados} " +
+            $"forzadosObs={itemsForzadosAObservacion} " +
+            $"-> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
 
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0
             ? null
             : "Sin coincidencia";
 
-          return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(row, resumen);
+          resultado[row] = resumen;
         }
         catch (Exception ex)
         {
           Trace.TraceWarning(
             $"EnriquecerResumenesMatchingAsync fila id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor}: {ex.Message}");
-          return new KeyValuePair<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>(
-            row, BuildResumenMatching(row));
+          resultado[row] = BuildResumenMatching(row);
         }
-      }).ToList();
-
-      var pares = await Task.WhenAll(tareas);
-      foreach (var kvp in pares)
-        resultado[kvp.Key] = kvp.Value;
+      }
 
       return resultado;
+    }
+
+    /// <summary>
+    /// Replica en memoria el filtro que antes viajaba en el body del
+    /// <c>POST ShiftRequest/Matches</c> de cada fila
+    /// (<c>MatchesFilterDto</c> → <c>GetByMatchesFilterAsync</c>):
+    /// <list type="bullet">
+    ///   <item>Grano y vendedor: coincidencia exacta
+    ///     (<c>s.grano = :grano</c>, <c>s.ctavend = :vendedor</c>).</item>
+    ///   <item>Comprador y destino: sólo filtran cuando la fila los tiene.
+    ///     En el SQL el patrón era <c>(col = :p OR 0 = :p)</c>, y el
+    ///     parámetro llegaba como <c>valor ?? 0</c>: un 0 desactivaba el
+    ///     filtro. Por eso una fila sin comprador (o sin destino) sigue
+    ///     contando los matches de solicitudes con cualquier comprador
+    ///     (o cualquier destino), igual que antes.</item>
+    /// </list>
+    /// </summary>
+    private static bool ItemPerteneceAFila(MatchVentanaItemDto item, SolicitudTurnoGrupoView row)
+    {
+      if (item.CodigoGrano != row.CodigoGrano) return false;
+      if (item.CuentaVendedor != row.CuentaVendedor) return false;
+
+      long compradorFila = row.CuentaComprador ?? 0;
+      if (compradorFila != 0 && (item.CuentaComprador ?? 0) != compradorFila) return false;
+
+      long destinoFila = row.CuentaDestino ?? 0;
+      if (destinoFila != 0 && (item.CuentaDestino ?? 0) != destinoFila) return false;
+
+      return true;
     }
 
     private static string NombreCentro(string codigo)
