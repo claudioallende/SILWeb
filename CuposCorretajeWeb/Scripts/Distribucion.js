@@ -26,6 +26,7 @@
   observa: "",
   caratula: "",
   contactocomercial: "",
+  condiciongrano: "",
 }
 
 window.modelData.cupo = cupo;
@@ -222,6 +223,7 @@ function llenarDatosConsignacion() {
       return { value: cc, label: cc }
     }))
   }
+  $('#ConsignacionSeleccionada_CondicionGrano').val(cupo.condiciongrano?.trim());
 }
 
 function getContactosComerciales() {
@@ -274,6 +276,7 @@ function seleccionarConsignacion(el) {
   cupo.caratula = consignacion.Caratula;
   cupo.contactocomercial = consignacion.ContactoComercial;
   cupo.observa = $(el).data("observacion");
+  cupo.condiciongrano = consignacion.CondicionGrano;
   llenarDatosConsignacion();
 }
 
@@ -312,7 +315,7 @@ function agregoGuionesIECompatibilidad(cuit) {
 }
 
 //Llenar tabla contratos
-function llenarTablaContratos(idTabla, datos) {
+function llenarTablaContratos(idTabla, datos) { 
   $tabla = $('#' + idTabla);
   $body = $tabla.find('tbody');
   filas = "";

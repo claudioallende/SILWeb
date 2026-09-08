@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Web;
+using System.Web.Mvc;
 
 namespace CuposCorretajeWeb.Models
 {
@@ -59,6 +60,10 @@ namespace CuposCorretajeWeb.Models
 
     [Display(Name = "Carátula")]
     public string Caratula { get; set; }
+    //[Display(Name = "Condición Grano")]
+    //public virtual IEnumerable<SelectListItem> CondicionGrano { get; set; }
+    [Display(Name = "Condición Grano")]
+    public string CondicionGrano { get; set; }
 
     public string Observacion { get; set; }
 
@@ -108,7 +113,8 @@ namespace CuposCorretajeWeb.Models
         Cuitrteent = this.Cuitrteent,
         Nomrteent = this.Nomrteent,
         Cuitdestinatario = this.Cuitdestinatario,
-        Nomdestinatario = this.Nomdestinatario
+        Nomdestinatario = this.Nomdestinatario,
+        CondicionGrano = this.CondicionGrano
       };
     }
 
