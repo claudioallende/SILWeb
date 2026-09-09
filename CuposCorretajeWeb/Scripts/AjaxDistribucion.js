@@ -118,7 +118,7 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
       Dia20: element.Dia20,
       Cosecha: element.Cosecha,
       Ctadestino: element.Ctadestino,
-      Centro: modelData.centrocontratos,
+      Centro: element.Centro,
       Fechaent: element.Fechaent
     }
     arrayobj.push(obj);
@@ -182,7 +182,7 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
           fecha: $('#EntregaHasta').val(),
           ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),
           tieneVendedor: cupo.vendcta != 0,
-          CentroSeleccionado: modelData.centrocontratos
+          CentroSeleccionado: $('#CentroSeleccionado').val()
           //DistribucionCupos: controlEstados.getObjetoDistribucion()
         },
         Confirmacion: (confimacionDistribucion == null || confimacionDistribucion == undefined ? false : confimacionDistribucion)
