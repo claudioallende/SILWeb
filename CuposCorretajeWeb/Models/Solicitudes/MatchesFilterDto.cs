@@ -1,9 +1,16 @@
 using System;
+using System.Collections.Generic;
 
 namespace CuposCorretajeWeb.Models.Solicitudes
 {
   public class MatchesFilterDto
   {
+    /// <summary>
+    /// Centros que el operador puede manipular (claims). Restringe los cupos
+    /// candidatos a los creados en esos centros (<c>cuposcorre.Centro</c>).
+    /// </summary>
+    public List<string> Centros { get; set; }
+
     public long? CuentaComprador { get; set; }
     public int CodigoGrano { get; set; }
     public long? CuentaPuerto { get; set; }
