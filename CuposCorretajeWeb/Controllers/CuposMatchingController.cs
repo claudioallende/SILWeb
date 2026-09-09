@@ -125,6 +125,7 @@ namespace CuposCorretajeWeb.Controllers
           // El backend filtra Cupostotalesadist por este valor (la vista es
           // por (centro, comprador, vendedor, producto)).
           Codcentro = filter.Codcentro,
+          Codcentrodist = filter.Codcentrodist,
           FechaDesde = fechaDesde,
           FechaHasta = fechaHasta,
           IncluirIncompatibles = false,

@@ -17,6 +17,10 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     public long? ZonaGeograficaId { get; set; }
     public long? CuentaVendedor { get; set; }
     public string Codcentro { get; set; }
+    /// <summary>Centro de distribución del cupo (de la URL <c>centrodistribucion</c>).
+    /// Filtra <c>cuposcorre.CentroDist</c> en conjunto con <see cref="Codcentro"/>
+    /// (semántica AND).</summary>
+    public string Codcentrodist { get; set; }
     public DateTime? FechaDesde { get; set; }
     public DateTime? FechaHasta { get; set; }
     public bool IncluirIncompatibles { get; set; }

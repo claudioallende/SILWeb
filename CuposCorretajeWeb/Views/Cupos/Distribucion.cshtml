@@ -648,12 +648,29 @@
           CuentaComprador: @(Model.CuentaComprador),
           CodigoGrano: @(Model.CodigoProducto),
           CuentaPuerto: @(Model.CuentaPuerto),
-          Codcentro: "@Model.CentroSeleccionado",
+          // Codcentro y Codcentrodist vienen de los parámetros de URL
+          // (centroorigen / centrodistribucion), NO del dropdown del operador.
+          // Forman la clave natural (Centro, CentroDist) de cuposcorre para
+          // el flujo V2 de Distribución.
+          Codcentro: "@Request.Params["centroorigen"]",
+          Codcentrodist: "@Request.Params["centrodistribucion"]",
           CupoId: window.SILMatching && window.SILMatching.estadoCupoActual
                     ? (window.SILMatching.estadoCupoActual().Id || 0)
                     : 0,
           Fecha: new Date()
         };
+
+        // Defensa: si la URL no trae los dos centros, abortamos antes de
+        // llamar al backend para evitar que V2 devuelva 400 y caiga al
+        // legacy con datos parcialmente filtrados.
+        if (!filtro.Codcentro || !filtro.Codcentrodist) {
+          if (typeof SILMatching !== 'undefined' && SILMatching && typeof SILMatching.cerrar === 'function') SILMatching.cerrar();
+          if (typeof mostrarEstadoTabla === 'function') {
+            mostrarEstadoTabla('Faltan parámetros de URL centroorigen / centrodistribucion para invocar el motor V2.', true);
+          }
+          restaurarEstadoBuscar(id);
+          return;
+        }
 
         cambiarEstadoBuscar('Actualizando tabla...');
         mostrarEstadoTabla('Actualizando tabla de distribución...', false);

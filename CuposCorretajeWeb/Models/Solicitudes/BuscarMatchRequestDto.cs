@@ -25,5 +25,11 @@ namespace CuposCorretajeWeb.Models.Solicitudes
     /// disponibilidad por vendedor la calcula la UI desde la tabla HTML
     /// de Distribución (#TablaDistribuciones).</summary>
     public string Codcentro { get; set; }
+    /// <summary>Código del centro de distribución del cupo, recibido por URL
+    /// como <c>centrodistribucion</c>. Junto con <see cref="Codcentro"/>
+    /// forma la clave natural del cupo en <c>cuposcorre</c>
+    /// (<c>Centro</c> + <c>CentroDist</c>) y se envía al backend V2 como
+    /// filtro <c>AND</c>.</summary>
+    public string Codcentrodist { get; set; }
   }
 }
