@@ -239,22 +239,28 @@
    Estructura de la fila de fechas (body y thead fila 2):
      [TR_fecha1] [TO_fecha1] [TR_fecha2] [TO_fecha2] ... [TR_fechaN] [TO_fechaN] [acción]
    Posiciones en la fila: 7, 8, 9, 10, ..., 6+2N, 7+2N (acción).
-   Queremos una línea vertical entre cada par TR/TO (y entre fechas, que
-   es el mismo divisor visualmente). Para eso ponemos border-left en
-   TODAS las celdas a partir de la posición 8, EXCEPTO la última (acción).
-   En la fila 1 del thead las fechas son colspan=2; los bordes entre fechas
-   se manejan con la clase sil-th-date-first (no en la primera). */
+   Sólo queremos línea vertical ENTRE fechas, NO entre el TR y el TO de
+   la misma fecha. Para eso ponemos border-left únicamente en las
+   columnas TR (las posiciones pares a partir de la 8: 8, 10, 12, ...),
+   que son las que separan el TO de la fecha anterior del TR de la nueva.
+   En la fila 1 del thead las fechas son colspan=2; los bordes entre
+   fechas se manejan con la clase sil-th-date-first (no en la primera).
+
+   Antes el border era gris claro (1px / var(--sil-border)); el operador
+   lo perdía de vista cuando la grilla tenía muchas columnas. Pasamos a
+   negro semitransparente y 2px para remarcar la separación entre fechas
+   sin oscurecer demasiado el contenido. */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
-.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child),
-.sil-tbl tbody td:nth-child(n+8):not(:last-child) {
-    border-left: 1px solid var(--sil-border);
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):nth-child(even):not(:last-child),
+.sil-tbl tbody td:nth-child(n+8):nth-child(even):not(:last-child) {
+    border-left: 2px solid rgba(0, 0, 0, 0.55);
 }
 
 /* En el thead el fondo es navy/gris-claro, así que el borde necesita un
    color claro para que se vea. Sobreescribimos sólo para esas celdas. */
 .sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
-.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):not(:last-child) {
-    border-left-color: rgba(255, 255, 255, 0.35);
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):nth-child(even):not(:last-child) {
+    border-left-color: rgba(255, 255, 255, 0.7);
 }
 
 /* ---- Filtro tipeable ---- */
@@ -317,6 +323,54 @@
 .sil-tbl tbody tr:last-child td { border-bottom: none; }
 
 .sil-tbl tbody tr:hover td { background: #f0f4fa; }
+
+/* Zebra striping: pintamos las filas de datos IMPARES (1, 3, 5...) en
+   gris claro para mejorar la lectura. La clase sil-row-even la pone el
+   JS sólo sobre filas de datos (NO sobre los separadores sil-row-grupo),
+   así el contador no se desfasa cuando hay separadores visibles. El
+   hover (#f0f4fa) sigue funcionando porque va después en la cascada. */
+.sil-tbl tbody tr.sil-row-data.sil-row-even td {
+    background: #e2e8f0;
+}
+
+/* Subtotal por grano. Fila destacada con el mismo gris del tfoot
+   ("Total Diario") para que el operador la reconozca de un vistazo como
+   una fila de totales. Los números van en negrita para reforzar que
+   son cifras agregadas, no datos de una solicitud puntual.
+
+   El border-top queda como el resto de los separadores internos (1px
+   gris claro) para no gritar arriba del subtotal; el border-bottom sí
+   se engrosa a 2px negro porque es la línea que separa el cierre de
+   grano del siguiente bloque. */
+.sil-tbl tbody tr.sil-row-grupo td {
+    background: var(--sil-bg);
+    color: var(--sil-text-primary);
+    font-weight: 700;
+    padding: 7px 9px;
+    border-top: 1px solid var(--sil-border);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.65);
+    text-align: center; /* numéricos centrados por defecto */
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+/* En la fila "Total por grano" no queremos los divisores verticales
+   entre las fechas (el operador no las necesita para sumar). Sólo
+   dejamos el separador genérico 1px gris del tbody. */
+.sil-tbl tbody tr.sil-row-grupo td:nth-child(n+8):not(:last-child) {
+    border-left: none;
+}
+
+.sil-tbl tbody tr.sil-row-grupo td.tl {
+    text-align: left; /* etiqueta del grupo queda a la izquierda */
+}
+
+.sil-grupo-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .3px;
+    color: var(--sil-text-primary);
+}
 
 .sil-tbl tfoot tr.sil-tr-total td {
     background: var(--sil-bg);

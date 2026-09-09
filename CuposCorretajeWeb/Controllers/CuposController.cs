@@ -1,18 +1,13 @@
-﻿using System;
+﻿using CuposCorretajeWeb.Models;
+using CuposCorretajeWeb.Models.Data;
+using CuposCorretajeWeb.Models.Error;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
-using CuposCorretajeWeb.Models;
-using CuposCorretajeWeb.Models.Email;
-using CuposCorretajeWeb.Models.Filtro;
-using System.Security.Claims;
-using CuposCorretajeWeb.Models.Auditoria;
-using CuposCorretajeWeb.Models.Data;
-using System.Threading.Tasks;
-using CuposCorretajeWeb.Models.Error;
-using System.Text.RegularExpressions;
-using System.Web.UI.WebControls;
 
 namespace CuposCorretajeWeb.Controllers
 {
@@ -186,6 +181,120 @@ namespace CuposCorretajeWeb.Controllers
       catch (Exception e)
       {
         throw e;
+      }
+    }
+
+    /// <summary>
+    /// Proxy al endpoint <c>POST /api/ShiftRequest/AnularDistribucion</c> de
+    /// SILData. Se invoca desde <c>Scripts/Editar.js</c> cuando el operador
+    /// anula una distribución, después de que la acción legacy
+    /// <see cref="Anular"/> ya marcó los cupos en CUPOSCORRE como anulados.
+    ///
+    /// Objetivo: revertir la asociación cupo ↔ solicitud en
+    /// <c>SOLTURNOS</c> + <c>SOLTURNOS_DETALLE</c> para que las solicitudes
+    /// vuelvan a figurar como Pendientes (y por lo tanto vuelvan a aparecer
+    /// en Pantalla 1 con un cupo menos aceptado cada una).
+    ///
+    /// El backend procesa cada cupo de forma independiente. Los que NO
+    /// tengan solicitud asociada quedan como Skipped (el flujo legacy ya
+    /// los cubrió en CUPOSCORRE).
+    /// </summary>
+    /// <param name="req">DTO con la lista de cupos. Se bindea vía
+    /// <c>JsonValueProviderFactory</c> (builtin de MVC 4.6.1) — NO se usa
+    /// <c>[FromBody]</c> porque es un atributo de Web API que MVC ignora.
+    /// El JS debe mandar <c>contentType: application/json</c> y
+    /// <c>data: JSON.stringify({ cupoIds: [...] })</c>.</param>
+    [HttpPost]
+    public async Task<ActionResult> AnularDistribucion(AnularDistribucionRequestDto req)
+    {
+      // Defensa: req puede venir null si el body no se bindeó (p.ej.
+      // content-type incorrecto o body vacío). En ese caso devolvemos
+      // un resultado neutro para que el JS no rompa.
+      var cupoIds = req?.CupoIds ?? Array.Empty<long>();
+
+      try
+      {
+        if (cupoIds.Length == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        // Filtramos ids no positivos antes de mandar al backend (defensa).
+        var idsValidos = cupoIds.Where(id => id > 0).Distinct().ToList();
+        if (idsValidos.Count == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        using (WebServiceSILRespository repo = new WebServiceSILRespository())
+        {
+          // El endpoint de SILData vive bajo ShiftRequestController.
+          // Una sola llamada HTTP con todos los cupos en una lista
+          // (RequestSILDataPostAndDeserializeAsync serializa el objeto a
+          // JSON, que coincide con el contrato del backend).
+          var resultado = await repo.RequestSILDataPostAndDeserializeAsync<AnularDistribucionResponseDto>(
+            "ShiftRequest",
+            "AnularDistribucion",
+            new { cupoIds = idsValidos });
+
+          return Json(resultado ?? new AnularDistribucionResponseDto());
+        }
+      }
+      catch (ApiException e)
+      {
+        // ApiException viene del helper cuando SILData responde con un
+        // status no-2xx (400 lista vacía, 409 conflicto de estado, etc.).
+        // Devolvemos un JSON con todos los cupos como Fallo para que el JS
+        // muestre un Swal.fire informativo en vez de propagar la excepción.
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
+      }
+      catch (Exception e)
+      {
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
       }
     }
 

@@ -117,6 +117,19 @@
             $(document).ready(function () {
                 ShowLoader();
 
+                // Orden estable por Grano + Solicitante (NombreVendedor).
+                // localeCompare en 'es' maneja acentos/case y devuelve un
+                // orden consistente entre las dos tablas. Se aplica sobre
+                // el set completo (no el filtrado) para que el operador
+                // pueda aplicar filtros sin perder el agrupado.
+                function sortByGranoSolicitante(rows) {
+                    return rows.slice().sort(function (a, b) {
+                        var cmp = (a.NombreGrano || '').localeCompare(b.NombreGrano || '', 'es', { sensitivity: 'base' });
+                        if (cmp !== 0) return cmp;
+                        return (a.NombreVendedor || '').localeCompare(b.NombreVendedor || '', 'es', { sensitivity: 'base' });
+                    });
+                }
+
                 // Loader global
                 $(document).ajaxStart(function () { ShowLoader(); });
                 $(document).ajaxStop(function () { HideLoader(); });
@@ -209,8 +222,8 @@
                     method: "GET",
                     dataType: "json",
                     success: function (response) {
-                        currentContractuales = response.Contractuales || [];
-                        currentFuturos = response.Futuros || [];
+                        currentContractuales = sortByGranoSolicitante(response.Contractuales || []);
+                        currentFuturos = sortByGranoSolicitante(response.Futuros || []);
                         // Persistimos fechasHeader en state para que el re-render
                         // por filtro pueda usarlas sin tener que volver a pegarle
                         // al backend.
@@ -371,7 +384,7 @@
                             // "Cupos compatibles"). Los TR de fechas siguientes
                             // sí, para marcar el límite entre fechas.
                             var trFirstClass = idx === 0 ? ' sil-th-trto-first' : '';
-                            headHtml += '<th class="sil-th-trto' + trFirstClass + '">TS</th><th class="sil-th-trto">TO</th>';
+                            headHtml += '<th class="sil-th-trto' + trFirstClass + '">TP</th><th class="sil-th-trto">TO</th>';
                         });
                         headHtml += '<th class="sil-th-filter-cell"></th></tr>';
 
@@ -420,20 +433,70 @@
                         });
                     });
 
+                    // Totales por grano por fecha. Misma estructura que `totales`
+                    // (el acumulador del tfoot) pero agrupados por NombreGrano.
+                    // Permite que el separador visual muestre, debajo de cada
+                    // fecha, la suma de TS y TO de las filas que pertenecen a
+                    // ese grano — el mismo formato que la fila "Total Diario"
+                    // del tfoot, scoped al grano. Se calcula sobre el set
+                    // COMPLETO filtrado (no la página) para que la suma sea
+                    // estable aunque el grupo esté paginado en varias páginas.
+                    const totalesPorGrano = {};
+                    filteredRows.forEach(function (r) {
+                        var grano = r.NombreGrano || '—';
+                        if (!totalesPorGrano[grano]) {
+                            totalesPorGrano[grano] = fechasHeader.map(function () { return { ts: 0, to: 0, tieneCupoDisponible: false }; });
+                        }
+                        var buckets = totalesPorGrano[grano];
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            if (idx < buckets.length) {
+                                buckets[idx].to += d.CantidadAceptada || 0;
+                                var pendiente = (typeof d.CantidadPendiente === 'number')
+                                    ? d.CantidadPendiente
+                                    : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                                buckets[idx].ts += pendiente;
+                                if (d.TieneCupoDisponible) buckets[idx].tieneCupoDisponible = true;
+                            }
+                        });
+                    });
+
                     // Slice de la página actual
                     const startIdx = (page - 1) * pageSize;
                     const pageRows = filteredRows.slice(startIdx, startIdx + pageSize);
 
                     let bodyHtml = '';
                     let lastGrano = null;
+                    let dataRowIndex = 0;
+                    // pendingSeparator acumula el HTML del "Total por Grano"
+                    // del ÚLTIMO grupo visto, y se emite cuando el grano
+                    // cambia (o al final del loop). Así el separador queda
+                    // ABAJO de las filas del grupo al que totaliza — no
+                    // arriba como antes, que era confuso.
+                    let pendingSeparator = null;
                     pageRows.forEach(function (r) {
-                        // Separador visual por cambio de Grano
-                        if (lastGrano !== null && lastGrano !== r.NombreGrano) {
-                            bodyHtml += '<tr class="sil-row-grupo"><td colspan="' + colspanTotal + '"></td></tr>';
+                        if (lastGrano !== r.NombreGrano) {
+                            // Cerrar el grupo anterior: volcar el pending.
+                            if (pendingSeparator) {
+                                bodyHtml += pendingSeparator;
+                            }
+                            // Armar el separador del grupo nuevo para
+                            // emitirlo DESPUÉS de sus data rows.
+                            var buckets = totalesPorGrano[r.NombreGrano] || [];
+                            pendingSeparator = '<tr class="sil-row-grupo">' +
+                                '<td colspan="5" class="tl">' +
+                                '<strong class="sil-grupo-label">Total por Grano</strong>' +
+                                '</td>' +
+                                buckets.map(function (b) { return renderCeldaTotalBucket(b); }).join('') +
+                                '<td></td></tr>';
                         }
                         lastGrano = r.NombreGrano;
 
-                        bodyHtml += '<tr data-id="' + (r.Id || 0) + '">' +
+                        // Zebra striping: alternamos clase sil-row-even en
+                        // las filas de datos (NO en los separadores). El
+                        // contador se lleva sólo sobre data rows, así no
+                        // se desfasa cuando hay separadores visibles.
+                        var zebraCls = (dataRowIndex % 2 === 0) ? ' sil-row-even' : '';
+                        bodyHtml += '<tr data-id="' + (r.Id || 0) + '" class="sil-row-data' + zebraCls + '">' +
                             renderCeldaTexto(r.NombreGrano || '—', 'tl') +
                             renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
                             renderCeldaTexto(r.NombreComprador || '—', 'tl') +
@@ -453,7 +516,13 @@
                         // Acción
                         bodyHtml += '<td><button type="button" class="sil-icon-btn btn-ver" data-id="' + (r.Id || 0) + '" title="Ver detalle">&#9776; ver</button></td>';
                         bodyHtml += '</tr>';
+                        dataRowIndex++;
                     });
+                    // Última fila de la página: volcar el pending del último
+                    // grupo (no hubo un próximo cambio de grano que lo dispare).
+                    if (pendingSeparator) {
+                        bodyHtml += pendingSeparator;
+                    }
                     $(tbodyId).html(bodyHtml);
                     console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
 
@@ -461,27 +530,7 @@
                     let footHtml = '<tr class="sil-tr-total">' +
                         '<td colspan="5" class="tl">Total Diario</td>';
                     totales.forEach(function (t) {
-                        // TS (pendientes): pintamos rojo si hay cupo disponible y
-                        // pendiente=0 (mismo criterio que antes pero aplicado al
-                        // pendiente en vez del TR original).
-                        const tsVal = t.ts || 0;
-                        if (tsVal > 0) {
-                            footHtml += '<td>' + tsVal + '</td>';
-                        } else if (t.tieneCupoDisponible) {
-                            footHtml += '<td><span class="sil-cell-red">0</span></td>';
-                        } else {
-                            footHtml += '<td><span class="sil-zero">0</span></td>';
-                        }
-                        // TO: ahora muestra la suma de cupos aceptados para esa fecha.
-                        // Mismo criterio de color que TS.
-                        const toVal = t.to || 0;
-                        if (toVal > 0) {
-                            footHtml += '<td>' + toVal + '</td>';
-                        } else if (t.tieneCupoDisponible) {
-                            footHtml += '<td><span class="sil-cell-red">0</span></td>';
-                        } else {
-                            footHtml += '<td><span class="sil-zero">0</span></td>';
-                        }
+                        footHtml += renderCeldaTotalBucket(t);
                     });
                     footHtml += '<td></td></tr>';
                     $(tfootId).html(footHtml);
@@ -638,6 +687,36 @@
                 // ----- Helpers de celda -----
                 function renderCeldaTexto(valor, alignClass) {
                     return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
+                }
+
+                // Helper: arma el par de celdas TS/TO (Totales / Otorgados)
+                // para un bucket de totales. Comparte el criterio de color
+                // con la fila "Total Diario" del tfoot: si el valor > 0 se
+                // muestra tal cual, si = 0 y hay cupo disponible se pinta
+                // el chip rojo, si no se muestra el 0 gris. La usan tanto
+                // el tfoot como el separador por grano.
+                function renderCeldaTotalBucket(t) {
+                    var tsVal = t.ts || 0;
+                    var tsHtml;
+                    if (tsVal > 0) {
+                        tsHtml = '<td>' + tsVal + '</td>';
+                    } else if (t.tieneCupoDisponible) {
+                        tsHtml = '<td><span class="sil-cell-red">0</span></td>';
+                    } else {
+                        tsHtml = '<td><span class="sil-zero">0</span></td>';
+                    }
+
+                    var toVal = t.to || 0;
+                    var toHtml;
+                    if (toVal > 0) {
+                        toHtml = '<td>' + toVal + '</td>';
+                    } else if (t.tieneCupoDisponible) {
+                        toHtml = '<td><span class="sil-cell-red">0</span></td>';
+                    } else {
+                        toHtml = '<td><span class="sil-zero">0</span></td>';
+                    }
+
+                    return tsHtml + toHtml;
                 }
 
                 function renderCeldaFecha(d, isFirstDate) {

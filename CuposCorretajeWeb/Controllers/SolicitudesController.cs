@@ -1,6 +1,7 @@
 using CuposCorretajeWeb.Models;
 using CuposCorretajeWeb.Models.Data;
 using CuposCorretajeWeb.Models.Error;
+using CuposCorretajeWeb.Models.Identity;
 using CuposCorretajeWeb.Models.Solicitudes;
 using CuposCorretajeWeb.Models.Solicitudes.Mapping;
 using Newtonsoft.Json;
@@ -19,19 +20,29 @@ namespace CuposCorretajeWeb.Controllers
   [Authorize]
   public class SolicitudesController : Controller
   {
-    // Centros por defecto sobre los que se consultan las solicitudes.
-    // En una iteración posterior esto debería salir de ClaimsUtil (centro del operador).
+    // Centros por defecto sobre los que se consultan las solicitudes cuando el
+    // operador no tiene centros configurados en sus claims (no debería ocurrir
+    // porque el login lo bloquea, pero queda como fallback defensivo).
     private static readonly List<string> CentrosDefault = new List<string> { "ROS", "BSAS", "CBA" };
+
+    // Centro por defecto del operador (claim "CentroPorDefecto"). Si no existe
+    // el claim o está vacío, cae a "ROS" para preservar el comportamiento previo.
+    private string ResolverCentroPorDefecto()
+    {
+      string centro = ClaimsUtil.GetClaimValue(User, "CentroPorDefecto");
+      return string.IsNullOrEmpty(centro) ? "ROS" : centro;
+    }
 
     // GET: Solicitudes
     public ActionResult Index()
     {
+      string centroDefecto = ResolverCentroPorDefecto();
       IndexModel model = new IndexModel
       {
         CantidadDias = 7,
-        Centro = "ROS",
+        Centro = centroDefecto,
         FechaReferencia = DateTime.Today,
-        Subtitulo = $"Solicitudes pendientes de asignación — Centro {NombreCentro("ROS")} · {DateTime.Today:dd/MM/yyyy}"
+        Subtitulo = $"Solicitudes pendientes de asignación — Centro {NombreCentro(centroDefecto)} · {DateTime.Today:dd/MM/yyyy}"
       };
       return View(model);
     }
@@ -41,9 +52,24 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
+        // Tomamos los centros configurados para el operador desde los claims.
+        // Si el operador no tiene ningún "Centro" (caso anómalo bloqueado en el
+        // login por DatosUsuario.IsAuthorized) caemos a CentrosDefault y
+        // dejamos rastro en el log.
+        IList<string> centrosUsuario = ClaimsUtil.GetListClaims("Centro");
+        List<string> centrosParaFiltro = centrosUsuario.Count > 0
+          ? centrosUsuario.ToList()
+          : CentrosDefault;
+        if (centrosParaFiltro == CentrosDefault)
+        {
+          Trace.TraceWarning(
+            "[Solicitudes] El operador no tiene claims 'Centro' configurados. " +
+            "Se utiliza CentrosDefault como fallback.");
+        }
+
         SILSolicitudDeTurnosFilterViewModel filterSolicitud = new SILSolicitudDeTurnosFilterViewModel
         {
-          Centros = CentrosDefault,
+          Centros = centrosParaFiltro,
           Dias = 7
         };
 
@@ -82,13 +108,6 @@ namespace CuposCorretajeWeb.Controllers
         DateTime fechaDesde = DateTime.Today;
         List<SolicitudTurnoDetalleGrupoView> fechasVentana = EnumerateFechas(fechaDesde, filterSolicitud.Dias);
 
-        // Filtramos las solicitudes ya resueltas antes de armar la grilla.
-        // Si CantidadAceptada + CantidadRechazada == Cantidad (contractual)
-        // o CantidadFuturoAceptada + CantidadFuturoRechazada == CantidadFuturo
-        // (futuro), la solicitud ya no tiene cupos pendientes: no hay nada
-        // m&aacute;s para aceptar ni rechazar. Sin este filtro la fila sigue
-        // apareciendo en Pantalla 1 (y se puede entrar a Pantalla 2 a&uacute;n
-        // cuando no haya nada que gestionar).
         var rawPendientes = rawList.Where(x => x.EsPendiente).ToList();
         Trace.TraceInformation(
           $"[Solicitudes] rawList={rawList.Count()}, pendientes={rawPendientes.Count}, " +
@@ -101,12 +120,18 @@ namespace CuposCorretajeWeb.Controllers
           repo,
           rawList.Select(x => x.Id).Where(id => id > 0).Distinct().ToList());
 
+        var observacionPorSolicitud = rawPendientes
+          .Where(x => !string.IsNullOrWhiteSpace(x.Observacion))
+          .GroupBy(x => x.Id)
+          .ToDictionary(g => g.Key, g => g.First().Observacion);
+
         var cuposCompatiblesPorGrupo = await EnriquecerResumenesMatchingAsync(
           repo,
           contractuales.Concat(futuros).ToList(),
           fechaDesde,
           filterSolicitud.Dias,
-          cuposAceptadosPorSolicitud);
+          cuposAceptadosPorSolicitud,
+          observacionPorSolicitud);
         foreach (var row in contractuales.Concat(futuros))
         {
           row.CuposCompatibles = cuposCompatiblesPorGrupo.TryGetValue(row, out var c) && c != null
@@ -117,7 +142,7 @@ namespace CuposCorretajeWeb.Controllers
         // 4) Armar la respuesta final.
         SolicitudesIndexResponseViewModel response = new SolicitudesIndexResponseViewModel
         {
-          Centro = "ROS",
+          Centro = ResolverCentroPorDefecto(),
           FechaDesde = fechaDesde,
           CantidadDias = filterSolicitud.Dias,
           FechasHeader = fechasVentana.Select(f => f.FechaDisplay).ToList(),
@@ -938,6 +963,7 @@ namespace CuposCorretajeWeb.Controllers
             DiaSemana = v.DiaSemana,
             Cantidad = 0,
             CantidadAceptada = 0,
+            CantidadRechazada = 0,
             TieneCupoDisponible = v.TieneCupoDisponible
           })
           .ToDictionary(k => k.Fecha, k => k);
@@ -960,15 +986,30 @@ namespace CuposCorretajeWeb.Controllers
             ? item.CantidadAceptada
             : item.CantidadFuturoAceptada;
           if (aceptados > 0) detalles[fechaKey].CantidadAceptada = aceptados;
+
+          // Rechazados (R del modelo acumulativo). Mapeamos
+          // item.CantidadRechazada o item.CantidadFuturoRechazada según la tabla.
+          // Vale 0 mientras la solicitud siga pendiente; pasa a tener valor
+          // cuando se rechaza (parcial o totalmente) la solicitud.
+          int rechazados = campoCantidadTR == "Cantidad"
+            ? item.CantidadRechazada
+            : item.CantidadFuturoRechazada;
+          if (rechazados > 0) detalles[fechaKey].CantidadRechazada = rechazados;
         }
 
-        // TP (Pendientes) por fecha = Cantidad - CantidadAceptada, clampeado a 0.
-        // La columna TS de Pantalla 1 lo muestra al operador: lo que aún resta
-        // aceptar o rechazar para esa fecha. Mismo cálculo que la columna "Sol. TP"
-        // de Pantalla 2 (TS - TO).
+        // TP (Pendientes) por fecha = Cantidad - CantidadAceptada -
+        // CantidadRechazada, clampeado a 0. La columna TP de Pantalla 1 lo
+        // muestra al operador: lo que aún resta aceptar o rechazar para esa
+        // fecha. Mismo cálculo que la columna "Sol. TP" de Pantalla 2 y que el
+        // filtro SQL C - A - R > 0 que decide si la solicitud aparece.
+        //
+        // Si no se restara CantidadRechazada, una solicitud con
+        // (C=5, A=3, R=2) mostraría TP=2 aunque el pendiente real sea 0
+        // (solicitud cerrada), y tras una anulación de un aceptado
+        // (C=5, A=2, R=2) mostraría TP=3 cuando el pendiente real es 1.
         foreach (var kv in detalles)
         {
-          int pendiente = kv.Value.Cantidad - kv.Value.CantidadAceptada;
+          int pendiente = kv.Value.Cantidad - kv.Value.CantidadAceptada - kv.Value.CantidadRechazada;
           kv.Value.CantidadPendiente = pendiente > 0 ? pendiente : 0;
         }
 
@@ -1083,7 +1124,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
-      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud)
+      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud, Dictionary<long, string> observacionPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 
@@ -1125,6 +1166,23 @@ namespace CuposCorretajeWeb.Controllers
           {
             var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
+            // Regla de negocio: la observación es POR SOLICITUD, no por fila
+            // visual. Una misma fila agrupa varias solicitudes (una por fecha)
+            // y sólo algunas pueden traer observación. El matching devuelve
+            // items con SolicitudId, así que consultamos observación por
+            // solicitud individual para no sobre-contar matches de fechas
+            // que NO tienen observación.
+            //
+            // Si la solicitud específica del item trae Observacion, el match
+            // requiere confirmación manual y se clasifica como Condicional,
+            // sin importar lo que diga el motor.
+            int itemsBack = resp.Items.Count;
+            int itemsRechazadosPorAceptado = 0;
+            int itemsRechazadosPorFecha = 0;
+            int itemsRechazadosPorDedup = 0;
+            int itemsContados = 0;
+            int itemsForzadosAObservacion = 0;
+
             foreach (var it in resp.Items)
             {
               if (it == null) continue;
@@ -1134,6 +1192,7 @@ namespace CuposCorretajeWeb.Controllers
                   && aceptados != null
                   && aceptados.Contains(it.CupoId))
               {
+                itemsRechazadosPorAceptado++;
                 continue;
               }
 
@@ -1142,22 +1201,39 @@ namespace CuposCorretajeWeb.Controllers
                 : null;
               if (cupoFechaKey == null || !fechasConSolicitud.Contains(cupoFechaKey))
               {
+                itemsRechazadosPorFecha++;
                 continue;
               }
 
               var dedupKey = it.CupoId + "|" + (it.MatchType ?? string.Empty);
               if (!cuposContadosPorTipo.Add(dedupKey))
               {
+                itemsRechazadosPorDedup++;
                 continue;
               }
 
-              switch (it.MatchType)
+              // Clasificación por solicitud: si ESA solicitud tiene observación,
+              // override a Condicional. Si no, respetamos lo del motor.
+              bool solConObs = observacionPorSolicitud != null
+                && observacionPorSolicitud.TryGetValue(it.SolicitudId, out var obsTxt)
+                && !string.IsNullOrWhiteSpace(obsTxt);
+              string tipoEfectivo = solConObs ? "Condicional" : it.MatchType;
+              if (solConObs && it.MatchType != "Condicional") itemsForzadosAObservacion++;
+
+              switch (tipoEfectivo)
               {
                 case "Directo": resumen.Directos++; break;
                 case "Parcial": resumen.Parciales++; break;
                 case "Condicional": resumen.Observaciones++; break;
               }
+              itemsContados++;
             }
+
+            Trace.TraceInformation(
+              $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
+              $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} rechazadosFecha={itemsRechazadosPorFecha} " +
+              $"rechazadosDedup={itemsRechazadosPorDedup} contados={itemsContados} forzadosObs={itemsForzadosAObservacion} " +
+              $"-> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
           }
 
           resumen.TextoResumen = (resumen.Directos + resumen.Parciales + resumen.Observaciones) > 0

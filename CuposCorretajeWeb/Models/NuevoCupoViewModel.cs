@@ -17,6 +17,8 @@ namespace CuposCorretajeWeb.Models
     public int PuertoSeleccionado { get; set; }
     public int CompctaSeleccionada { get; set; }
     public int VendctaSeleccionada { get; set; }
+    [Display(Name = "Condición Grano")]
+    public string CondicionGranoSeleccionado { get; set; }
     public readonly int CantidadDias = 20;
 
     [Display(Name = "Producto")]
@@ -92,10 +94,13 @@ namespace CuposCorretajeWeb.Models
     [Display(Name = "Carátula")]
     [RegularExpression(@"\d{6}", ErrorMessage = "El campo Carátula debe contener un número de 6 dígitos")]
     public virtual string Caratula { get; set; }
+    [Display(Name = "Condición Grano")]
+    public virtual IEnumerable<SelectListItem> CondicionGrano { get; set; }
 
     public NuevoCupoViewModel()
     {
       Productos = new List<SelectListItem>();
+      CondicionGrano = new List<SelectListItem>();
     }
   }
 

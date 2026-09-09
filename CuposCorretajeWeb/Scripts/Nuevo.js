@@ -465,13 +465,68 @@ $('#ContactoComercial').tokenfield({
   });
 });
 
-document.getElementById("Caratula").addEventListener("change", function (ev) {
-  var observacion = document.getElementById("Observaciones").value;
-  if (document.getElementById("Caratula").value.length == 6) {
-    if (observacion) {
-      document.getElementById("Observaciones").value = observacion.concat(". Carátula matba rofex: ", ev.currentTarget.value)
-    } else {
-      document.getElementById("Observaciones").value = observacion.concat("Carátula matba rofex: ", ev.currentTarget.value)
-    }
+document.addEventListener("DOMContentLoaded", function () {
+  debugger;
+  const caratulaInput = document.getElementById("Caratula");
+  const condicionGranoSelect = document.getElementById("CondicionGranoSeleccionado");
+  const observacionesInput = document.getElementById("Observaciones");
+
+  function limpiarLeyendas(texto) {
+    if (!texto) return "";
+
+    // Quita leyenda de carátula
+    texto = texto.replace(/\n?Carátula matba rofex:.*$/gm, "");
+
+    // Quita leyenda de condición grano
+    texto = texto.replace(/\n?Condición Grano:.*$/gm, "");
+
+    return texto.trim();
   }
-})
+
+  function actualizarObservaciones() {
+
+    let textoBase = limpiarLeyendas(observacionesInput.value);
+
+    let partes = [];
+
+    if (caratulaInput.value && caratulaInput.value.length === 6) {
+      partes.push("Carátula matba rofex: " + caratulaInput.value);
+    }
+
+    if (condicionGranoSelect.value) {
+      let textoGrano = condicionGranoSelect.options[condicionGranoSelect.selectedIndex].text;
+      partes.push("Condición Grano: " + textoGrano);
+    }
+
+    let textoFinal = textoBase;
+
+    if (partes.length > 0) {
+      if (textoBase)
+        textoFinal += "\n" + partes.join("\n");
+      else
+        textoFinal = partes.join("\n");
+    }
+
+    observacionesInput.value = textoFinal;
+  }
+
+  // Eventos
+  caratulaInput.addEventListener("change", actualizarObservaciones);
+  condicionGranoSelect.addEventListener("change", actualizarObservaciones);
+
+});
+
+//document.getElementById("Caratula").addEventListener("change", function (ev) {
+//  var observacion = document.getElementById("Observaciones").value;
+//  if (document.getElementById("Caratula").value.length == 6) {
+//    if (observacion) {
+//      document.getElementById("Observaciones").value = observacion.concat(". Carátula matba rofex: ", ev.currentTarget.value)
+//    } else {
+//      document.getElementById("Observaciones").value = observacion.concat("Carátula matba rofex: ", ev.currentTarget.value)
+//    }
+//  }
+//})
+
+//document.getElementById("CondicionGranoSeleccionado").addEventListener("change", function (cg) {
+
+//})
