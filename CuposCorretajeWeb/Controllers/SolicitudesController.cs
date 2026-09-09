@@ -130,6 +130,7 @@ namespace CuposCorretajeWeb.Controllers
           contractuales.Concat(futuros).ToList(),
           fechaDesde,
           filterSolicitud.Dias,
+          centrosParaFiltro,
           cuposAceptadosPorSolicitud,
           observacionPorSolicitud);
         foreach (var row in contractuales.Concat(futuros))
@@ -1135,17 +1136,25 @@ namespace CuposCorretajeWeb.Controllers
     /// sólo cuatro campos.
     ///
     /// Ahora es UNA llamada a <c>POST ShiftRequest/MatchesVentana</c>, que
-    /// devuelve los pares de toda la ventana con los campos justos. La
-    /// atribución de cada par a su fila se hace acá, replicando exactamente
-    /// el filtro que antes iba en el body de cada request (ver
-    /// <see cref="ItemPerteneceAFila"/>).
+    /// devuelve los pares de toda la ventana con los campos justos.
+    ///
+    /// Cada par se atribuye a su fila por <c>SolicitudId</c>. Una fila es el
+    /// conjunto de solicitudes de esa combinación a lo largo de los días de la
+    /// ventana — una por fecha — así que su contador es la suma de los matches
+    /// de hoy, más los de mañana, más los de pasado, etc.
+    ///
+    /// Esto reemplaza al criterio anterior, que replicaba el filtro
+    /// <c>(col = :p OR 0 = :p)</c> del backend. Ese patrón, con el parámetro
+    /// llegando como <c>valor ?? 0</c>, apagaba el filtro cuando la fila no
+    /// tenía comprador (o destino), y entonces la fila contaba también los
+    /// matches de solicitudes CON comprador, que pertenecen a otras filas.
     ///
     /// Las reglas de negocio NO se movieron: exclusión de cupos ya aceptados,
     /// filtro por fecha con solicitud, dedup por (cupo, tipo) y override a
     /// Condicional por observación siguen ejecutándose acá, igual que antes.
     /// </summary>
     private static async Task<Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>>
-      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud, Dictionary<long, string> observacionPorSolicitud)
+      EnriquecerResumenesMatchingAsync(WebServiceSILRespository repo, List<SolicitudTurnoGrupoView> rows, DateTime fechaDesde, int cantidadDias, List<string> centros, Dictionary<long, HashSet<long>> cuposAceptadosPorSolicitud, Dictionary<long, string> observacionPorSolicitud)
     {
       var resultado = new Dictionary<SolicitudTurnoGrupoView, CupoCompatibleResumenViewModel>();
 
@@ -1172,7 +1181,8 @@ namespace CuposCorretajeWeb.Controllers
           new MatchesVentanaFilterDto
           {
             FechaDesde = DateTime.SpecifyKind(fechaDesde.Date, DateTimeKind.Unspecified),
-            Dias = cantidadDias
+            Dias = cantidadDias,
+            Centros = centros
           });
 
         items = ventana?.Items ?? new List<MatchVentanaItemDto>();
@@ -1192,18 +1202,16 @@ namespace CuposCorretajeWeb.Controllers
         return resultado;
       }
 
-      // 3) Pre-agrupamos por (grano, vendedor), que son las dos claves de
-      // coincidencia exacta. Evita recorrer la lista completa de items una
-      // vez por fila cuando la ventana trae varios miles de pares.
-      var itemsPorGranoYVendedor = new Dictionary<string, List<MatchVentanaItemDto>>(StringComparer.Ordinal);
+      // 3) Indexamos los items por SolicitudId, que es la relación real entre
+      // un par y la fila que lo tiene que contar.
+      var itemsPorSolicitud = new Dictionary<long, List<MatchVentanaItemDto>>();
       foreach (var it in items)
       {
         if (it == null) continue;
-        var clave = it.CodigoGrano + "|" + it.CuentaVendedor;
-        if (!itemsPorGranoYVendedor.TryGetValue(clave, out var lista))
+        if (!itemsPorSolicitud.TryGetValue(it.SolicitudId, out var lista))
         {
           lista = new List<MatchVentanaItemDto>();
-          itemsPorGranoYVendedor[clave] = lista;
+          itemsPorSolicitud[it.SolicitudId] = lista;
         }
         lista.Add(it);
       }
@@ -1222,12 +1230,22 @@ namespace CuposCorretajeWeb.Controllers
           var resumen = new CupoCompatibleResumenViewModel();
           var cuposContadosPorTipo = new HashSet<string>(StringComparer.Ordinal);
 
-          List<MatchVentanaItemDto> candidatos;
-          if (!itemsPorGranoYVendedor.TryGetValue(row.CodigoGrano + "|" + row.CuentaVendedor, out candidatos))
-            candidatos = new List<MatchVentanaItemDto>();
+          // Los items de la fila son los de SUS solicitudes: una por fecha de
+          // la ventana. SolicitudesPorFecha es el mapa completo del grupo —
+          // dentro de un grupo (mismo grano y vendedor) no puede haber dos
+          // solicitudes en la misma fecha por el único de SOLTURNOS.
+          var candidatos = new List<MatchVentanaItemDto>();
+          if (row.SolicitudesPorFecha != null)
+          {
+            foreach (var solicitudId in row.SolicitudesPorFecha.Values)
+            {
+              List<MatchVentanaItemDto> deLaSolicitud;
+              if (itemsPorSolicitud.TryGetValue(solicitudId, out deLaSolicitud))
+                candidatos.AddRange(deLaSolicitud);
+            }
+          }
 
           int itemsBack = candidatos.Count;
-          int itemsRechazadosPorFila = 0;
           int itemsRechazadosPorAceptado = 0;
           int itemsRechazadosPorFecha = 0;
           int itemsRechazadosPorDedup = 0;
@@ -1236,13 +1254,6 @@ namespace CuposCorretajeWeb.Controllers
 
           foreach (var it in candidatos)
           {
-            // Filtro que antes viajaba en el body del request de esta fila.
-            if (!ItemPerteneceAFila(it, row))
-            {
-              itemsRechazadosPorFila++;
-              continue;
-            }
-
             if (cuposAceptadosPorSolicitud != null
                 && cuposAceptadosPorSolicitud.TryGetValue(it.SolicitudId, out var aceptados)
                 && aceptados != null
@@ -1287,7 +1298,7 @@ namespace CuposCorretajeWeb.Controllers
 
           Trace.TraceInformation(
             $"[Solicitudes] EnriquecerResumenesMatching row id={row.Id} grano={row.CodigoGrano} vendedor={row.CuentaVendedor} " +
-            $"itemsBack={itemsBack} rechazadosFila={itemsRechazadosPorFila} rechazadosAceptado={itemsRechazadosPorAceptado} " +
+            $"itemsBack={itemsBack} rechazadosAceptado={itemsRechazadosPorAceptado} " +
             $"rechazadosFecha={itemsRechazadosPorFecha} rechazadosDedup={itemsRechazadosPorDedup} contados={itemsContados} " +
             $"forzadosObs={itemsForzadosAObservacion} " +
             $"-> directos={resumen.Directos} parciales={resumen.Parciales} observaciones={resumen.Observaciones}");
@@ -1307,35 +1318,6 @@ namespace CuposCorretajeWeb.Controllers
       }
 
       return resultado;
-    }
-
-    /// <summary>
-    /// Replica en memoria el filtro que antes viajaba en el body del
-    /// <c>POST ShiftRequest/Matches</c> de cada fila
-    /// (<c>MatchesFilterDto</c> → <c>GetByMatchesFilterAsync</c>):
-    /// <list type="bullet">
-    ///   <item>Grano y vendedor: coincidencia exacta
-    ///     (<c>s.grano = :grano</c>, <c>s.ctavend = :vendedor</c>).</item>
-    ///   <item>Comprador y destino: sólo filtran cuando la fila los tiene.
-    ///     En el SQL el patrón era <c>(col = :p OR 0 = :p)</c>, y el
-    ///     parámetro llegaba como <c>valor ?? 0</c>: un 0 desactivaba el
-    ///     filtro. Por eso una fila sin comprador (o sin destino) sigue
-    ///     contando los matches de solicitudes con cualquier comprador
-    ///     (o cualquier destino), igual que antes.</item>
-    /// </list>
-    /// </summary>
-    private static bool ItemPerteneceAFila(MatchVentanaItemDto item, SolicitudTurnoGrupoView row)
-    {
-      if (item.CodigoGrano != row.CodigoGrano) return false;
-      if (item.CuentaVendedor != row.CuentaVendedor) return false;
-
-      long compradorFila = row.CuentaComprador ?? 0;
-      if (compradorFila != 0 && (item.CuentaComprador ?? 0) != compradorFila) return false;
-
-      long destinoFila = row.CuentaDestino ?? 0;
-      if (destinoFila != 0 && (item.CuentaDestino ?? 0) != destinoFila) return false;
-
-      return true;
     }
 
     private static string NombreCentro(string codigo)

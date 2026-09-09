@@ -15,6 +15,13 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
   {
     public DateTime FechaDesde { get; set; }
     public int Dias { get; set; }
+
+    /// <summary>
+    /// Centros del operador (claims). El backend aplica la misma regla de
+    /// visibilidad que <c>GetAllPendingShiftRequestAsync</c>, así no evalúa el
+    /// matching de solicitudes que esta pantalla nunca va a mostrar.
+    /// </summary>
+    public List<string> Centros { get; set; }
   }
 
   /// <summary>
@@ -30,9 +37,8 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
   }
 
   /// <summary>
-  /// Par (solicitud, cupo) compatible. Trae sólo lo que la grilla consume,
-  /// más las cuatro claves de la solicitud, que son las que permiten
-  /// atribuir el item a la fila que le corresponde.
+  /// Par (solicitud, cupo) compatible. Trae sólo lo que la grilla consume.
+  /// La fila a la que pertenece sale de <c>SolicitudId</c>.
   /// </summary>
   public class MatchVentanaItemDto
   {
@@ -44,11 +50,6 @@ namespace CuposCorretajeWeb.Models.Solicitudes.Mapping
 
     /// <summary>Fecha del cupo (coincide con la fecha de la solicitud).</summary>
     public DateTime? CupoFecha { get; set; }
-
-    public int CodigoGrano { get; set; }
-    public long CuentaVendedor { get; set; }
-    public long? CuentaComprador { get; set; }
-    public long? CuentaDestino { get; set; }
   }
 
   public class MatchesVentanaResumenDto
