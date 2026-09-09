@@ -33,6 +33,31 @@ namespace CuposCorretajeWeb.Controllers
       return string.IsNullOrEmpty(centro) ? "ROS" : centro;
     }
 
+    /// <summary>
+    /// Centros que el operador puede manipular, desde los claims. Acotan dos
+    /// cosas distintas y las dos hacen falta:
+    /// <list type="bullet">
+    ///   <item>qué solicitudes ve — vía el centro por defecto de la zona
+    ///     geográfica de cada solicitud;</item>
+    ///   <item>qué cupos se le ofrecen como match — vía
+    ///     <c>cuposcorre.Centro</c>, el centro con el que se creó el cupo.</item>
+    /// </list>
+    /// Si el operador no tiene ningún claim "Centro" (caso anómalo, bloqueado
+    /// en el login por <c>DatosUsuario.IsAuthorized</c>) se cae a
+    /// <see cref="CentrosDefault"/> y se deja rastro en el log.
+    /// </summary>
+    private List<string> ResolverCentrosOperador()
+    {
+      IList<string> centrosUsuario = ClaimsUtil.GetListClaims("Centro");
+      if (centrosUsuario.Count > 0)
+        return centrosUsuario.ToList();
+
+      Trace.TraceWarning(
+        "[Solicitudes] El operador no tiene claims 'Centro' configurados. " +
+        "Se utiliza CentrosDefault como fallback.");
+      return CentrosDefault;
+    }
+
     // GET: Solicitudes
     public ActionResult Index()
     {
@@ -52,20 +77,7 @@ namespace CuposCorretajeWeb.Controllers
     {
       try
       {
-        // Tomamos los centros configurados para el operador desde los claims.
-        // Si el operador no tiene ningún "Centro" (caso anómalo bloqueado en el
-        // login por DatosUsuario.IsAuthorized) caemos a CentrosDefault y
-        // dejamos rastro en el log.
-        IList<string> centrosUsuario = ClaimsUtil.GetListClaims("Centro");
-        List<string> centrosParaFiltro = centrosUsuario.Count > 0
-          ? centrosUsuario.ToList()
-          : CentrosDefault;
-        if (centrosParaFiltro == CentrosDefault)
-        {
-          Trace.TraceWarning(
-            "[Solicitudes] El operador no tiene claims 'Centro' configurados. " +
-            "Se utiliza CentrosDefault como fallback.");
-        }
+        List<string> centrosParaFiltro = ResolverCentrosOperador();
 
         SILSolicitudDeTurnosFilterViewModel filterSolicitud = new SILSolicitudDeTurnosFilterViewModel
         {
@@ -321,6 +333,7 @@ namespace CuposCorretajeWeb.Controllers
             CuentaVendedor = solicitud.CuentaVendedor,
             CuentaComprador = solicitud.CuentaComprador,
             ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            Centros = ResolverCentrosOperador(),
             FechaDesde = fechasParsed.First(),
             FechaHasta = fechasParsed.Last(),
             IncluirIncompatibles = false
@@ -337,6 +350,7 @@ namespace CuposCorretajeWeb.Controllers
             CuentaVendedor = solicitud.CuentaVendedor,
             CuentaComprador = solicitud.CuentaComprador,
             ZonaGeograficaId = solicitud.CuentaDestino ?? 0,
+            Centros = ResolverCentrosOperador(),
             IncluirIncompatibles = false
           };
         }
