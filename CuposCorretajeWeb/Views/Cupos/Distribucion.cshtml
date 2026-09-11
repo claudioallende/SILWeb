@@ -606,6 +606,14 @@
   @* ──────────────────────────────────────────────────────────
        Buscar: actualiza primero la tabla y luego consulta matching.
        El flujo es AJAX para evitar la navegación completa del form.
+
+       Gate por cantidad de consignaciones (fix TEST vs PROD):
+       - 0  → no hay nada que buscar; abortar y avisar.
+       - 1  → ModalConsignaciones.seleccionarSiEsUnicaFila() la auto-elige;
+              seguir directo con AJAX + matching.
+       - 2+ → el operador debe elegir; abrir el modal y cortar acá.
+              TablaContratos.js invoca window.ejecutarBusquedaConMatching
+              cuando el usuario confirma, encadenando AJAX + matching.
      ────────────────────────────────────────────────────────── *@
   <script type="text/javascript">
     $(function () {
@@ -616,6 +624,12 @@
       var tablaRequest = null;
       var matchingRequest = null;
       var textoBuscar = $btnTexto.text();
+
+      // Flag compartido con TablaContratos.js: cuando el submit handler
+      // detecta 2+ consignaciones lo setea con el id de la búsqueda en
+      // curso y corta. TablaContratos.js lo lee después de hacer su AJAX
+      // post-aceptación del modal y llama a window.ejecutarBusquedaConMatching.
+      window._silMatchingPendingId = null;
 
       if (!$form.length || !$btn.length || !window.SILMatching ||
           typeof actualizarTablaContratos !== 'function') return;
@@ -635,10 +649,10 @@
         if (window.spinnerBtnBuscar) spinnerBtnBuscar.ocultarSpinner();
       }
 
-      $form.off('submit.silMatching').on('submit.silMatching', function (e) {
-        e.preventDefault();
-
-        var id = ++busquedaActual;
+      // Lógica común: AJAX a GetTablaContratos y luego búsqueda de matching.
+      // Se expone en window para que TablaContratos.js la pueda invocar
+      // después de que el usuario elige una consignación en el modal.
+      window.ejecutarBusquedaConMatching = function (id) {
         if (tablaRequest && tablaRequest.readyState !== 4) tablaRequest.abort();
         if (matchingRequest && matchingRequest.readyState !== 4) matchingRequest.abort();
         if (typeof SILMatching.cerrar === 'function') SILMatching.cerrar();
@@ -728,6 +742,50 @@
           mostrarEstadoTabla('No se pudo actualizar la tabla de distribución.', true);
           restaurarEstadoBuscar(id);
         });
+      };
+
+      // Si el usuario cierra el modal de consignaciones sin aceptar (Esc, X,
+      // etc.), limpiar el pending id y restaurar el botón Buscar.
+      $('#idModalConsignaciones').on('hidden.bs.modal', function () {
+        if (window._silMatchingPendingId !== null) {
+          var pendingId = window._silMatchingPendingId;
+          window._silMatchingPendingId = null;
+          restaurarEstadoBuscar(pendingId);
+        }
+      });
+
+      $form.off('submit.silMatching').on('submit.silMatching', function (e) {
+        e.preventDefault();
+
+        var id = ++busquedaActual;
+
+        // Gate por cantidad de consignaciones (ver comentario del bloque).
+        var cantConsignaciones = (window.modelData && window.modelData.consignaciones)
+          ? window.modelData.consignaciones.length
+          : 0;
+
+        if (cantConsignaciones > 1) {
+          window._silMatchingPendingId = id;
+          // Resetear radios y fila-seleccionada por si quedó algo de una
+          // búsqueda anterior; el modal accept handler setea la selección
+          // nueva recién cuando el usuario confirma.
+          $('input:radio[name="Consignacion"]').prop('checked', false);
+          $('.fila-seleccionada').removeClass('fila-seleccionada');
+          cambiarEstadoBuscar('Seleccione consignación...');
+          $('#idModalConsignaciones').modal('show');
+          return;
+        }
+
+        if (cantConsignaciones === 0) {
+          mostrarEstadoTabla('No hay consignaciones disponibles para este cupo.', true);
+          restaurarEstadoBuscar(id);
+          return;
+        }
+
+        // 1 consignación: ModalConsignaciones.seleccionarSiEsUnicaFila() ya
+        // la auto-seleccionó al cargar la página. Seguir directo.
+        window._silMatchingPendingId = null;
+        window.ejecutarBusquedaConMatching(id);
       });
     });
   </script>

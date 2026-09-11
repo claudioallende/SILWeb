@@ -79,6 +79,13 @@ $("#btnAceptarModalConsignaciones").click(function () {
     datos = construirDatosTablaContratos();
     spinnerBtnAceptarConsignacion.mostrarSpinner();
 
+    // Capturar el id de búsqueda pendiente ANTES del AJAX, porque el modal
+    // puede haberse abierto disparado por el submit handler de Distribucion.cshtml
+    // (gate por 2+ consignaciones) o por el flujo legacy (modal en cada carga).
+    var pendingId = (typeof window._silMatchingPendingId !== 'undefined')
+      ? window._silMatchingPendingId
+      : null;
+
     actualizarTablaContratos()
       .done(function () {
         spinnerBtnAceptarConsignacion.ocultarSpinner();
@@ -86,9 +93,23 @@ $("#btnAceptarModalConsignaciones").click(function () {
         if (cupo.contactocomercial) {
           getContactosComerciales();
         }
+
+        // Si el submit handler de Distribucion.cshtml estaba esperando esta
+        // selección para encadenar la búsqueda de matching, ejecutarla ahora.
+        // (Seteado en Distribucion.cshtml líneas del gate por count > 1.)
+        if (pendingId !== null &&
+            typeof window.ejecutarBusquedaConMatching === 'function') {
+          window._silMatchingPendingId = null;
+          window.ejecutarBusquedaConMatching(pendingId);
+        }
       })
       .fail(function () {
         spinnerBtnAceptarConsignacion.ocultarSpinner();
+        // Si falló el AJAX, también limpiar el pending id para que no quede
+        // un fantasma si el usuario vuelve a apretar Buscar.
+        if (pendingId !== null) {
+          window._silMatchingPendingId = null;
+        }
       });
   }
 });
