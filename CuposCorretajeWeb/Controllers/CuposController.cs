@@ -305,6 +305,20 @@ namespace CuposCorretajeWeb.Controllers
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
           DistribuirCupoViewModel model = await repo.RequestGetAndDeserializeAsync<DistribuirCupoViewModel>("Cupos", string.Format("Distribucion/{0}?centroorigen={1}&centrodistribucion={2}&cyo={3}", id, centroorigen, centrodistribucion, cyo));
+
+          // FIX: SIL API no setea ConsignacionDpo.Id, así que todas las
+          // consignaciones quedan con Guid.Empty. Como la UI usa `find()` por
+          // Id en ModalConsignaciones.js para identificar la fila clickeada,
+          // terminaría devolviendo siempre la primera. Asignamos Ids únicos
+          // acá para que coincidan con lo que ya hace el flujo POST.
+          if (model?.Consignaciones != null && model.Consignaciones.Count > 1)
+          {
+            foreach (var consignacion in model.Consignaciones)
+            {
+              consignacion.Id = Guid.NewGuid();
+            }
+          }
+
           return View(model);
         }
       }
