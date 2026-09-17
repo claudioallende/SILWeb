@@ -220,6 +220,12 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\AccountViewModels.cs" />
+    <Compile Include="Models\Auth\UsuarioLocal.cs" />
+    <Compile Include="Models\Auth\LocalPasswordHasher.cs" />
+    <Compile Include="Models\Auth\UsuariosLocalStore.cs" />
+    <Compile Include="Models\Auth\UsuariosLocalAdmin.cs" />
+    <Compile Include="Models\Auth\SimpleJwtBuilder.cs" />
+    <Compile Include="Models\Auth\LocalTokenIssuer.cs" />
     <Compile Include="Models\Account\DatosUsuario.cs" />
     <Compile Include="Models\Account\LoginViewModel.cs" />
     <Compile Include="Models\Account\SignInManager.cs" />
@@ -544,9 +550,10 @@
     <Content Include="Views\Configuracion\_NuevoPuertoStopPartial.cshtml" />
     <Content Include="Views\Solicitudes\Index.cshtml" />
     <Content Include="Views\Solicitudes\AltaSolicitud.cshtml" />
+    <Content Include="App_Data\usuarios.json" />
+    <Content Include="App_Data\Administrar-UsuarioLocal.ps1" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="App_Data\" />
     <Folder Include="Manuales\" />
     <Folder Include="Models\Claims\" />
     <Folder Include="Models\Cupo\CYO\" />

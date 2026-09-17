@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using CuposCorretajeWeb.Models.Identity;
+using CuposCorretajeWeb.Models.Auth;
 
 namespace CuposCorretajeWeb.Models.Account
 {
@@ -21,24 +22,31 @@ namespace CuposCorretajeWeb.Models.Account
         public SignInManager(UserManager<Usuario, string> userManager, IAuthenticationManager authenticationManager)
             : base(userManager, authenticationManager) { }
 
+        // NOTA (baja del auth server acabase.com.ar): este metodo antes delegaba usuario/password
+        // y permisos a IdentityServer3 (GetIdToken/GetAccessToken/GetDatosUsuario, mas abajo,
+        // ya sin uso). Ahora valida contra App_Data/usuarios.json (ver UsuariosLocalStore) y emite
+        // un JWT propio (SimpleJwtBuilder) que SILResourceServer valida localmente. Se preserva a
+        // proposito el comportamiento actual de no exigir AccesoCuposCorretaje==true en el login
+        // (esa validacion tampoco se hacia antes) y de no setear el claim
+        // AccesoConfiguracionCuposCorretaje (ya no se seteaba antes tampoco).
         public async Task<SignInStatus> PasswordSignInAsync(string UserName, string Password)
         {
-            Task<string> IdTokenAsync = GetIdToken(UserName, Password);
-            TokenResponse token = GetAccessToken(UserName, Password);
-            string IdToken = await IdTokenAsync;
-            if (!string.IsNullOrEmpty(IdToken) && !string.IsNullOrEmpty(token.AccessToken))
+            UsuarioLocal usuario = UsuariosLocalStore.FindByUsername(UserName);
+            if (usuario == null || !LocalPasswordHasher.Verify(Password, usuario.PasswordSalt, usuario.PasswordHash, usuario.PasswordIterations))
             {
-                DatosUsuario datos = await GetDatosUsuario(IdToken);
-                SetTokenInSession(token);
-                SetClaims("Centro", ClaimsUtil.GetListClaims(datos.Claims, "Centro"));
-                SetClaim("CentroPorDefecto", ClaimsUtil.GetClaim(datos.Claims, "CentroPorDefecto"));
-                SetClaim("AccesoAuditoriaCuposCorretaje", ClaimsUtil.GetClaim(datos.Claims, "AccesoAuditoriaCuposCorretaje"));
-                SetClaim("AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje", ClaimsUtil.GetClaim(datos.Claims, "AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje"));
-                Task signin = SignInAsync(new Usuario(UserName, UserName, Password), false, false);
-                await signin;
-                return SignInStatus.Success;
+                return SignInStatus.Failure;
             }
-            return SignInStatus.Failure;
+
+            string jwt = LocalTokenIssuer.IssueAccessToken(usuario);
+
+            SetClaim("access_token", jwt);
+            SetClaims("Centro", usuario.Centros);
+            SetClaim("CentroPorDefecto", usuario.CentroPorDefecto);
+            SetClaim("AccesoAuditoriaCuposCorretaje", usuario.AccesoAuditoria ? "True" : "False");
+            SetClaim("AccesoConfiguracionCYOeEmailDeCuentasCuposCorretaje", usuario.AccesoConfiguracionCYO ? "True" : "False");
+
+            await SignInAsync(new Usuario(UserName, UserName, Password), false, false);
+            return SignInStatus.Success;
         }
 
         public Task<DatosUsuario> GetDatosUsuario(string IdToken)
