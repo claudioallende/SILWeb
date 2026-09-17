@@ -11,6 +11,24 @@ namespace CuposCorretajeWeb.Models.Auth
     public static class LocalPasswordHasher
     {
         public const int HashSizeBytes = 32;
+        public const int SaltSizeBytes = 16;
+        public const int DefaultIterations = 210000;
+
+        public static void Hash(string password, int iterations, out string saltBase64, out string hashBase64)
+        {
+            byte[] salt = new byte[SaltSizeBytes];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+            }
+
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations))
+            {
+                byte[] hash = pbkdf2.GetBytes(HashSizeBytes);
+                saltBase64 = Convert.ToBase64String(salt);
+                hashBase64 = Convert.ToBase64String(hash);
+            }
+        }
 
         public static bool Verify(string password, string saltBase64, string hashBase64, int iterations)
         {
@@ -42,6 +60,16 @@ namespace CuposCorretajeWeb.Models.Auth
                 diff |= a[i] ^ b[i];
             }
             return diff == 0;
+        }
+
+        // Comparacion en tiempo constante para strings (ej. API keys en un header), no solo hashes.
+        public static bool FixedTimeEquals(string a, string b)
+        {
+            if (a == null || b == null)
+            {
+                return false;
+            }
+            return FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(a), System.Text.Encoding.UTF8.GetBytes(b));
         }
     }
 }

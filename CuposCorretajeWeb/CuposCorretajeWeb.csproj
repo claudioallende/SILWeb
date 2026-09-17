@@ -223,6 +223,7 @@
     <Compile Include="Models\Auth\UsuarioLocal.cs" />
     <Compile Include="Models\Auth\LocalPasswordHasher.cs" />
     <Compile Include="Models\Auth\UsuariosLocalStore.cs" />
+    <Compile Include="Models\Auth\UsuariosLocalAdmin.cs" />
     <Compile Include="Models\Auth\SimpleJwtBuilder.cs" />
     <Compile Include="Models\Auth\LocalTokenIssuer.cs" />
     <Compile Include="Models\Account\DatosUsuario.cs" />
