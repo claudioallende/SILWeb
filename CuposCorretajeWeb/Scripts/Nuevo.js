@@ -220,6 +220,15 @@ $(document).ready(function () {
   highlight = new HighLight();
   highlight.onInput = compararCodigosAlfanumericos;
   //highlight.bindEvents();
+
+  //Al cargar la pagina (ej. al editar un cupo que ya viene con alfanumericos),
+  //disparar la validacion inicial para que la alerta de repetidos se pinte
+  //sin necesidad de que el usuario tipee algo en el textarea.
+  $('.codigos-alfanumericos').each(function () {
+    if (this.value && this.value.trim() !== '') {
+      compararCodigosAlfanumericos(this);
+    }
+  });
 })
 
 function borrarNombre(el) {
@@ -263,11 +272,16 @@ function regexCodigosAlfanumericosRepetidos(codigos) {
 }
 
 function mostrarMensajeCodigosRepetidos(textArea) {
-  $(textArea).closest(".form-group").find(".aviso-repetido").css("display", "block");
+  // En Nuevo.cshtml el <span class="aviso-repetido"> vive en el .form-group externo
+  // mientras que el textarea está envuelto en un .form-group anidado. Usar
+  // .closest('.form-group') devolvía el interno (donde el span no existe) y la
+  // alerta nunca se mostraba. .cupo-dia es la clase semántica del contenedor
+  // de un día y contiene al span.
+  $(textArea).closest(".cupo-dia").find(".aviso-repetido").css("display", "block");
 }
 
 function borrarMensajeCodigosRepetidos(textArea) {
-  $(textArea).closest(".form-group").find(".aviso-repetido").css("display", "none");
+  $(textArea).closest(".cupo-dia").find(".aviso-repetido").css("display", "none");
 }
 
 function ajaxNombreYCuenta(nroCuenta, successFunction) {

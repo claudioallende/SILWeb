@@ -319,7 +319,7 @@
     <div class="row justify-content-between flex-row flex-nowrap row-scrollx">
       @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
       {
-        <div class="col-2">
+        <div class="col-2 cupo-dia">
           <div class="form-group">
             <label>@DateTime.Now.AddDays(Dia).ToString("dd/MM")</label>
             @Html.HiddenFor(x => x.CodigosDias[Dia].Dia, new { Value = DateTime.Now.AddDays(Dia).ToString("dd/MM/yy") })
