@@ -1,6 +1,7 @@
 ﻿using CuposCorretajeWeb.Models;
 using CuposCorretajeWeb.Models.Data;
 using CuposCorretajeWeb.Models.Error;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -66,8 +67,6 @@ namespace CuposCorretajeWeb.Controllers
     [HttpPost]
     public async Task<ActionResult> Nuevo(FormCollection collection, NuevoCupoViewModel model, string returnUrl = null)
     {
-      // Re-publicamos el returnUrl para que sobreviva un re-render del form
-      // (cuando ModelState no es válido o la API devuelve ApiException).
       ViewBag.ReturnUrl = EsReturnUrlSeguro(returnUrl) ? returnUrl : null;
 
       if (!ModelState.IsValid)
@@ -85,25 +84,45 @@ namespace CuposCorretajeWeb.Controllers
       }
       catch (ApiException e)
       {
-        model.Error = e.Message;
+        // La API puede serializar el error como {"Message":"..."} o como texto plano.
+        // Intentamos extraer el campo Message para que el alert se vea limpio.
+        model.Error = ExtraerMensajeApi(e.Message)
+                      ?? "Ocurrió un error al guardar el cupo. Verifique los datos e intente nuevamente.";
         model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
         return View(model);
       }
       catch (Exception e)
       {
-        throw e;
+        // Cualquier otra excepción también la mostramos como un error de negocio,
+        // no como pantalla amarilla de stack trace.
+        model.Error = "Ocurrió un error al guardar el cupo: " + e.Message;
+        model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
+        return View(model);
       }
 
-      // El caller pasó returnUrl por query string/hidden → volvemos a esa
-      // pantalla (ej. Solicitudes/Index cuando se creó el cupo desde el
-      // listado de solicitudes). Si no vino (flujo legacy u otro caller),
-      // mantenemos el redirect original a Cupos/Index.
       if (!string.IsNullOrEmpty(ViewBag.ReturnUrl as string))
-      {
         return Redirect(ViewBag.ReturnUrl as string);
-      }
       return RedirectToAction("Index");
     }
+
+    private static string ExtraerMensajeApi(string body)
+    {
+      if (string.IsNullOrWhiteSpace(body)) return null;
+      // Si ya viene como texto plano, lo devolvemos tal cual.
+      if (!body.TrimStart().StartsWith("{")) return body;
+      try
+      {
+        var token = JToken.Parse(body);
+        var msg = token.SelectToken("Message") ?? token.SelectToken("message")
+                    ?? token.SelectToken("ExceptionMessage") ?? token.SelectToken("error_description");
+        return msg?.ToString();
+      }
+      catch
+      {
+        return body; // Si no se puede parsear, mostramos el body crudo.
+      }
+    }
+
 
     /// <summary>
     /// Valida que un <c>returnUrl</c> sea seguro de usar como destino de
