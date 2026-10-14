@@ -118,7 +118,7 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
       Dia20: element.Dia20,
       Cosecha: element.Cosecha,
       Ctadestino: element.Ctadestino,
-      Centro: modelData.centrocontratos,
+      Centro: element.Centro,
       Fechaent: element.Fechaent
     }
     arrayobj.push(obj);
@@ -128,6 +128,14 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
   valido &= validaCuit($('#Cuitcorrcomp').val()) && validaCuit($('#Cuitmat').val()) && validaCuit($('#Cuitcorrvta').val());
   valido &= validaCuit($('#Cuitrteent').val()) && validaCuit($('#Cuitdestinatario').val()) && validaCuit($('#CuitRteComercialProductor').val()) && validaCuit($('#CuitRteComercialVentaPrimaria').val());
   if (valido) {
+    // Si hay asignaciones de matching pendientes, enviar el payload en modo
+    // SolicitudMatch (Modo=2) para que SILApi persista el vínculo solicitud→cupo
+    // en SOLTURNOS_DETALLE. Caso contrario, mantener el modo legacy (1).
+    var asignacionesMatching = (window.SILMatching && typeof window.SILMatching.getAsignacionesSolicitudCupo === 'function')
+      ? window.SILMatching.getAsignacionesSolicitudCupo()
+      : [];
+    var modoDistribucion = asignacionesMatching.length > 0 ? 2 : 1;
+
     $.ajax({
       url: window.modelData.actionActualizarDistribucion,// + "/" + window.modelData.ModelId,
       contentType: 'application/json; charset=utf-8',
@@ -135,6 +143,8 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
       dataType: "json",
       data: JSON.stringify({
         model: {
+          'Modo': modoDistribucion,
+          'AsignacionesSolicitudCupo': asignacionesMatching,
           'cupos': arrayobj,
           anterior: cupo,
           nuevo: {
@@ -163,7 +173,8 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
             Motbaja: textMotivo,
             Observa: document.getElementById("Observaciones").value,
             Caratula: $('#ConsignacionSeleccionada_Caratula').val(),
-            ContactoComercial: contactosComerciales.tokenfield('getTokens').map(function (val) { return val.value }).join(";")
+            ContactoComercial: contactosComerciales.tokenfield('getTokens').map(function (val) { return val.value }).join(";"),
+            CondicionGrano: $('#ConsignacionSeleccionada_CondicionGrano').val()
           },
           puerto: cupo.puerto,
           cosechaDesde: $('#CosechaDesde').val(),
@@ -172,7 +183,7 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
           fecha: $('#EntregaHasta').val(),
           ConsignacionSeleccionada: modalConsignaciones.getConsignacionSeleccionada(),
           tieneVendedor: cupo.vendcta != 0,
-          CentroSeleccionado: modelData.centrocontratos
+          CentroSeleccionado: $('#CentroSeleccionado').val()
           //DistribucionCupos: controlEstados.getObjetoDistribucion()
         },
         Confirmacion: (confimacionDistribucion == null || confimacionDistribucion == undefined ? false : confimacionDistribucion)
@@ -204,15 +215,24 @@ function distribuir(spinner, textMotivo, confimacionDistribucion) {
 function successDistribucion(data, spinner) {
   spinner.ocultarSpinner();
   if (data) {
-    if (data == 1) {
+    // El backend SILApi ahora devuelve ActualizarDistribucionResult con un
+    // campo Codigo (1=OK, 100/200=errores, 300=sin cambios) en lugar de un
+    // int pelado. Antes era data == 1; ahora hay que leer data.Codigo.
+    var codigo = (typeof data === 'number') ? data : data.Codigo;
+    if (codigo == 1) {
+      // Si había asignaciones de matching pendientes, vaciarlas para no
+      // reenviar las mismas asociaciones en un próximo Aceptar.
+      if (window.SILMatching && typeof window.SILMatching.clearAsignaciones === 'function') {
+        window.SILMatching.clearAsignaciones();
+      }
       window.location = window.modelData.actionDetalle + "/" + window.modelData.cuentaComprador + "-" + window.modelData.cuentaPuerto + "-" + window.modelData.codigoProducto + window.modelData.filtro;
-    } else if (data == 100) {
+    } else if (codigo == 100) {
       addAlert('Cantidad de cupos excedidos', "alert-danger");
       onAlert();
-    } else if (data == 200) {
+    } else if (codigo == 200) {
       addAlert('Cantidad de cupos excedidos para la consignación seleccionada', "alert-danger");
       onAlert();
-    } else if (data == 300) {
+    } else if (codigo == 300) {
       addAlert('No hubo cambios', "alert-info");
       onAlert();
     } else if (data.Status == 'Error') {

@@ -87,6 +87,11 @@
         window.modelData = {
             actionGetMotivo: "@Url.Action("GetMotivo")",
             actionAnular: "@Url.Action("Anular")",
+            // Endpoint complementario al Anular legacy: revierte la asociación
+            // cupo ↔ solicitud en SOLTURNOS/SOLTURNOS_DETALLE para que la
+            // solicitud vuelva a figurar como Pendiente en Pantalla 1. Se
+            // invoca 1 vez por cada cupo anulado bajo tipo=Distribucion.
+            actionAnularDistribucion: "@Url.Action("AnularDistribucion")",
             centro: "@Request.Params["centro"]",
             centrodistribucion: "@Request.Params["centrodistribucion"]",
             estadoBtnCancelar: false,

@@ -61,6 +61,7 @@ namespace CuposCorretajeWeb
                 "~/Scripts/ControlMaximosDistribucion.js",
                 "~/Scripts/AjaxDistribucion.js",
                 "~/Scripts/TablaContratos.js",
+                "~/Scripts/MatchingDistribucion.js",
                 "~/Scripts/datatables.tabulacion-input.js"));
 
       bundles.Add(new ScriptBundle("~/bundles/ControlaInputs").Include(
@@ -74,8 +75,14 @@ namespace CuposCorretajeWeb
       bundles.Add(new StyleBundle("~/Content/datatables").Include(
                 "~/Content/datatables.min.css"));
 
+      bundles.Add(new StyleBundle("~/Content/datatablesv2").Include(
+                "~/Content/datatables-v2_0_2.min.css"));
+
       bundles.Add(new ScriptBundle("~/bundles/datatables").Include(
                 "~/Scripts/datatables.min.js"));
+
+      bundles.Add(new ScriptBundle("~/bundles/datatablesv2").Include(
+                "~/Scripts/datatables-v2_0_2.min.js"));
 
       bundles.Add(new ScriptBundle("~/bundles/Detalle").Include(
                 "~/Scripts/Observable.js",
@@ -94,6 +101,9 @@ namespace CuposCorretajeWeb
       bundles.Add(new StyleBundle("~/Content/WordTag").Include(
                 "~/Content/tokenfield-typeahead.min.css",
                 "~/Content/bootstrap-tokenfield.min.css"));
+
+      bundles.Add(new StyleBundle("~/Content/solicitudes-matching").Include(
+                "~/Content/solicitudes-matching-distribucion.css"));
 
       bundles.Add(new ScriptBundle("~/bundles/skeleton").Include(
                 "~/Scripts/skeleton.js"));

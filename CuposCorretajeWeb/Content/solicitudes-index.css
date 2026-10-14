@@ -1,0 +1,534 @@
+/* =========================================================
+   SIL — Solicitudes de Turno (Pantalla 1)
+   Hoja de estilos específica para Index.cshtml
+   Paleta tomada del mockup de Matching de Solicitudes v1.0
+   ========================================================= */
+
+:root {
+    --sil-navy: #1a3a6b;
+    --sil-navy-dark: #122952;
+    --sil-navy-light: #2c4a8a;
+    --sil-teal: #0e7c60;
+    --sil-teal-light: #d4f0e8;
+    --sil-amber: #b37400;
+    --sil-amber-light: #fff3cd;
+    --sil-amber-border: #f0c040;
+    --sil-red: #a93226;
+    --sil-red-light: #fdf0f0;
+    --sil-red-border: #f1a0a6;
+    --sil-green: #155724;
+    --sil-green-light: #d4edda;
+    --sil-green-border: #82c896;
+    --sil-purple: #5c3d8f;
+    --sil-purple-light: #f5f0fb;
+
+    --sil-bg: #f4f6f9;
+    --sil-surface: #ffffff;
+    --sil-border: #dde3ec;
+    --sil-border-light: #edf0f5;
+    --sil-text-primary: #1a2340;
+    --sil-text-secondary: #5a6680;
+    --sil-text-tertiary: #9aa3b5;
+}
+
+/* ---- page header ---- */
+.sil-page-hd {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin: 14px 0 12px;
+}
+
+.sil-page-hd h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--sil-text-primary);
+    margin: 0;
+}
+
+.sil-page-hd p {
+    font-size: 12px;
+    color: var(--sil-text-secondary);
+    margin: 2px 0 0 0;
+}
+
+/* ---- toolbar ---- */
+.sil-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.sil-toolbar .sil-spacer { flex: 1; }
+
+.sil-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sil-border);
+    background: var(--sil-surface);
+    color: var(--sil-text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.sil-btn:hover {
+    border-color: var(--sil-navy-light);
+    color: var(--sil-navy);
+}
+
+.sil-btn-navy {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+.sil-btn-navy:hover {
+    background: var(--sil-navy-dark);
+    color: #fff;
+    border-color: var(--sil-navy-dark);
+}
+
+.sil-btn-teal {
+    background: var(--sil-teal);
+    color: #fff;
+    border-color: var(--sil-teal);
+}
+
+.sil-btn-danger {
+    background: var(--sil-red);
+    color: #fff;
+    border-color: var(--sil-red);
+}
+
+/* ---- legend ---- */
+.sil-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+/* ---- badges ---- */
+.sil-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    border-radius: 20px;
+    padding: 2px 9px;
+    border: 1px solid;
+    font-weight: 500;
+    white-space: nowrap;
+    margin: 0 2px;
+}
+
+.sil-badge-pending {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-asig {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-rech {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+
+.sil-badge-dir {
+    background: var(--sil-green-light);
+    color: var(--sil-green);
+    border-color: var(--sil-green-border);
+}
+
+.sil-badge-par {
+    background: var(--sil-amber-light);
+    color: var(--sil-amber);
+    border-color: var(--sil-amber-border);
+}
+
+.sil-badge-obs {
+    background: var(--sil-red-light);
+    color: var(--sil-red);
+    border-color: var(--sil-red-border);
+}
+
+/* ---- table wrap ---- */
+.sil-tbl-wrap {
+    border: 1px solid var(--sil-border);
+    border-radius: 8px;
+    overflow-x: auto;
+    background: var(--sil-surface);
+}
+
+.sil-tbl-scroller {
+    /* Contenedor con scroll vertical acotado; el scroll horizontal
+       queda en .sil-tbl-wrap (más natural con sticky en thead). */
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: visible;
+}
+
+.sil-tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    min-width: 1400px;
+}
+
+.sil-tbl thead tr.sil-tr-hdr th {
+    background: var(--sil-navy);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.sil-tbl thead tr.sil-tr-filter th {
+    background: #f0f4fa;
+    position: sticky;
+    top: 32px; /* alto aprox. de la fila 1 (label de columna) */
+    z-index: 2;
+    padding: 4px 5px;
+    border-bottom: 1px solid var(--sil-border);
+}
+
+/* Celdas con input de filtro: padding normal, sin fondo especial. */
+.sil-tbl thead tr.sil-tr-filter th.sil-th-filter-cell {
+    background: #fff;
+    padding: 4px 5px;
+    vertical-align: middle;
+}
+
+/* Celdas con sub-header TR/TO: fondo navy-light, fuente chica. */
+.sil-tbl thead tr.sil-tr-filter th.sil-th-trto {
+    background: var(--sil-navy-light);
+    color: rgba(255,255,255,.92);
+    font-size: 11px;
+    padding: 5px 4px;
+    font-weight: 500;
+}
+
+/* Header de fecha (colspan=2) en la fila 1: negrita apenas mayor. */
+.sil-tbl thead tr.sil-tr-hdr th.sil-th-date {
+    font-weight: 500;
+    letter-spacing: .2px;
+}
+
+/* ---- Divisores verticales entre columnas del bloque de fechas ----
+   Estructura de la fila de fechas (body y thead fila 2):
+     [TR_fecha1] [TO_fecha1] [TR_fecha2] [TO_fecha2] ... [TR_fechaN] [TO_fechaN] [acción]
+   Posiciones en la fila: 7, 8, 9, 10, ..., 6+2N, 7+2N (acción).
+   Sólo queremos línea vertical ENTRE fechas, NO entre el TR y el TO de
+   la misma fecha. Para eso ponemos border-left únicamente en las
+   columnas TR (las posiciones pares a partir de la 8: 8, 10, 12, ...),
+   que son las que separan el TO de la fecha anterior del TR de la nueva.
+   En la fila 1 del thead las fechas son colspan=2; los bordes entre
+   fechas se manejan con la clase sil-th-date-first (no en la primera).
+
+   Antes el border era gris claro (1px / var(--sil-border)); el operador
+   lo perdía de vista cuando la grilla tenía muchas columnas. Pasamos a
+   negro semitransparente y 2px para remarcar la separación entre fechas
+   sin oscurecer demasiado el contenido. */
+.sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):nth-child(even):not(:last-child),
+.sil-tbl tbody td:nth-child(n+8):nth-child(even):not(:last-child) {
+    border-left: 2px solid rgba(0, 0, 0, 0.55);
+}
+
+/* En el thead el fondo es navy/gris-claro, así que el borde necesita un
+   color claro para que se vea. Sobreescribimos sólo para esas celdas. */
+.sil-tbl thead tr.sil-tr-hdr th.sil-th-date:not(.sil-th-date-first),
+.sil-tbl thead tr.sil-tr-filter th:nth-child(n+8):nth-child(even):not(:last-child) {
+    border-left-color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---- Filtro tipeable ---- */
+.sil-th-filter {
+    display: block;
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--sil-text-primary);
+    background: #fff;
+    border: 1px solid var(--sil-border);
+    border-radius: 3px;
+    box-sizing: border-box;
+    font-family: inherit;
+    line-height: 1.2;
+    min-width: 90px;
+}
+
+.sil-th-filter:focus {
+    outline: none;
+    border-color: var(--sil-navy-light);
+    box-shadow: 0 0 0 2px rgba(26, 58, 107, 0.15);
+}
+
+.sil-th-filter::placeholder {
+    color: var(--sil-text-tertiary);
+    font-style: italic;
+    font-size: 10.5px;
+}
+
+/* Indicador de filtro activo en el contador de la tabla */
+.sil-filter-active-indicator {
+    color: var(--sil-navy);
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.sil-tbl th {
+    padding: 7px 9px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sil-tbl th.tl { text-align: left; }
+
+.sil-tbl td {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--sil-border-light);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--sil-text-primary);
+    font-size: 12px;
+    background: var(--sil-surface);
+}
+
+.sil-tbl td.tl { text-align: left; }
+
+.sil-tbl tbody tr:last-child td { border-bottom: none; }
+
+.sil-tbl tbody tr:hover td { background: #f0f4fa; }
+
+/* Zebra striping: pintamos las filas de datos IMPARES (1, 3, 5...) en
+   gris claro para mejorar la lectura. La clase sil-row-even la pone el
+   JS sólo sobre filas de datos (NO sobre los separadores sil-row-grupo),
+   así el contador no se desfasa cuando hay separadores visibles. El
+   hover (#f0f4fa) sigue funcionando porque va después en la cascada. */
+.sil-tbl tbody tr.sil-row-data.sil-row-even td {
+    background: #e2e8f0;
+}
+
+/* Subtotal por grano. Fila destacada con el mismo gris del tfoot
+   ("Total Diario") para que el operador la reconozca de un vistazo como
+   una fila de totales. Los números van en negrita para reforzar que
+   son cifras agregadas, no datos de una solicitud puntual.
+
+   El border-top queda como el resto de los separadores internos (1px
+   gris claro) para no gritar arriba del subtotal; el border-bottom sí
+   se engrosa a 2px negro porque es la línea que separa el cierre de
+   grano del siguiente bloque. */
+.sil-tbl tbody tr.sil-row-grupo td {
+    background: var(--sil-bg);
+    color: var(--sil-text-primary);
+    font-weight: 700;
+    padding: 7px 9px;
+    border-top: 1px solid var(--sil-border);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.65);
+    text-align: center; /* numéricos centrados por defecto */
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+/* En la fila "Total por grano" no queremos los divisores verticales
+   entre las fechas (el operador no las necesita para sumar). Sólo
+   dejamos el separador genérico 1px gris del tbody. */
+.sil-tbl tbody tr.sil-row-grupo td:nth-child(n+8):not(:last-child) {
+    border-left: none;
+}
+
+.sil-tbl tbody tr.sil-row-grupo td.tl {
+    text-align: left; /* etiqueta del grupo queda a la izquierda */
+}
+
+.sil-grupo-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .3px;
+    color: var(--sil-text-primary);
+}
+
+.sil-tbl tfoot tr.sil-tr-total td {
+    background: var(--sil-bg);
+    font-weight: 600;
+    border-top: 1px solid var(--sil-border);
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
+.sil-zero { color: var(--sil-text-tertiary); }
+
+.sil-cell-red {
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 22px;
+}
+
+.sil-row-highlight td { background: #f5f9ff; }
+.sil-row-hl td { background: #f0f7f4; }
+
+.sil-icon-btn {
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--sil-text-secondary);
+    font-family: inherit;
+    transition: all .12s;
+}
+
+.sil-icon-btn:hover {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+/* ---- pager ---- */
+.sil-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 8px 10px;
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+}
+
+.sil-pager .sil-pager-info { margin-right: auto; }
+
+.sil-pager button {
+    background: var(--sil-surface);
+    border: 1px solid var(--sil-border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    min-width: 26px;
+    transition: all .12s;
+}
+
+.sil-pager button:hover:not(:disabled) {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+}
+
+.sil-pager button:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+.sil-pager button.sil-pager-active {
+    background: var(--sil-navy);
+    color: #fff;
+    border-color: var(--sil-navy);
+    font-weight: 600;
+}
+
+/* ---- annotation / help box ---- */
+.sil-annotation {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    background: #eef2fa;
+    border-left: 3px solid var(--sil-navy-light);
+    border-radius: 0 6px 6px 0;
+    padding: 9px 13px;
+    line-height: 1.55;
+}
+
+.sil-annotation strong { font-weight: 600; color: var(--sil-navy); }
+
+/* ---- section title for each table ---- */
+.sil-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sil-text-primary);
+    margin: 18px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sil-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--sil-border);
+}
+
+.sil-section-subtitle {
+    font-size: 11.5px;
+    color: var(--sil-text-secondary);
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+/* ---- empty state ---- */
+.sil-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--sil-text-tertiary);
+    font-size: 12px;
+}
+
+.sil-empty .sil-empty-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+/* ---- DataTables overrides (suavizar estilo Bootstrap vs mockup) ---- */
+table.dataTable.sil-tbl thead .sorting,
+table.dataTable.sil-tbl thead .sorting_asc,
+table.dataTable.sil-tbl thead .sorting_desc {
+    background-image: none;
+}
+
+table.dataTable.sil-tbl tbody tr.group-header td {
+    background-color: #cce5ff !important;
+    color: #000;
+    font-weight: bold;
+}
+
+table.dataTable.sil-tbl tbody tr.group-row td {
+    background-color: #e6f1ff !important;
+    color: #000;
+    font-weight: bold;
+}

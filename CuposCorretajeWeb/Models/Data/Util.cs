@@ -17,11 +17,23 @@ namespace CuposCorretajeWeb.Models.Data
 {
   public abstract class Util : IDisposable
   {
+    static Util()
+    {
+      ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+    }
+
     public abstract string GetWebSerive { get; internal set; }
+    public abstract string GetWebServiceSILData { get; internal set; }
 
     public string GetPath(string Controller)
     {
       return GetWebSerive + Controller + "/";
+    }
+
+    //Obtengo la url para para conexion api SilData
+    public string GetPathApiSilData(string Controller)
+    {
+      return GetWebServiceSILData + Controller + "/";
     }
 
     public async Task<string> RequestAsync(string Controller, string Action)
@@ -71,6 +83,79 @@ namespace CuposCorretajeWeb.Models.Data
       return await DeserializeAsync<T>(await json.Content.ReadAsStringAsync());
     }
 
+    public async Task<T> RequestApiPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
+    {
+      var token = GetTokenAsync();
+      var client = new HttpClient();
+      client.SetBearerToken(token);
+      var jsonString = JsonConvert.SerializeObject(Data);
+      HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+      var response = await client.PostAsync(GetPath(Controller) + Action, content);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// Wrapper POST contra SILData (sin bearer). El contrato con el backend es
+    /// PascalCase en el body; el binding default de ASP.NET Core es case-sensitive
+    /// en deserialización, por lo que los payloads deben construirse con nombres
+    /// de propiedad PascalCase (ej. SolicitudIds, no solicitudIds).
+    /// </summary>
+    public async Task<T> RequestSILDataPostAndDeserializeAsync<T>(string Controller, string Action, object Data)
+    {
+      //var token = GetTokenAsync();
+      var client = new HttpClient();
+      //client.SetBearerToken(token);
+      var jsonString = JsonConvert.SerializeObject(Data);
+      HttpContent content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+      var response = await client.PostAsync(GetPathApiSilData(Controller) + Action, content);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// Wrapper GET contra SILData (sin body). Los endpoints públicos de SILData
+    /// están sin [Authorize], así que no se manda bearer.
+    ///
+    /// Hoy no existe un wrapper GET→SILData: <see cref="RequestGetAndDeserializeAsync{T}"/>
+    /// apunta al otro base URL (WebServiceCuposCorretaje legacy, con bearer).
+    /// Este wrapper sirve para los endpoints GET de SILData que ya tenemos
+    /// publicados (ej. <c>GET /api/ShiftRequest/GetByVendedorAsync/{cuenta}</c>).
+    /// </summary>
+    public async Task<T> RequestSILDataGetAndDeserializeAsync<T>(string Controller, string Action)
+    {
+      var client = new HttpClient();
+      var response = await client.GetAsync(GetPathApiSilData(Controller) + Action);
+
+      // 204 NoContent: mismo tratamiento que el wrapper POST.
+      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        return default(T);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new Exception("No se encontro el action en el resource server.");
+      // Mismo tratamiento que el wrapper POST: capturar 400/422/409/500 para
+      // que el detalle del ProblemDetails llegue al operador en vez de tirar 500.
+      if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+          response.StatusCode == System.Net.HttpStatusCode.InternalServerError ||
+          response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        throw new ApiException(await response.Content.ReadAsStringAsync());
+      return await DeserializeAsync<T>(await response.Content.ReadAsStringAsync());
+    }
     public async Task<T> DeserializeAsync<T>(string JsonResponse)
     {
       return await Task.FromResult(JsonConvert.DeserializeObject<T>(JsonResponse));

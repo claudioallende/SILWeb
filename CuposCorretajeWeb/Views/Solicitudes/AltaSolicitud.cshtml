@@ -1,0 +1,1488 @@
+@using CuposCorretajeWeb.Models.Solicitudes
+@using Newtonsoft.Json;
+@model SolicitudViewModel
+@{
+  ViewBag.Title = "Detalle de Solicitud";
+
+  // Em-dash usado para indicar valor vacío. Lo centralizamos en una variable
+  // para que el carácter se mantenga consistente (y para que el `Html.Raw` no
+  // sea necesario en cada celda). Usamos la entidad HTML para que no dependa
+  // del encoding del .cshtml.
+  const string GUION = "-";
+
+  // SafeStr como Func (no local function) para que compile en el Razor
+  // clásico de .NET Framework 4.6.1. Se usa en la cabecera resumen.
+  Func<string, string> SafeStr = s => string.IsNullOrWhiteSpace(s) ? GUION : s;
+
+  var esEditable = Model != null && Model.EsEditable;
+  var readClass = esEditable ? "" : "sil-readonly";
+  var estadoBadge = (ViewBag.EstadoBadge as string) ?? "pending";
+  var estadoLabel = (ViewBag.EstadoLabel as string) ?? "Pendiente";
+  var modoTexto = esEditable ? "Modo edici&oacute;n" : "Modo s&oacute;lo lectura";
+  var errorMessage = ViewBag.ErrorMessage as string;
+  var observacion = Model.Observacion;
+
+  // Para los 7 d&iacute;as hardcodeados, los valores TR/TO no vienen en el VM legacy
+  // (s&oacute;lo viene `Fechas` con TR). TO no se persiste en el VM por ahora, queda en 0.
+  // Cuando se enchufe el motor de matching, se reemplaza por un listado real.
+}
+
+@section Styles {
+  <link rel="stylesheet" href="~/Content/solicitudes-alta.css?v=2" />
+}
+
+<div class="container-fluid">
+  <div class="sil-page-hd">
+    <div>
+      <h1>Detalle de Solicitud</h1>
+      <p class="text-muted">Selecci&oacute;n de d&iacute;as y cupos compatibles</p>
+    </div>
+  </div>
+
+  <div class="@readClass">
+    <!-- Banner de modo + estado + (opcional) error -->
+    <div class="sil-mode-banner @(string.IsNullOrEmpty(errorMessage) ? "" : "sil-mode-banner-error")">
+      <span class="sil-badge sil-badge-@estadoBadge">@estadoLabel</span>
+      <span class="sil-mode-banner-text">@Html.Raw(modoTexto)</span>
+      @if (!string.IsNullOrEmpty(errorMessage))
+      {
+        <span class="sil-mode-banner-text">@GUION @errorMessage</span>
+      }
+    </div>
+
+    <a href="@Url.Action("Index", "Solicitudes")" class="sil-btn sil-btn-keep">&larr; Volver a grilla</a>
+
+    <!-- Cabecera resumen -->
+    <div class="sil-summary">
+      <div class="sil-summary-cell">
+        <small>Solicitante</small>
+        <div>@SafeStr(Model.Solicitante)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Grano</small>
+        <div>@SafeStr(Model.NombreGrano)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Comprador</small>
+        <div>@SafeStr(Model.Comprador)</div>
+      </div>
+      <div class="sil-summary-cell">
+        <small>Zona</small>
+        <div>@SafeStr(Model.NombreDestino)</div>
+      </div>
+      @*<div class="sil-summary-cell">
+        <small>Centro</small>
+        <div>@SafeStr(Model.CodigoCentro)</div>
+      </div>*@
+    </div>
+
+    <!-- Banner de Observaciones (&aacute;mbar, s&oacute;lo si hay contenido) -->
+    @if (!string.IsNullOrWhiteSpace(observacion))
+    {
+      <div class="sil-annotation" style="border-left-color: var(--sil-amber-border); background: var(--sil-amber-light); color: var(--sil-amber);">
+        <strong>Observaciones del solicitante</strong>
+        <div>@observacion</div>
+      </div>
+    }
+
+    <!-- Banner de Aceptados Previos (verde, s&oacute;lo si CantidadAceptada > 0).
+         Informa al operador cu&aacute;ntos cupos de la solicitud ya fueron
+         aceptados en corridas anteriores. El backend expone
+         CANTIDAD_ACEPTADA y CANTIDAD_FUTURO_ACEPTADA desde SOLTURNOS;
+         los copiamos al VM en el payload que arma Index al hacer "ver".
+         Por ahora no hay desglose por fecha (limita el endpoint del
+         backend); si en una iteraci&oacute;n posterior se quiere
+         desglose, hay que joinear SOLTURNOS_DETALLE con CUPOSCORRE.fecha. -->
+    @if (Model != null && Model.CantidadAceptada > 0)
+    {
+      <div class="sil-annotation" style="border-left-color: var(--sil-green-border); background: var(--sil-green-light); color: var(--sil-green);">
+        <strong>Cupos ya aceptados</strong>
+        <div>
+          Esta solicitud tiene <strong>@Model.CantidadAceptada</strong> de
+          @(Model.CantidadOriginal > 0 ? Model.CantidadOriginal.ToString() : "&mdash;")
+          cupos aceptados en corridas anteriores.
+          @if (Model.CantidadFuturoAceptada > 0)
+          {
+            <span>(@(Model.CantidadFuturoAceptada) futuros.)</span>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Layout 2 paneles (50/50 seg&uacute;n mockup) -->
+    <div class="sil-split">
+      <!-- ===== PANEL IZQUIERDO — D&Iacute;AS ===== -->
+      <div class="sil-panel">
+        <div class="sil-panel-hd ph-navy">
+          <span>Solicitudes por d&iacute;a &mdash; 7 d&iacute;as</span>
+          <span class="sil-panel-hd-sub">Seleccion&aacute; los d&iacute;as sobre los que quer&eacute;s operar</span>
+        </div>
+        <div class="sil-panel-body">
+
+          <!-- instrucci&oacute;n -->
+          <div class="sil-instruction-box">
+            <span class="sil-instruction-icon">i</span>
+            Hac&eacute; clic en una fila para seleccionar o deseleccionar el d&iacute;a. El panel derecho actualiza los cupos compatibles.
+          </div>
+
+          <!-- tabla de d&iacute;as -->
+          <div class="sil-tbl-card">
+            <table class="sil-day-tbl" id="tablaDias">
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th style="text-align:left; padding-left:10px;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Fecha del turno solicitado.">Fecha</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TS &mdash; Turnos solicitados para esta fecha.">Sol. TS</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TO &mdash; Turnos otorgados (asignados a un cupo) en esta fecha.">Sol. TO</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="TP &mdash; Turnos pendientes de asignar. Es lo que queda por aceptar/rechazar (TS - TO).">Sol. TP</th>
+                  <th style="text-align:center;"
+                      data-toggle="tooltip" data-placement="top"
+                      title="Estado de la fila: Seleccionado, Pendiente o Sin solicitudes.">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (int dia = 0; dia < 7; dia++)
+                {
+                  var fecha = DateTime.Now.AddDays(dia).Date;
+                  var fechaKey = fecha.ToString("yyyy-MM-dd");
+                  var fechaDisplay = fecha.ToString("dd/MM");
+                  var diaSemana = fecha.ToString("ddd");
+                  var dict = (Model != null) ? Model.Fechas : null;
+                  var tr = (dict != null && dict.ContainsKey(fechaKey)) ? dict[fechaKey] : 0;
+                  // TO = cupos ya ACEPTADOS para esta fecha (≤ TR). Lo
+                  // trae el VM desde Pantalla 1 (FechasAceptadas, populated
+                  // por GroupBySolicitud del controller a partir de
+                  // CantidadAceptada per-fecha). Si la fecha no est&aacute; en
+                  // el dict (caso legacy sin el campo), queda en 0.
+                  var dictTO = (Model != null) ? Model.FechasAceptadas : null;
+                  var toFuturas = (dictTO != null && dictTO.ContainsKey(fechaKey)) ? dictTO[fechaKey] : 0;
+                  // TP = pendientes = TR - TO (clamped a 0 para que la UI
+                  // nunca muestre negativos cuando hay back legacy).
+                  var tp = tr > toFuturas ? tr - toFuturas : 0;
+                  var sinSolicitudes = (tr == 0 && toFuturas == 0);
+                  <tr data-fecha="@fechaKey" class="sil-day-row@(sinSolicitudes ? " sil-day-row-disabled" : "")">
+                    <td>
+                      @if (!sinSolicitudes)
+                      {
+                        <input type="checkbox" class="sil-day-chk chkDia" @(esEditable ? "" : "disabled=\"disabled\"") />
+                      }
+                    </td>
+                    <td class="sil-day-fecha">
+                      <strong>@fechaDisplay</strong>
+                      <span class="sil-day-diasem">@diaSemana</span>
+                    </td>
+                    <td style="text-align:center;">@tr</td>
+                    <td style="text-align:center;">@toFuturas</td>
+                    <td style="text-align:center;">@tp</td>
+                    <td style="text-align:center;">
+                      <span class="sil-badge-dia @(sinSolicitudes ? "sil-badge-dia-none" : "sil-badge-dia-pend")" data-estado="@(sinSolicitudes ? "vacio" : "pendiente")">
+                        @(sinSolicitudes ? "Sin solicitudes" : "Pendiente")
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- resumen selecci&oacute;n -->
+          <div class="sil-resumen-box" id="diasResumen">
+            Ning&uacute;n d&iacute;a seleccionado. Seleccion&aacute; uno o m&aacute;s d&iacute;as para ver los cupos compatibles.
+          </div>
+
+          <!-- acciones globales -->
+          <div class="sil-actions-block">
+            <div class="sil-action-label">Acciones sobre la solicitud</div>
+            <button type="button" class="sil-btn sil-btn-danger sil-btn-block" id="btnRechazarCompleta" @(esEditable ? "" : "disabled=\"disabled\"")>
+              Rechazar solicitud
+            </button>
+            <!-- "+ Crear nuevo cupo" se movió a Pantalla 1 (Solicitudes/Index)
+                 para que la creación de cupos viva al nivel del listado de
+                 solicitudes, no atado a una solicitud puntual. -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PANEL DERECHO — CUPOS ===== -->
+      <div class="sil-panel">
+        <div class="sil-panel-hd ph-teal" id="cuposPanelHd">
+          Cupos compatibles &mdash; seleccion&aacute; d&iacute;as para ver
+        </div>
+        <div class="sil-panel-body">
+          <!-- Estado vacío: sin d&iacute;as seleccionados -->
+          <div class="sil-cupos-empty" id="cuposEmpty">
+            <div class="sil-cupos-empty-icon">&#128197;</div>
+            <div class="sil-cupos-empty-text">
+              Seleccion&aacute; uno o m&aacute;s d&iacute;as en el panel izquierdo para visualizar los cupos compatibles para esas fechas.
+            </div>
+          </div>
+
+          <!-- Listado de cupos: se llena por JS cuando hay d&iacute;as seleccionados -->
+          <div class="sil-cupos-listado" id="cuposListado" style="display:none;">
+            <!-- generado din&aacute;micamente -->
+          </div>
+
+          <!-- Sin resultados: hay d&iacute;as seleccionados pero ning&uacute;n cupo -->
+          <div class="sil-cupos-no-results" id="cuposNoResults" style="display:none;">
+            <div class="sil-cupos-empty-icon">&#128269;</div>
+            <div class="sil-cupos-empty-text">
+              No se encontraron cupos compatibles para los d&iacute;as seleccionados.
+            </div>
+          </div>
+
+          <!-- Acciones: s&oacute;lo se muestran cuando hay cupos para asignar -->
+          <div class="sil-cupos-actions" id="cuposActions" style="display:none;">
+            <button type="button" class="sil-btn" id="btnCancelarCupo">Cancelar</button>
+            <button type="button" class="sil-btn sil-btn-teal" id="btnConfirmarAsignacion" disabled="@(!esEditable ? true : false)">
+              Confirmar asignaci&oacute;n seleccionada
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script type="text/javascript">
+        $(function () {
+            var esEditable = @((esEditable ? "true" : "false"));
+            var idSolicitud = @(Model != null ? Model.IdSolicitud : 0);
+
+            // Mapa fecha → solicitudId. Lo serializamos desde el VM para que
+            // Pantalla 2 pueda pedir matches de la solicitud ESPECÍFICA del
+            // día tildado (no sólo la del primer item del grupo, que es lo
+            // que va en idSolicitud arriba). Viene de SolicitudesController.
+            // GroupBySolicitud → SolicitudTurnoGrupoView.SolicitudesPorFecha.
+            var solicitudPorFecha = @Html.Raw(JsonConvert.SerializeObject(
+                Model != null && Model.SolicitudesPorFecha != null
+                    ? Model.SolicitudesPorFecha
+                    : new Dictionary<string, long>()
+            ));
+
+            // Strings del servidor que el modal DLG 2 necesita mostrar dentro de
+            // un Swal.fire({ html: ... }). Los serializamos con
+            // JsonConvert.SerializeObject (Newtonsoft, ya disponible vía
+            // @using Newtonsoft.Json) para que queden listos como literales
+            // JS (manejo correcto de comillas, acentos y caracteres de
+            // control). Ver también escHtml() abajo.
+            var solicitudObservacion = @Html.Raw(JsonConvert.SerializeObject(observacion ?? ""));
+
+            // Derivados de la observación de la solicitud activa. Se usan en
+            // matchCardHtml y pintarMatches para forzar el tratamiento
+            // "MATCH CON OBSERVACION" (rojo + texto) sobre TODOS los cards
+            // cuando la solicitud tiene una observación textual cargada,
+            // sin importar el MatchType del backend. Si está vacía, el
+            // comportamiento es el clásico: cada card respeta el tipo que
+            // devolvió el motor de matching (Directo / Parcial / Condicional).
+            var parentObservacion = (solicitudObservacion || '').toString().trim();
+            var hasParentObs = parentObservacion.length > 0;
+            var solicitanteNombre    = @Html.Raw(JsonConvert.SerializeObject(Model != null ? (Model.Solicitante ?? "") : ""));
+            // Cantidad PEDIDA ORIGINALMENTE (suma de TR en el mapa Fechas).
+            // Se usa para validar que el operador no asigne más de lo que pidió
+            // cuando usa el input de cantidad por cupo.
+            var solicitudCantidadOriginal = @(Model != null && Model.Fechas != null ? Model.Fechas.Values.Sum() : 0);
+
+            // Cache de matches devueltos por el backend, INDEXADO por
+            // solicitudId. Estructura: { [solicitudId]: MatchItemDto[] }.
+            // Antes era un array global, pero ahora Pantalla 2 puede trabajar
+            // con varias solicitudes (una por fecha tildada), así que cada
+            // solicitud tiene su propio cache. Se carga UNA vez por
+            // solicitudId al entrar a Pantalla 2 (o cuando se tilda un día
+            // cuya solicitud a&uacute;n no fue consultada).
+            var matchesPorSolicitud = {};
+
+            // Estado de cupos seleccionados por el operador. Lo declaramos
+            // arriba (no cerca del change handler) porque pintarMatches
+            // lo resetea en su re-pintado, y esa función se invoca desde
+            // renderForCurrentSelection() durante el init. Con `var`
+            // funciona igual por hoisting, pero queda más prolijo tenerlo
+            // junto a los otros estados al tope del IIFE.
+            //   cupoId -> { obs: bool, match: 'dir'|'par'|'cond' }
+            // Consumido por:
+            //   - DLG 2: detectar cupos con obs=true antes del POST.
+            //   - DLG 4: armar el payload batch con metadatos por cupo.
+            var selectedCupos = {};
+
+            // Filtros por tipo de match (chips arriba del listado de cupos).
+            // Default: los 3 activos. Cuando el operador apaga un chip,
+            // se ocultan los cards de ese tipo. Se aplica DESPUÉS del
+            // ---- Helpers ----
+
+            // Lee el TR (columna 2) de la fila como n&uacute;mero entero.
+            function trDeFila($tr) {
+                return parseInt($tr.find('td').eq(2).text(), 10) || 0;
+            }
+
+            // Lee el TO (columna 3) de la fila como n&uacute;mero entero.
+            function toDeFila($tr) {
+                return parseInt($tr.find('td').eq(3).text(), 10) || 0;
+            }
+
+            // Lee el TP (columna 4) de la fila como n&uacute;mero entero.
+            function tpDeFila($tr) {
+                return parseInt($tr.find('td').eq(4).text(), 10) || 0;
+            }
+
+            // Devuelve un array de objetos { fechaKey, fechaDisplay, tr, to, tp }
+            // para los d&iacute;as tildados (excluyendo filas sin solicitudes).
+            // Se usa en el SWAL de rechazo para mostrar cu&aacute;les son los
+            // d&iacute;as afectados y cu&aacute;ntos cupos pendientes se van a rechazar.
+            function resumenDiasSeleccionados() {
+                var out = [];
+                $('.chkDia:checked').each(function () {
+                    var $tr = $(this).closest('tr');
+                    if ($tr.hasClass('sil-day-row-disabled')) return;
+                    var fechaKey = $tr.data('fecha');
+                    var parts = (fechaKey || '').split('-');
+                    var fechaDisplay = parts.length === 3 ? (parts[2] + '/' + parts[1]) : fechaKey;
+                    var tr = trDeFila($tr);
+                    var toFuturas = toDeFila($tr);
+                    var tp = Math.max(0, tr - toFuturas);
+                    out.push({ fechaKey: fechaKey, fechaDisplay: fechaDisplay, tr: tr, to: toFuturas, tp: tp });
+                });
+                return out;
+            }
+
+            // Suma los pendientes (TR - TO) de los d&iacute;as tildados. Es el
+            // tope m&aacute;ximo de cupos que el operador puede aceptar en esta
+            // corrida para no pasarse de lo que resta por cubrir. El cap se
+            // consume contra las selecciones nuevas; si ya tiene N cupos
+            // marcados, se pueden agregar hasta (tope - N) m&aacute;s.
+            //
+            // Devuelve 0 si no hay d&iacute;as seleccionados (no se puede
+            // asignar nada si no hay solicitud activa).
+            function calcularTopePendientes() {
+                var total = 0;
+                resumenDiasSeleccionados().forEach(function (s) { total += s.tp; });
+                return total;
+            }
+
+            // Devuelve la cantidad de d&iacute;as chequeados y el total de TR sumando
+            // s&oacute;lo los d&iacute;as chequeados.
+            function resumenSeleccion() {
+                var $checked = $('.chkDia:checked');
+                var cnt = $checked.length;
+                var total = 0;
+                $checked.each(function () { total += trDeFila($(this).closest('tr')); });
+                return { count: cnt, total: total };
+            }
+
+            // Escape HTML m&iacute;nimo para meter strings que vienen del servidor
+            // (observaci&oacute;n, nombre del solicitante, etc.) dentro del `html:`
+            // de un Swal.fire. No es un sanitizador completo, alcanza para este
+            // caso porque el origen es texto libre en la DB.
+            function escHtml(s) {
+                if (s === null || s === undefined) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            // Cambia el badge de estado de una fila y actualiza la "selected" class.
+            //   - "Seleccionado" (ok/verde)  → si el checkbox est&aacute; tildado
+            //   - "Pendiente"   (pend/&aacute;mbar) → si hay TR>0 o TO>0 y NO est&aacute; tildado
+            //   - "Sin solicitudes" (none/gris) → si TR==0 y TO==0 (fila deshabilitada)
+            function actualizarEstadoFila($tr) {
+                if ($tr.hasClass('sil-day-row-disabled')) return; // filas deshabilitadas no cambian
+                var $chk = $tr.find('.chkDia');
+                var tr = trDeFila($tr);
+                var toFuturas = toDeFila($tr);
+                var $badge = $tr.find('.sil-badge-dia');
+
+                if ($chk.is(':checked')) {
+                    $tr.addClass('sil-day-row-selected');
+                    $badge.removeClass('sil-badge-dia-pend sil-badge-dia-none')
+                          .addClass('sil-badge-dia-ok')
+                          .text('Seleccionado')
+                          .attr('data-estado', 'seleccionado');
+                } else {
+                    $tr.removeClass('sil-day-row-selected');
+                    $badge.removeClass('sil-badge-dia-ok sil-badge-dia-none')
+                          .addClass('sil-badge-dia-pend')
+                          .text('Pendiente')
+                          .attr('data-estado', 'pendiente');
+                }
+            }
+
+            // Pinta el resumen de selecci&oacute;n (caja debajo de la tabla) en sus
+            // dos variantes: vac&iacute;o y con d&iacute;as seleccionados.
+            function pintarResumen(r) {
+                var $box = $('#diasResumen');
+                if (r.count === 0) {
+                    $box.removeClass('sil-resumen-box-active')
+                        .html('Ningún día seleccionado. Seleccioná uno o más días para ver los cupos compatibles.');
+                } else {
+                    var fechas = [];
+                    $('.chkDia:checked').each(function () {
+                        var k = $(this).closest('tr').data('fecha');
+                        // Formato dd/MM a partir del yyyy-MM-dd
+                        var parts = k.split('-');
+                        fechas.push(parts[2] + '/' + parts[1]);
+                    });
+                    var label = r.count === 1 ? 'd&iacute;a seleccionado' : 'd&iacute;as seleccionados';
+                    $box.addClass('sil-resumen-box-active')
+                        .html('<strong>' + r.count + ' ' + label + ':</strong> ' +
+                              fechas.join(', ') +
+                              ' &nbsp;&middot;&nbsp; Total: <strong>' + r.total + ' TR</strong>');
+                }
+            }
+
+            // Mock de cupos por d&iacute;a: REMOVIDO.
+            // El panel "Cupos Compatibles" ahora se llena con la respuesta real
+            // del motor de matching (Solicitudes/BuscarMatches →
+            // SILData /api/ShiftRequest/Matches), cargada UNA sola vez al
+            // entrar a la pantalla y filtrada client-side por fecha a medida
+            // que el operador tilda/des-tilda días. Ver cargarMatchesIniciales()
+            // y renderForCurrentSelection() m&aacute;s abajo.
+
+            // Construye el HTML de un cupo card a partir de un MatchItemDto.
+            //   - item.MatchType: "Directo" | "Parcial" | "Condicional" | null
+            //   - item.Solicitud.CuentaVendedor / CuentaComprador / Cantidad / Observacion
+            //   - item.Cupo.CodVendSIL / CodCompSIL / CodDestino / Fecha
+            //   - item.Cupo.NombreVendedor / NombreComprador / NombreDestino / NombreGrano
+            //     (hidratados por SILData contra CUPOSVENDEDOR / CUPOSCOMPRADOR
+            //      / zonas geográficas; pueden ser null si el catálogo no tiene
+            //      el código o si el JOIN quedó vacío).
+            //
+            // Estrategia de display para los nombres:
+            // - Las cards son de CUPOs, así que los IDs y los nombres que
+            //   mostramos son los del CUPO (c.CodVendSIL / c.NombreVendedor,
+            //   etc.). No necesitamos comparar contra la solicitud: el
+            //   nombre es EL del id del cupo.
+            // Render de una sección plegable por tipo de match.
+            //   key   : 'dir' | 'par' | 'cond' (mapea a las clases CSS existentes).
+            //   label : texto a mostrar en el header (sin el conteo).
+            //   items : array de items de match.
+            //
+            // Estructura:
+            //   <div class="sil-cupo-section" data-section-key="dir">
+            //     <div class="sil-cupo-section-hd sil-cupo-section-dir">
+            //       <input type="checkbox" class="sil-cupo-section-chk" />  ← check general
+            //       <span class="sil-cupo-section-label">● Match directo (6)</span>
+            //       <span class="sil-cupo-section-toggle">▾</span>          ← indicador plegado
+            //     </div>
+            //     <div class="sil-cupo-section-body" style="display:none;"> ← arranca plegado
+            //       ... cards ...
+            //     </div>
+            //   </div>
+            //
+            // El check general tilda/des-tilda TODOS los cards del tipo, sin
+            // importar si la sección está colapsada (el operador puede
+            // seleccionar en bloque sin necesidad de expandir).
+            function renderSeccion(key, label, items) {
+                var cardsHtml = '';
+                items.forEach(function (i) { cardsHtml += matchCardHtml(i); });
+                return '' +
+                    '<div class="sil-cupo-section" data-section-key="' + key + '">' +
+                    '  <div class="sil-cupo-section-hd sil-cupo-section-' + key + '">' +
+                    '    <input type="checkbox" class="sil-cupo-section-chk" />' +
+                    '    <span class="sil-cupo-section-label">&#9679; ' + label + ' (' + items.length + ')</span>' +
+                    '    <span class="sil-cupo-section-toggle">&#9660;</span>' +
+                    '  </div>' +
+                    '  <div class="sil-cupo-section-body">' +
+                         cardsHtml +
+                    '  </div>' +
+                    '</div>';
+            }
+
+            function matchCardHtml(item) {
+                // Override de MatchType: si la solicitud activa tiene
+                // observación textual (parentObservacion != ''), TODOS los
+                // cards se renderizan como "MATCH CON OBSERVACIÓN" sin
+                // importar el MatchType que devolvió el backend. El operador
+                // tiene que leer la condición del solicitante antes de
+                // asignar cualquier cupo, sea match directo, parcial o
+                // condicional. El MatchType del backend sólo manda cuando no
+                // hay observación de la solicitud.
+                var tipo = item.MatchType;
+                var isCond = hasParentObs || tipo === 'Condicional';
+                var isPar  = !hasParentObs && tipo === 'Parcial';
+                var badgeClass = isCond ? 'sil-badge-obs' : (isPar ? 'sil-badge-par' : 'sil-badge-dir');
+                var badgeLabel = isCond ? 'MATCH CON OBSERVACION' : (isPar ? 'Match parcial' : 'Match directo');
+                var hdFill    = isCond ? '#fff0f0' : (isPar ? '#fffbea' : '#eafaf1');
+                var borderCol = isCond ? 'var(--sil-red-border)' : (isPar ? 'var(--sil-amber-border)' : 'var(--sil-green-border)');
+                var matchShort = isCond ? 'cond' : (isPar ? 'par' : 'dir');
+
+                var s = item.Solicitud || {};
+                var c = item.Cupo || {};
+
+                // Render de cada campo usando los nombres propios del CUPO.
+                // Si SILData no pudo resolver el nombre en el catálogo, se
+                // muestra "No informado". El resultado de coincidencia no
+                // reemplaza los datos del cupo: los flags sólo clasifican el
+                // match y no deben ocultar un nombre válido.
+                var vendedor  = renderField(c.NombreVendedor);
+                var comprador = renderField(c.NombreComprador);
+                var destino   = renderField(c.NombreDestino);
+
+                // Cantidad a matchear contra este cupo: la cantidad TR de la
+                // solicitud activa que matche&oacute; con este cupo. Cada cupo
+                // es 1 unidad (sin subdivisi&oacute;n hoy), as&iacute; que esta
+                // cantidad representa "para cu&aacute;ntos TR sirve este cupo".
+                // El input num&eacute;rico m&aacute;s abajo le permite al operador
+                // asignar 1 cupo (hoy) o subdividir (en el futuro).
+                var matchTr = (s.Cantidad || 0);
+
+                // Parseo de fecha del cupo. SILData serializa DateTime como
+                // "/Date(…)/" o ISO 8601 según config; contemplamos los dos.
+                var fechaRaw = c.Fecha ? parseFechaSIL(c.Fecha) : null;
+                var fechaDisplay = fechaRaw
+                    ? pad2(fechaRaw.getDate()) + '/' + pad2(fechaRaw.getMonth() + 1)
+                    : '';
+
+                // Texto de la observación: si la solicitud padre tiene
+                // observación textual, esa es la fuente de verdad (es lo que
+                // el operador ve en el banner ámbar de la parte superior de
+                // Pantalla 2). Si no, caemos a la observación del match
+                // puntual (Razon o la Observacion embebida en el item) o, en
+                // último caso, a un texto genérico de "verificar antes de
+                // asignar" para matches Condicional sin texto cargado.
+                var obsTexto = hasParentObs
+                    ? parentObservacion
+                    : (item.Razon || s.Observacion || 'Verificar antes de asignar.');
+                var obsHtml = isCond
+                    ? '<div class="sil-cupo-obs"><strong>Observaci&oacute;n:</strong> ' +
+                        escHtml(obsTexto) +
+                      '</div>'
+                    : '';
+
+                // Cada fila se renderiza siempre. El valor se toma del cupo;
+                // cuando el catálogo no resolvió su nombre, renderField
+                // devuelve "No informado" en cursiva amber. Los flags de
+                // coincidencia se reflejan en el tipo de match y la razón,
+                // pero no sustituyen los datos propios del cupo.
+                // Resolución robusta de la solicitudId del item: si el
+                // top-level item.SolicitudId viene en 0 (default de long,
+                // típico cuando SILData sólo popula el Id embebido en
+                // item.Solicitud.Id), usamos ese. Si ninguno llega, queda en
+                // 0 y el confirm se valida contra idSolicitud legacy.
+                var solicitudIdCard = item.SolicitudId || (item.Solicitud && item.Solicitud.Id) || 0;
+
+                return '' +
+                    // data-cupo-id / data-solicitud-id / data-obs / data-match: los consume
+                    // el click handler de Confirmar (DLG 2) sin parsear texto.
+                    // data-solicitud-id se necesita para que el handler pueda
+                    // validar que todos los cupos seleccionados correspondan a la
+                    // solicitud activa (idSolicitud) antes de armar el POST.
+                    '<div class="sil-cupo-card" data-cupo-id="' + item.CupoId + '" data-solicitud-id="' + solicitudIdCard + '" data-obs="' + (isCond ? '1' : '0') + '" data-match="' + matchShort + '" style="border-color:' + borderCol + ';">' +
+                    '  <div class="sil-cupo-card-hd" style="background:' + hdFill + '; border-bottom-color:' + borderCol + ';">' +
+                    '    <input type="checkbox" class="sil-cupo-chk" />' +
+                    '    <span class="sil-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+                    '    <span class="sil-cupo-id">Cupo #' + item.CupoId + (fechaDisplay ? ' &middot; ' + fechaDisplay : '') + '</span>' +
+                    '  </div>' +
+                    '  <div class="sil-cupo-card-body">' +
+                    '    <div class="sil-cupo-field"><span>Vendedor</span><span class="' + (vendedor.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(vendedor.text) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Comprador</span><span class="' + (comprador.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(comprador.text) + '</span></div>' +
+                    '    <div class="sil-cupo-field"><span>Destino</span><span class="' + (destino.missing ? 'sil-cupo-comprador-na' : '') + '">' + escHtml(destino.text) + '</span></div>' +
+                    // Fila 'Match TR' quitada de la UI a pedido (oculta mientras
+                    // definimos si vuelve o se elimina del payload). La variable
+                    // matchTr sigue existiendo para no romper la lógica de cálculo.
+                    // '    <div class="sil-cupo-field"><span>Match TR</span><span>' + escHtml(matchTr + ' TR') + '</span></div>' +
+                    obsHtml +
+                    '  </div>' +
+                    '</div>';
+            }
+
+            // Resuelve el texto a mostrar en un campo del card (Vendedor /
+            // Comprador / Destino). Regla: en la card NO se muestran IDs.
+            // El operador quiere ver nombres del catálogo del CUPO; si el
+            // catálogo no tiene el código o el cupo no trae el id, mostramos
+            // la leyenda "No informado" en cursiva amber para que se
+            // distinga del resto.
+            //
+            // Devuelve { text, missing }.
+            //   - text:    el nombre del cupo, o "No informado".
+            //   - missing: true sólo si el catálogo no resolvió el nombre.
+            //
+            // Los flags de coincidencia no se usan aquí: describen la
+            // relación entre solicitud y cupo, pero no cambian los datos
+            // propios del cupo que se muestran en la card.
+            function renderField(name) {
+                if (name) {
+                    return { text: name, missing: false };
+                }
+                return { text: 'No informado', missing: true };
+            }
+
+            // Devuelve un Date a partir del formato que use SILData para
+            // serializar DateTime: soporta ISO 8601 ("2026-07-15T00:00:00"
+            // o "2026-07-15") y el formato legacy de Newtonsoft
+            // ("/Date(1718409600000)/" o "/Date(1718409600000-0300)/").
+            function parseFechaSIL(v) {
+                if (v == null) return null;
+                if (v instanceof Date) return v;
+                var s = String(v);
+                var iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+                if (iso) return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+                var nw = /\/Date\((-?\d+)/.exec(s);
+                if (nw) return new Date(parseInt(nw[1], 10));
+                return null;
+            }
+
+            function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+            // Helper de error para .fail() de jQuery. Extrae detail/title/message del
+            // body de un ProblemDetails (lo que devuelve SILData en 400/409) o
+            // cae al statusText si no hay body parseable.
+            function mostrarErrorAjax(xhr) {
+                var body = xhr && xhr.responseJSON;
+                var detail = body && (body.detail || body.title || body.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: detail || (xhr && xhr.statusText) || 'Fallo de red'
+                });
+            }
+
+            // Carga TODOS los matches compatibles para el GRUPO de solicitudes
+            // en UNA sola llamada a BuscarMatches. El backend filtra por
+            // cat&aacute;logo (grano/vendedor/comprador/destino) y rango de
+            // fechas, no por idSolicitud espec&iacute;fico: el response trae
+            // un item por (solicitud, cupo) compatible, con SolicitudId y
+            // Solicitud.FechaSolicitado de cada solicitud del grupo. Esa
+            // respuesta la dispatchamos por SolicitudId en matchesPorSolicitud
+            // para que el render filtre correctamente seg&uacute;n la fecha
+            // tildada.
+            //
+            // Por qu&eacute; una sola llamada y no N: TempData del controller
+            // guarda s&oacute;lo la primera solicitud del grupo, y la
+            // validaci&oacute;n actual exige que req.IdSolicitud ==
+            // solicitud.IdSolicitud. Si mand&aacute;ramos una llamada por
+            // cada solicitudId del grupo, s&oacute;lo la del primer item
+            // pasar&iacute;a; las dem&aacute;s recibir&iacute;an success=false
+            // y el cache quedar&iacute;a vac&iacute;o para los otros d&iacute;as.
+            function cargarMatchesIniciales() {
+                ShowLoader();
+                $.ajax({
+                    url: '@Url.Action("BuscarMatches", "Solicitudes")',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    // idSolicitud: usamos el de la primera solicitud del
+                    // grupo (el mismo que la VM activa). El backend usa este
+                    // s&oacute;lo para resolver el filter del TempData, no
+                    // para discriminar qu&eacute; solicitudes se incluyen.
+                    data: JSON.stringify({ idSolicitud: idSolicitud })
+                })
+                    .done(function (resp) {
+                        if (resp && resp.success) {
+                            var items = (resp.data && resp.data.Items) || [];
+                            // Dispatch por SolicitudId: cada item va al cache
+                            // de su solicitud. As&iacute; matchesPorSolicitud
+                            // queda indexado y el render filtra por la
+                            // solicitudId del d&iacute;a tildado.
+                            //
+                            // IMPORTANTE — pivote por Cupo.Fecha, no por
+                            // item.SolicitudId. SILData devuelve TODOS los items
+                            // con el mismo SolicitudId (el de la solicitud pivote
+                            // que analiz&oacute;) aunque los cupos correspondan a
+                            // solicitudes distintas del grupo. Para hacer dispatch
+                            // correcto usamos Cupo.Fecha + solicitudPorFecha como
+                            // fuente de verdad. Si Cupo.Fecha no se puede parsear,
+                            // caemos al SolicitudId original (con fallback a
+                            // item.Solicitud.Id si viene en 0). Adem&aacute;s
+                            // sobrescribimos item.SolicitudId con el real para que
+                            // el data-solicitud-id de las cards refleje la solicitud
+                            // correcta al armar el payload del confirm.
+                            items.forEach(function (item) {
+                                if (!item) return;
+                                var sid = item.SolicitudId;
+                                if ((!sid || sid === 0) && item.Solicitud && item.Solicitud.Id) {
+                                    sid = item.Solicitud.Id;
+                                }
+                                var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                                if (fCupo) {
+                                    var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                                    var sidPorFecha = solicitudPorFecha[ymdCupo];
+                                    if (sidPorFecha) {
+                                        sid = sidPorFecha;
+                                    }
+                                }
+                                if (!sid) return;
+                                if (!matchesPorSolicitud[sid]) matchesPorSolicitud[sid] = [];
+                                matchesPorSolicitud[sid].push(item);
+                                // Reescribir SolicitudId para que las cards
+                                // rendericen data-solicitud-id con el id real.
+                                item.SolicitudId = sid;
+                            });
+                        } else {
+                            // Respuesta con success=false (t&iacute;picamente:
+                            // 400/409 de SILData). No llenamos el cache: el
+                            // empty state se muestra y el operador decide.
+                        }
+                        renderForCurrentSelection();
+                    })
+                    .fail(mostrarErrorAjax)
+                    .always(function () { HideLoader(); });
+            }
+
+            // Filtra los matches cacheados por los d&iacute;as actualmente
+            // tildados y re-pinta el panel. Sin llamada AJAX: opera sobre el
+            // cache de matchesPorSolicitud (poblado por cargarMatchesIniciales
+            // en una sola llamada a BuscarMatches al entrar a Pantalla 2).
+            //
+            // Multi-solicitud: Pantalla 1 agrupa varias solicitudes (una por
+            // fecha) bajo una sola fila visual. solicitudPorFecha mapea cada
+            // fecha tildada a su solicitudId ESPEC&Iacute;FICO.
+            //
+            // IMPORTANTE — el filtro se hace por d&iacute;a tildado, no por
+            // solicitudId: el engine puede devolver matches para un sid
+            // (ej. sid10) que incluyen cupos con Cupo.Fecha de OTROS d&iacute;as
+            // (ej. 11/07, 12/07). Si iteramos por sids y aceptamos cualquier
+            // Cupo.Fecha ∈ checkedDates, terminar&iacute;amos mostrando el
+            // mismo cupo dos veces (una vez por cada fecha tildada que
+            // coincida). Para cada fecha f, los cupos v&aacute;lidos son los
+            // que tienen Cupo.Fecha == f. Iteramos checkedDates y filtramos
+            // por Cupo.Fecha == f en cada pasada — as&iacute; cada cupo
+            // aparece a lo sumo una vez, y los cupos cross-date se ignoran.
+            //   - Sin selecci&oacute;n: empty state "seleccion&aacute; d&iacute;as".
+            //   - Con selecci&oacute;n pero 0 matches: empty state "no se
+            //     encontraron cupos".
+            //   - Con selecci&oacute;n y matches: cards agrupadas por MatchType.
+            function renderForCurrentSelection() {
+                var $hd = $('#cuposPanelHd');
+                var checkedDates = [];
+                $('.chkDia:checked').each(function () {
+                    checkedDates.push($(this).closest('tr').data('fecha'));
+                });
+
+                if (checkedDates.length === 0) {
+                    $hd.text('Cupos compatibles — seleccioná días para ver');
+                    $('#cuposEmpty').show();
+                    $('#cuposListado').hide().empty();
+                    $('#cuposNoResults').hide();
+                    $('#cuposActions').hide();
+                    selectedCupos = {};
+                    $('#btnConfirmarAsignacion').prop('disabled', true);
+                    return;
+                }
+
+                // Iterar por d&iacute;a tildado. Para cada d&iacute;a f:
+                //   1) resolver la solicitudId correspondiente a f
+                //      (solicitudPorFecha[f] o idSolicitud como fallback legacy);
+                //   2) pull matchesPorSolicitud[sid];
+                //   3) aceptar s&oacute;lo los items cuyo Cupo.Fecha == f
+                //      (as&iacute; un cupo con fecha 10/07 NO se muestra
+                //      cuando s&oacute;lo se tild&oacute; 11/07, y un cupo
+                //      con fecha 11/07 NO se mezcla con la selecci&oacute;n
+                //      del 10/07 aunque est&eacute; en matchesPorSolicitud[sid10]).
+                var items = [];
+                checkedDates.forEach(function (f) {
+                    var sid = solicitudPorFecha[f] || idSolicitud;
+                    var matchList = matchesPorSolicitud[sid];
+                    if (!matchList) return;
+
+                    matchList.forEach(function (item) {
+                        if (!item) return;
+                        var fCupo = item.Cupo && parseFechaSIL(item.Cupo.Fecha);
+                        if (!fCupo) return;
+                        var ymdCupo = fCupo.getFullYear() + '-' + pad2(fCupo.getMonth() + 1) + '-' + pad2(fCupo.getDate());
+                        if (ymdCupo !== f) return; // mismo d&iacute;a y nada m&aacute;s
+                        items.push(item);
+                    });
+                });
+
+                pintarMatches({ Items: items });
+            }
+
+            // Pinta el panel de cupos a partir de la respuesta cacheada/filtrada.
+            //   - result.Items es la lista plana de MatchItemDto (PascalCase
+            //     por la serialización de JavaScriptSerializer via Json()).
+            //   - Agrupa por MatchType: Directo / Parcial / Condicional.
+            //   - Sin items: muestra el empty state "no se encontraron cupos".
+            function pintarMatches(result) {
+                var $hd = $('#cuposPanelHd');
+                var $empty = $('#cuposEmpty');
+                var $listado = $('#cuposListado');
+                var $noResults = $('#cuposNoResults');
+                var $actions = $('#cuposActions');
+
+                var rawItems = (result && result.Items) || [];
+
+                // El backend devuelve 1 item por cada cruce (solicitud, cupo)
+                // compatible, contra TODAS las solicitudes que matchean los
+                // filtros de cat&aacute;logo. El frontend ya filtr&oacute; por
+                // Solicitud.FechaSolicitado (en renderForCurrentSelection),
+                // as&iacute; que ac&aacute; los items que llegan corresponden
+                // a d&iacute;as que el operador tild&oacute;.
+                //
+                // Pantalla 1 agrupa varias solicitudes (una por fecha) bajo una
+                // sola fila visual. Por eso NO filtramos por SolicitudId === idSolicitud
+                // ac&aacute;: queremos ver los cupos que matchean contra la
+                // solicitud del d&iacute;a tildado, no s&oacute;lo contra la
+                // primera solicitud del grupo (la activa). Si la fila de Pantalla 1
+                // tiene solicitudes del 09/07, 10/07 y 11/07 y el operador tilda
+                // 10/07, los cards deben mostrar los matches contra la solicitud
+                // del 10/07 (con su Cantidad propia), no contra la del 09/07.
+                //
+                // Agrupamos por (CupoId, SolicitudId) para no repetir cards: si
+                // el mismo cupo matchea contra dos solicitudes distintas (caso
+                // raro pero posible), mostramos un card por cada par.
+                var seenKeys = {};
+                var dedup = [];
+                rawItems.forEach(function (i) {
+                    if (!i) return;
+                    var key = i.CupoId + '|' + i.SolicitudId;
+                    if (seenKeys[key]) return;
+                    seenKeys[key] = true;
+                    dedup.push(i);
+                });
+                var items = dedup;
+
+                // Sin items para los d&iacute;as seleccionados: empty state.
+                if (items.length === 0) {
+                    $hd.text('Cupos compatibles — 0 encontrado(s)');
+                    $empty.hide();
+                    $listado.hide().empty();
+                    $noResults.show();
+                    $actions.hide();
+                    selectedCupos = {};
+                    $('#btnConfirmarAsignacion').prop('disabled', true);
+                    return;
+                }
+
+                $hd.text('Cupos compatibles — ' + items.length + ' encontrado' + (items.length !== 1 ? 's' : ''));
+
+                // Agrupamos por tipo, pero si la solicitud activa tiene
+                // observación textual (hasParentObs), todos los cards caen
+                // en una única sección "MATCH CON OBSERVACION" — el operador
+                // tiene que verificar la condición antes de asignar
+                // cualquier cupo, sea match directo, parcial o condicional.
+                var dirs, pars, conds;
+                if (hasParentObs) {
+                    dirs = [];
+                    pars = [];
+                    conds = items;
+                } else {
+                    dirs  = items.filter(function (i) { return i.MatchType === 'Directo';     });
+                    pars  = items.filter(function (i) { return i.MatchType === 'Parcial';     });
+                    conds = items.filter(function (i) { return i.MatchType === 'Condicional'; });
+                }
+
+                var html = '';
+                if (dirs.length) {
+                    html += renderSeccion('dir', 'Match directo', dirs);
+                }
+                if (pars.length) {
+                    html += renderSeccion('par', 'Match parcial', pars);
+                }
+                if (conds.length) {
+                    // Cuando hay observación del padre, el header cambia a
+                    // "MATCH CON OBSERVACION" para reforzar visualmente que
+                    // TODOS los cards requieren leer la nota del solicitante.
+                    var condLabel = hasParentObs ? 'MATCH CON OBSERVACION' : 'Con observaciones';
+                    html += renderSeccion('cond', condLabel, conds);
+                }
+
+                $listado.html(html).show();
+                $empty.hide();
+                $noResults.hide();
+                $actions.show();
+
+                // Confirmar arranca deshabilitado hasta que tilden un cupo.
+                // Tambi&eacute;n reseteamos el estado de cupos seleccionados: al
+                // repintar el listado los checkboxes se recrean y perder&iacute;amos
+                // la referencia a los anteriores. Mejor pedirle al operador que
+                // vuelva a tildar.
+                selectedCupos = {};
+                $('#btnConfirmarAsignacion').prop('disabled', true);
+                // Inicializa los checks de las cabeceras plegables en estado
+                // "ninguno tildado" (los cards empiezan todos desmarcados
+                // después del reset de selectedCupos).
+                sincronizarCheckSecciones();
+            }
+
+            // Recalcula el resumen + re-pinta el panel filtrando desde el
+            // cache local. NO hace llamadas AJAX (todo es client-side a partir
+            // de la carga inicial).
+            function recalcularTodo() {
+                var r = resumenSeleccion();
+                pintarResumen(r);
+                renderForCurrentSelection();
+            }
+
+            // Estado inicial de cada fila.
+            $('#tablaDias tbody tr').each(function () { actualizarEstadoFila($(this)); });
+            pintarResumen(resumenSeleccion());
+            // Disparo la carga inicial de matches UNA sola vez. Cuando termina,
+            // pintarMatches se llama desde el .always() con la respuesta del
+            // backend (cache en matchesPorSolicitud). En modo readonly no se
+            // carga porque el operador no interactúa con la grilla.
+            if (esEditable) {
+                cargarMatchesIniciales();
+            } else {
+                // Modo readonly: muestro empty state sin gastar la llamada.
+                $('#cuposPanelHd').text('Cupos compatibles — modo sólo lectura');
+            }
+
+            // Modo readonly: deshabilita todos los controles editables del panel principal.
+            if (!esEditable) {
+                $('#tablaDias input, .sil-actions-block button, #btnConfirmarAsignacion, .sil-cupo-chk')
+                    .prop('disabled', true);
+            }
+
+            // Click en la fila (no s&oacute;lo en el checkbox) → toggle. Las filas
+            // deshabilitadas (sin solicitudes) ignoran el click.
+            //
+            // Importante: si el target del click es el checkbox, dejamos que el
+            // browser maneje el toggle nativo (no lo re-toggleamos desde ac&aacute;,
+            // sino el efecto neto ser&iacute;a "se tilda y se destilda" en el mismo click).
+            $('#tablaDias').on('click', '.sil-day-row', function (e) {
+                if (!esEditable) return;
+                if ($(this).hasClass('sil-day-row-disabled')) return;
+                if ($(e.target).is('input.chkDia')) return; // click directo en el check
+                var $chk = $(this).find('.chkDia');
+                $chk.prop('checked', !$chk.prop('checked')).trigger('change');
+            });
+
+            $('#tablaDias').on('change', '.chkDia', function () {
+                actualizarEstadoFila($(this).closest('tr'));
+                recalcularTodo();
+            });
+
+            // Tildar/des-tildar un cupo habilita o no el bot&oacute;n Confirmar.
+            // El bind vive fuera de pintarMatches para no re-engancharse en
+            // cada repintado del listado.
+            //
+            // El estado `selectedCupos` (declarado m&aacute;s arriba junto a los
+            // otros estados) se completa con el cupo completo (id + obs + match),
+            // no s&oacute;lo el ID. Lo necesitamos para:
+            //   - DLG 2: detectar si alg&uacute;n seleccionado tiene obs=true y
+            //     disparar la confirmaci&oacute;n expl&iacute;cita antes del POST.
+            //   - DLG 4: armar el payload batch con metadatos por cupo.
+            $('#cuposListado').on('change', '.sil-cupo-chk', function () {
+                var $card = $(this).closest('.sil-cupo-card');
+                var id = $card.data('cupo-id');
+                if ($(this).is(':checked')) {
+                    selectedCupos[id] = {
+                        obs: $card.data('obs') == '1' || $card.data('obs') === true,
+                        match: $card.data('match'),
+                        // SolicitudId del par (cupo, solicitud) que matche&oacute;.
+                        // Lo guardamos para validar antes del POST que todos los
+                        // cupos seleccionados correspondan a la misma solicitud
+                        // activa (idSolicitud). Si no coinciden, el backend los
+                        // asignar&iacute;a a la solicitud equivocada.
+                        solicitudId: $card.data('solicitud-id')
+                    };
+                } else {
+                    delete selectedCupos[id];
+                }
+                var cnt = Object.keys(selectedCupos).length;
+                $('#btnConfirmarAsignacion').prop('disabled', cnt === 0 || !esEditable);
+                // Mantener sincronizado el check general de la sección:
+                // si todos los cards del tipo están tildados, el check general
+                // aparece marcado; si ninguno, desmarcado; si hay mezcla,
+                // queda en estado indeterminado.
+                sincronizarCheckSecciones();
+            });
+
+            // Sincroniza el checkbox de cada cabecera plegable con el estado
+            // real de los cards de su tipo. La lógica de tres estados
+            // (ninguno / parcial / todos) usa la propiedad 'indeterminate'
+            // del DOM que jQuery no maneja con prop() — va directo al
+            // elemento nativo.
+            function sincronizarCheckSecciones() {
+                $('#cuposListado .sil-cupo-section').each(function () {
+                    var $sec = $(this);
+                    var $cards = $sec.find('.sil-cupo-card');
+                    var total = $cards.length;
+                    var marcados = $cards.find('.sil-cupo-chk:checked').length;
+                    var $general = $sec.find('.sil-cupo-section-chk');
+                    if (marcados === 0) {
+                        $general.prop('checked', false).prop('indeterminate', false);
+                    } else if (marcados === total) {
+                        $general.prop('checked', true).prop('indeterminate', false);
+                    } else {
+                        $general.prop('checked', false).prop('indeterminate', true);
+                    }
+                });
+            }
+
+            // Plegar/desplegar la sección al click sobre el header
+            // (excepto si el click fue sobre el checkbox general, que tiene
+            // su propio handler). La visibilidad del body la maneja el CSS
+            // a través de la clase sil-cupo-section-open.
+            $('#cuposListado').on('click', '.sil-cupo-section-hd', function (e) {
+                if ($(e.target).hasClass('sil-cupo-section-chk')) return;
+                $(this).closest('.sil-cupo-section').toggleClass('sil-cupo-section-open');
+            });
+
+            // Check general: tilda/des-tilda TODOS los cards del tipo, sin
+            // importar si la sección está plegada. Útil para seleccionar
+            // en bloque cuando hay muchos matches.
+            //
+            // Al tildar, el n&uacute;mero de cards seleccionados se CAPA a los
+            // cupos pendientes de los d&iacute;as seleccionados (suma de TP).
+            // Esto protege al operador de marcar m&aacute;s matches de los que
+            // realmente puede asignar y mantiene la sem&aacute;ntica del
+            // Confirmar (que ya validaba contra TR a nivel de solicitud).
+            //
+            // Si el cap es 0 (no hay d&iacute;as tildados o sus TP=0),
+            // mostramos un info y NO toggliamos el checkbox.
+            //
+            // Al destildar, se limpian todos los cards de la secci&oacute;n
+            // (sin cap).
+            $('#cuposListado').on('change', '.sil-cupo-section-chk', function () {
+                var $sec = $(this).closest('.sil-cupo-section');
+                var tildar = this.checked;
+
+                if (!tildar) {
+                    // Des-tildar todos los cards de la secci&oacute;n (sin tope).
+                    $sec.find('.sil-cupo-card').each(function () {
+                        var $chk = $(this).find('.sil-cupo-chk');
+                        if ($chk.is(':checked')) {
+                            $chk.prop('checked', false).trigger('change');
+                        }
+                    });
+                    return;
+                }
+
+                // Tildar: tope = pendientes (TR - TO) de los d&iacute;as tildados.
+                var tope = calcularTopePendientes();
+                if (tope <= 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Tildá al menos un día con cupos pendientes antes de seleccionar todos los matches.'
+                    });
+                    this.checked = false;
+                    return;
+                }
+
+                // Tildar hasta `tope` cards de la secci&oacute;n, partiendo de
+                // los que ya estaban marcados manualmente. Si la secci&oacute;n
+                // ya cubre el tope, mantenemos el check encendido y salimos.
+                var yaMarcados = $sec.find('.sil-cupo-chk:checked').length;
+                var restantes = Math.max(0, tope - yaMarcados);
+                if (restantes === 0) return;
+
+                var tildados = 0;
+                $sec.find('.sil-cupo-card').each(function () {
+                    if (tildados >= restantes) return false; // break
+                    var $chk = $(this).find('.sil-cupo-chk');
+                    if (!$chk.is(':checked')) {
+                        $chk.prop('checked', true).trigger('change');
+                        tildados++;
+                    }
+                });
+
+                // Si no llegamos al tope (la secci&oacute;n ten&iacute;a menos
+                // cards que pendientes) el check queda en estado "todos
+                // marcados" (correcto). Si llegamos al tope antes de marcar
+                // todos los cards, sincronizarCheckSecciones pondr&aacute; el
+                // check general en indeterminate.
+                sincronizarCheckSecciones();
+            });
+
+            // Click en cualquier parte del card tilda/des-tilda el checkbox.
+            // Excluye clicks que ya vienen del checkbox, del label del badge
+            // (que no son interactivos hoy) y de futuros elementos interactivos
+            // que se agreguen dentro del card. Usamos data-card-interactive
+            // como opt-out explícito para casos especiales.
+            $('#cuposListado').on('click', '.sil-cupo-card', function (e) {
+                // Si el click fue sobre el checkbox o cualquier elemento que
+                // explícitamente se marca como interactivo, dejamos que el
+                // browser maneje el evento de forma nativa.
+                var $t = $(e.target);
+                if ($t.is('input, button, a, select, textarea, label')) return;
+                if ($t.closest('[data-card-interactive]').length) return;
+                var $chk = $(this).find('.sil-cupo-chk').first();
+                $chk.prop('checked', !$chk.is(':checked')).trigger('change');
+            });
+
+            // ---- Botonera ----
+
+            // POST gen&eacute;rico con loader.
+            function postJSON(url, data) {
+                ShowLoader();
+                return $.ajax({
+                    url: url,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data)
+                })
+                    .always(function () { HideLoader(); });
+            }
+
+            function manejarRespuesta(resp, options) {
+                options = options || {};
+                if (resp && resp.Success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Listo',
+                        text: resp.Message,
+                        position: 'center',
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    }).then(function () {
+                        // stayOnPage: el caller pidió no redirigir al Index.
+                        // Lo usamos en el flujo de Confirmar asignación para
+                        // que el operador siga trabajando en Pantalla 2 con la
+                        // misma solicitud. Recargamos la misma URL para que el
+                        // GET del AltaSolicitud traiga el estado fresco (TO
+                        // actualizado, cupos aceptados deshabilitados, etc.).
+                        if (options.stayOnPage) {
+                            window.location.reload();
+                            return;
+                        }
+                        window.location = resp.RedirectUrl || '/Solicitudes/Index';
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: (resp && resp.Message) || 'Error desconocido.' });
+                }
+            }
+
+            // "Rechazar solicitud"
+            //
+            // Recolecta los d&iacute;as tildados y construye un SWAL que muestra:
+            //   1) el total de cupos pendientes que se rechazar&aacute;n
+            //      (suma de TP para los d&iacute;as seleccionados);
+            //   2) el listado de d&iacute;as afectadas con su propio TP;
+            // El POST sigue siendo a nivel de solicitud (el back rechaza el
+            // remanente de la solicitud completa). El SWAL s&oacute;lo refleja
+            // el subconjunto que el operador seleccion&oacute; para no generar
+            // confusi&oacute;n.
+            $('#btnRechazarCompleta').on('click', function () {
+                if (idSolicitud <= 0) {
+                    Swal.fire({ icon: 'error', title: 'Sin id de solicitud' });
+                    return;
+                }
+
+                var seleccionadas = resumenDiasSeleccionados();
+
+                if (seleccionadas.length === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Seleccioná días',
+                        text: 'Tildá uno o más días del panel izquierdo antes de rechazar.'
+                    });
+                    return;
+                }
+
+                // D&iacute;as con TP &gt; 0 (los que efectivamente se rechazan).
+                var conPendientes = seleccionadas.filter(function (s) { return s.tp > 0; });
+                var totalPendientes = conPendientes.reduce(function (acc, s) { return acc + s.tp; }, 0);
+
+                if (totalPendientes === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sin cupos pendientes',
+                        text: 'Los días seleccionados ya tienen todos sus cupos otorgados, no hay nada para rechazar.'
+                    });
+                    return;
+                }
+
+                var plural = totalPendientes !== 1;
+                var listadoHtml = conPendientes.map(function (s) {
+                    return '<li><strong>' + s.fechaDisplay + '</strong> &mdash; ' +
+                        s.tp + ' pendiente' + (s.tp !== 1 ? 's' : '') + '</li>';
+                }).join('');
+
+                var bodyHtml = 'Vas a rechazar <strong>' + totalPendientes +
+                    '</strong> cupo' + (plural ? 's' : '') + ' pendiente' + (plural ? 's' : '') +
+                    ' en los siguientes d&iacute;as:' +
+                    '<ul style="text-align:left; font-size:13px; line-height:1.6; margin: 8px 0 0; padding-left: 20px;">' +
+                    listadoHtml + '</ul>';
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Rechazar solicitud?',
+                    html: bodyHtml,
+                    showCancelButton: true,
+                    confirmButtonText: 'Rechazar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#a93226'
+                }).then(function (res) {
+                    if (!res.isConfirmed) return;
+                    // Sólo rechazamos las solicitudes de los DÍAS SELECCIONADOS
+                    // (los que el operador tildó), NO todas las del grupo.
+                    // Si el operador acepta 3/5 del 8/8 y rechaza los 2 pendientes
+                    // del 8/8, el 9/8 debe quedar intacto para gestionarlo aparte.
+                    // solicitudPorFecha mapea fecha (yyyy-MM-dd) → solicitudId.
+                    var idsSolicitudesSeleccionadas = [];
+                    var seen = {};
+                    conPendientes.forEach(function (s) {
+                        var sid = solicitudPorFecha[s.fechaKey];
+                        if (sid && !seen[sid]) { seen[sid] = true; idsSolicitudesSeleccionadas.push(sid); }
+                    });
+                    // Fallback legacy: si por algún motivo no pudimos resolver
+                    // ningún id de los seleccionados, mandamos el idSolicitud
+                    // original (el primero del grupo) para no romper el flujo.
+                    var legacyId = idsSolicitudesSeleccionadas.length > 0 ? idsSolicitudesSeleccionadas[0] : idSolicitud;
+                    postJSON('@Url.Action("RechazarSolicitud", "Solicitudes")', {
+                        idSolicitud: legacyId,
+                        idsSolicitudes: idsSolicitudesSeleccionadas
+                    })
+                        .done(manejarRespuesta)
+                        .fail(function (xhr) {
+                            Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+                        });
+                });
+            });
+
+            // Inicializa los tooltips de Bootstrap sobre los &lt;th&gt; con
+            // data-toggle="tooltip". Necesario porque delegamos la activaci&oacute;n
+            // a este script (no hay un auto-init global en la master page).
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                html: true
+            });
+
+            // "+ Crear nuevo cupo" se movió a Pantalla 1 (Solicitudes/Index):
+            // la creación de cupos vive al nivel del listado de solicitudes,
+            // no atado a una solicitud puntual.
+
+            // "Confirmar asignaci&oacute;n seleccionada"
+            //
+            // Flujo:
+            //   1) Valida que haya al menos un d&iacute;a y un cupo seleccionados.
+            //   2) Agrupa los cupos seleccionados por solicitudId (cada cupo
+            //      arrastra su solicitudId desde data-solicitud-id de la card).
+            //   3) Por cada solicitudId distinto, arma una
+            //      <AsignacionPorSolicitud> y valida que la suma de cupos a
+            //      asignar no exceda la cantidad pedida original para ESA
+            //      solicitud (no la del grupo entero, que es la suma).
+            //   4) DLG 2: si alg&uacute;n cupo seleccionado tiene obs=true,
+            //      muestra un Swal de advertencia con la observaci&oacute;n
+            //      del solicitante y los cupos afectados. Si confirma, sigue;
+            //      si cancela, aborta.
+            //   5) POST a ConfirmarAsignacionSeleccionada con la lista de
+            //      <AsignacionPorSolicitud>. El controller dispara un Accept
+            //      por cada una y agrega los resultados.
+            $('#btnConfirmarAsignacion').on('click', function () {
+                var fechas = {};
+                $('.chkDia:checked').each(function () {
+                    var $tr = $(this).closest('tr');
+                    fechas[$tr.data('fecha')] = trDeFila($tr);
+                });
+
+                if (Object.keys(fechas).length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un día de la tabla de la izquierda.' });
+                    return;
+                }
+                if (Object.keys(selectedCupos).length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin selección', text: 'Tildá al menos un cupo de la derecha.' });
+                    return;
+                }
+
+                // Cupos que disparan DLG 2 (tienen obs=true). Se matchean por id
+                // contra el state object, no contra el DOM, para no re-leer el
+                // HTML en cada click.
+                var cuposConObs = Object.keys(selectedCupos).filter(function (id) {
+                    return selectedCupos[id].obs;
+                });
+
+                // Agrupaci&oacute;n por solicitudId: cada card arrastra su
+                // solicitudId desde data-solicitud-id, as&iacute; que este
+                // armado es 1-1 con lo que se pint&oacute;. Cada cupo es
+                // siempre 1 unidad (1 card = 1 cupo = 1 asignaci&oacute;n):
+                // la subdivisi&oacute;n por cupo no est&aacute; habilitada
+                // hoy. Por eso la cantidad por cupo va hard-codeada a 1.
+                // El backend igual recibe el mapa CantidadPorCupo para
+                // reservar el hook cuando se habilite la subdivisi&oacute;n.
+                var asignaciones = {}; // { [sid]: { fecha, tr, cupos: [{id, cant:1}], cantidadPorCupo: {id:1} } }
+                Object.keys(selectedCupos).forEach(function (cupoIdStr) {
+                    var s = selectedCupos[cupoIdStr];
+                    var sid = s.solicitudId;
+                    if (!asignaciones[sid]) asignaciones[sid] = {
+                        idSolicitud: sid,
+                        cupos: [],
+                        cantidadPorCupo: {},
+                        // TR de la solicitud = suma de TR de los d&iacute;as
+                        // tildados cuya fecha mapea a esta solicitud. Lo
+                        // inicializamos lazy al cerrar la agrupaci&oacute;n.
+                        tr: 0,
+                        fecha: null
+                    };
+                    var cupoIdNum = parseInt(cupoIdStr, 10);
+                    if (isNaN(cupoIdNum)) cupoIdNum = cupoIdStr;
+                    // 1 card = 1 cupo = 1 asignaci&oacute;n. No se permite
+                    // que el operador incremente el valor; si en una iteraci&oacute;n
+                    // futura se habilita subdivisi&oacute;n, este es el &uacute;nico
+                    // punto a modificar.
+                    asignaciones[sid].cupos.push({ id: cupoIdNum, cant: 1 });
+                    asignaciones[sid].cantidadPorCupo[cupoIdNum] = 1;
+                });
+
+                // Cerrar TR y fecha representativa por solicitudId.
+                Object.keys(fechas).forEach(function (f) {
+                    var sid = solicitudPorFecha[f] || idSolicitud;
+                    if (asignaciones[sid]) {
+                        asignaciones[sid].tr += fechas[f] || 0;
+                        if (!asignaciones[sid].fecha) asignaciones[sid].fecha = f;
+                    }
+                });
+
+                // Defensa client-side: no asignar m&aacute;s de lo que pidi&oacute;
+                // la solicitud para CADA solicitudId. Se chequea contra la TR
+                // pedida (no la cantidad legacy del VM que es la suma del grupo).
+                var excedidos = [];
+                Object.keys(asignaciones).forEach(function (sid) {
+                    var a = asignaciones[sid];
+                    var totalAAsignar = a.cupos.reduce(function (acc, x) { return acc + x.cant; }, 0);
+                    if (a.tr > 0 && totalAAsignar > a.tr) {
+                        excedidos.push({ sid: sid, asignar: totalAAsignar, pedir: a.tr });
+                    }
+                });
+                if (excedidos.length > 0) {
+                    var msg = excedidos.map(function (e) {
+                        return 'Solicitud ' + e.sid + ': ' + e.asignar + ' cupos a asignar vs ' + e.pedir + ' pedidos.';
+                    }).join('\n');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cantidad excedida',
+                        text: msg,
+                        confirmButtonColor: '#a93226'
+                    });
+                    return;
+                }
+
+                // Armar el payload final: lista de AsignacionPorSolicitud.
+                var asignacionesPorSolicitud = Object.keys(asignaciones).map(function (sid) {
+                    var a = asignaciones[sid];
+                    return {
+                        idSolicitud: a.idSolicitud,
+                        fecha: a.fecha,
+                        tr: a.tr,
+                        cupoIds: a.cupos.map(function (c) { return c.id; }),
+                        cantidadPorCupo: a.cantidadPorCupo
+                    };
+                });
+
+                // Defensa client-side: el flujo SolicitudMatch (v1) no soporta
+                // subdivisión intra-cupo. Hoy cada card se mapea a cant=1
+                // (línea ~1048 más arriba), así que este chequeo es redundante
+                // pero protege contra cambios futuros. Si dispara, el operador
+                // ve un mensaje claro antes del POST en vez del 400 del backend.
+                var excedidosCantidad = [];
+                asignacionesPorSolicitud.forEach(function (as) {
+                    Object.keys(as.cantidadPorCupo).forEach(function (cid) {
+                        if (as.cantidadPorCupo[cid] > 1) {
+                            excedidosCantidad.push({ cupo: cid, cant: as.cantidadPorCupo[cid] });
+                        }
+                    });
+                });
+                if (excedidosCantidad.length > 0) {
+                    var detalle = excedidosCantidad
+                        .map(function (x) { return 'Cupo #' + x.cupo + ': ' + x.cant; })
+                        .join(', ');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Asignación múltiple por cupo no soportada',
+                        text: 'El flujo SolicitudMatch asigna 1 cupo por card. Revisá: ' + detalle
+                    });
+                    return;
+                }
+
+                function doPost() {
+                    postJSON('@Url.Action("ConfirmarAsignacionSeleccionada", "Solicitudes")', {
+                        idSolicitud: idSolicitud,                                 // legacy
+                        cupoCompatibleId: asignacionesPorSolicitud[0] ? asignacionesPorSolicitud[0].cupoIds[0] : null,
+                        cupoIds: asignacionesPorSolicitud.reduce(function (acc, a) { return acc.concat(a.cupoIds); }, []),
+                        fechas: fechas,
+                        cantidadPorCupo: asignacionesPorSolicitud.reduce(function (acc, a) {
+                            Object.keys(a.cantidadPorCupo).forEach(function (k) { acc[k] = a.cantidadPorCupo[k]; });
+                            return acc;
+                        }, {}),
+                        // NEW: multi-solicitud. El controller usa esto si viene;
+                        // si no, cae al flujo legacy de idSolicitud + cupoIds.
+                        asignacionesPorSolicitud: asignacionesPorSolicitud
+                    })
+                        .done(function (resp) {
+                            // Si el backend devolvi&oacute; un toast informativo
+                            // (asignaci&oacute;n parcial), lo mostramos ANTES del
+                            // manejo est&aacute;ndar y respetamos los segundos de
+                            // timer para no taparlo con el redirect.
+                            // IMPORTANTE: ConfirmarAsignacionResponse se
+                            // serializa con Json() en PascalCase (Success,
+                            // Message, Solicitados, Asignados, Pendientes,
+                            // RedirectUrl). Si el controller cambi&oacute; a
+                            // camelCase en el futuro, este bloque y
+                            // manejarRespuesta deben actualizarse en paralelo.
+                            if (resp && resp.Success && resp.Pendientes && resp.Pendientes > 0) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Asignación parcial',
+                                    text: 'Asignaste ' + resp.Asignados + ' de ' + resp.Solicitados + ' cupos. ' +
+                                          resp.Pendientes + ' quedaron pendientes.',
+                                    position: 'center',
+                                    showConfirmButton: true,
+                                    confirmButtonText: 'OK'
+                                }).then(function () {
+                                    // stayOnPage: tras un Confirmar (total o
+                                    // parcial) el operador sigue en Pantalla 2
+                                    // con la misma solicitud para poder
+                                    // continuar trabajando; no redirigimos al
+                                    // Index.
+                                    manejarRespuesta(resp, { stayOnPage: true });
+                                });
+                                return;
+                            }
+                            manejarRespuesta(resp, { stayOnPage: true });
+                        })
+                        .fail(mostrarErrorAjax);
+                }
+
+                // DLG 2: confirmaci&oacute;n expl&iacute;cita cuando hay cupos con
+                // observaciones. Backend no cambia: el modal es s&oacute;lo una
+                // capa de seguridad UX.
+                if (cuposConObs.length > 0) {
+                    var cuposListTxt = cuposConObs
+                        .map(function (id) { return 'Cupo <strong>#' + id + '</strong>'; })
+                        .join(', ');
+
+                    var obsTxt = (solicitudObservacion || '').toString();
+                    var obsHtml = obsTxt
+                        ? '<div class="sil-obs-callout"><strong>Observaciones del solicitante:</strong><br/>&laquo;' + escHtml(obsTxt) + '&raquo;</div>'
+                        : '<div class="sil-obs-callout sil-obs-callout-empty">La solicitud no tiene observaciones textuales, pero el/los cupo(s) seleccionado(s) requieren verificaci&oacute;n.</div>';
+
+                    var vendedorTxt = solicitanteNombre
+                        ? 'Solicitante: <strong>' + escHtml(solicitanteNombre) + '</strong>'
+                        : '';
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'La solicitud contiene condiciones especiales',
+                        html: obsHtml +
+                            '<p style="text-align:left;font-size:12px;line-height:1.45;margin:10px 0 6px;">' +
+                            'Verific&aacute; que el/los cupo(s) seleccionado(s) (<strong>' + cuposListTxt + '</strong>) ' +
+                            'satisfacen estas condiciones antes de confirmar la asignaci&oacute;n.</p>' +
+                            (vendedorTxt ? '<p style="text-align:left;font-size:11px;color:#9aa3b5;margin:0;">' + vendedorTxt + '</p>' : ''),
+                        showCancelButton: true,
+                        confirmButtonText: 'S&iacute;, confirmar asignaci&oacute;n',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#a93226',
+                        cancelButtonColor: '#5a6680',
+                        customClass: {
+                            confirmButton: 'sil-btn sil-btn-danger',
+                            cancelButton: 'sil-btn'
+                        }
+                    }).then(function (res) {
+                        if (res.isConfirmed) doPost();
+                    });
+                    return;
+                }
+
+                // Sin observaciones: POST directo.
+                doPost();
+            });
+
+            // "Cancelar" del panel derecho
+            $('#btnCancelarCupo').on('click', function () {
+                window.location = '@Url.Action("Index", "Solicitudes")';
+            });
+        });
+  </script>
+}

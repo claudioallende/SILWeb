@@ -1,18 +1,14 @@
-﻿using System;
+﻿using CuposCorretajeWeb.Models;
+using CuposCorretajeWeb.Models.Data;
+using CuposCorretajeWeb.Models.Error;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
-using CuposCorretajeWeb.Models;
-using CuposCorretajeWeb.Models.Email;
-using CuposCorretajeWeb.Models.Filtro;
-using System.Security.Claims;
-using CuposCorretajeWeb.Models.Auditoria;
-using CuposCorretajeWeb.Models.Data;
-using System.Threading.Tasks;
-using CuposCorretajeWeb.Models.Error;
-using System.Text.RegularExpressions;
-using System.Web.UI.WebControls;
 
 namespace CuposCorretajeWeb.Controllers
 {
@@ -41,7 +37,7 @@ namespace CuposCorretajeWeb.Controllers
     }
 
     // GET: Cupos/Create
-    public async Task<ActionResult> Nuevo(int id = 0)
+    public async Task<ActionResult> Nuevo(int id = 0, string returnUrl = null)
     {
       var model = new NuevoCupoViewModel();
       try
@@ -60,13 +56,19 @@ namespace CuposCorretajeWeb.Controllers
       {
         throw e;
       }
+      // Guardamos el returnUrl en ViewBag para que Nuevo.cshtml lo renderee
+      // como hidden y sobreviva al POST. Validamos que sea URL relativa
+      // (comienza con "/") para evitar open-redirect a sitios externos.
+      ViewBag.ReturnUrl = EsReturnUrlSeguro(returnUrl) ? returnUrl : null;
       return View(model);
     }
 
     // POST: Cupos/Create
     [HttpPost]
-    public async Task<ActionResult> Nuevo(FormCollection collection, NuevoCupoViewModel model)
+    public async Task<ActionResult> Nuevo(FormCollection collection, NuevoCupoViewModel model, string returnUrl = null)
     {
+      ViewBag.ReturnUrl = EsReturnUrlSeguro(returnUrl) ? returnUrl : null;
+
       if (!ModelState.IsValid)
       {
         model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
@@ -76,21 +78,63 @@ namespace CuposCorretajeWeb.Controllers
       {
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
-          model.ContactoComercial = string.IsNullOrEmpty(model.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x)); 
+          model.ContactoComercial = string.IsNullOrEmpty(model.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
           await repo.RequestPostAndDeserializeAsync<NuevoCupoViewModel>("Cupos", "Nuevo", model);
         }
       }
       catch (ApiException e)
       {
-        model.Error = e.Message;
+        // La API puede serializar el error como {"Message":"..."} o como texto plano.
+        // Intentamos extraer el campo Message para que el alert se vea limpio.
+        model.Error = ExtraerMensajeApi(e.Message)
+                      ?? "Ocurrió un error al guardar el cupo. Verifique los datos e intente nuevamente.";
         model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
         return View(model);
       }
       catch (Exception e)
       {
-        throw e;
+        // Cualquier otra excepción también la mostramos como un error de negocio,
+        // no como pantalla amarilla de stack trace.
+        model.Error = "Ocurrió un error al guardar el cupo: " + e.Message;
+        model.Productos = (IList<SelectListItem>)HttpContext.Cache["Granos"];
+        return View(model);
       }
+
+      if (!string.IsNullOrEmpty(ViewBag.ReturnUrl as string))
+        return Redirect(ViewBag.ReturnUrl as string);
       return RedirectToAction("Index");
+    }
+
+    private static string ExtraerMensajeApi(string body)
+    {
+      if (string.IsNullOrWhiteSpace(body)) return null;
+      // Si ya viene como texto plano, lo devolvemos tal cual.
+      if (!body.TrimStart().StartsWith("{")) return body;
+      try
+      {
+        var token = JToken.Parse(body);
+        var msg = token.SelectToken("Message") ?? token.SelectToken("message")
+                    ?? token.SelectToken("ExceptionMessage") ?? token.SelectToken("error_description");
+        return msg?.ToString();
+      }
+      catch
+      {
+        return body; // Si no se puede parsear, mostramos el body crudo.
+      }
+    }
+
+
+    /// <summary>
+    /// Valida que un <c>returnUrl</c> sea seguro de usar como destino de
+    /// redirect: sólo aceptamos URLs relativas (que empiecen con "/") y
+    /// que NO sean protocol-relative ("//example.com" sería open-redirect).
+    /// </summary>
+    private static bool EsReturnUrlSeguro(string returnUrl)
+    {
+      if (string.IsNullOrWhiteSpace(returnUrl)) return false;
+      if (!returnUrl.StartsWith("/")) return false;
+      if (returnUrl.StartsWith("//")) return false;
+      return true;
     }
 
     // GET: Cupos/Editar/5
@@ -159,6 +203,120 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
+    /// <summary>
+    /// Proxy al endpoint <c>POST /api/ShiftRequest/AnularDistribucion</c> de
+    /// SILData. Se invoca desde <c>Scripts/Editar.js</c> cuando el operador
+    /// anula una distribución, después de que la acción legacy
+    /// <see cref="Anular"/> ya marcó los cupos en CUPOSCORRE como anulados.
+    ///
+    /// Objetivo: revertir la asociación cupo ↔ solicitud en
+    /// <c>SOLTURNOS</c> + <c>SOLTURNOS_DETALLE</c> para que las solicitudes
+    /// vuelvan a figurar como Pendientes (y por lo tanto vuelvan a aparecer
+    /// en Pantalla 1 con un cupo menos aceptado cada una).
+    ///
+    /// El backend procesa cada cupo de forma independiente. Los que NO
+    /// tengan solicitud asociada quedan como Skipped (el flujo legacy ya
+    /// los cubrió en CUPOSCORRE).
+    /// </summary>
+    /// <param name="req">DTO con la lista de cupos. Se bindea vía
+    /// <c>JsonValueProviderFactory</c> (builtin de MVC 4.6.1) — NO se usa
+    /// <c>[FromBody]</c> porque es un atributo de Web API que MVC ignora.
+    /// El JS debe mandar <c>contentType: application/json</c> y
+    /// <c>data: JSON.stringify({ cupoIds: [...] })</c>.</param>
+    [HttpPost]
+    public async Task<ActionResult> AnularDistribucion(AnularDistribucionRequestDto req)
+    {
+      // Defensa: req puede venir null si el body no se bindeó (p.ej.
+      // content-type incorrecto o body vacío). En ese caso devolvemos
+      // un resultado neutro para que el JS no rompa.
+      var cupoIds = req?.CupoIds ?? Array.Empty<long>();
+
+      try
+      {
+        if (cupoIds.Length == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        // Filtramos ids no positivos antes de mandar al backend (defensa).
+        var idsValidos = cupoIds.Where(id => id > 0).Distinct().ToList();
+        if (idsValidos.Count == 0)
+        {
+          return Json(new AnularDistribucionResponseDto
+          {
+            AlMenosUnoExitoso = false,
+            CantidadExitosos = 0,
+            CantidadSkipped = 0,
+            CantidadFallos = 0,
+            Items = new List<AnularDistribucionItemResponseDto>()
+          });
+        }
+
+        using (WebServiceSILRespository repo = new WebServiceSILRespository())
+        {
+          // El endpoint de SILData vive bajo ShiftRequestController.
+          // Una sola llamada HTTP con todos los cupos en una lista
+          // (RequestSILDataPostAndDeserializeAsync serializa el objeto a
+          // JSON, que coincide con el contrato del backend).
+          var resultado = await repo.RequestSILDataPostAndDeserializeAsync<AnularDistribucionResponseDto>(
+            "ShiftRequest",
+            "AnularDistribucion",
+            new { cupoIds = idsValidos });
+
+          return Json(resultado ?? new AnularDistribucionResponseDto());
+        }
+      }
+      catch (ApiException e)
+      {
+        // ApiException viene del helper cuando SILData responde con un
+        // status no-2xx (400 lista vacía, 409 conflicto de estado, etc.).
+        // Devolvemos un JSON con todos los cupos como Fallo para que el JS
+        // muestre un Swal.fire informativo en vez de propagar la excepción.
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
+      }
+      catch (Exception e)
+      {
+        return Json(new AnularDistribucionResponseDto
+        {
+          AlMenosUnoExitoso = false,
+          CantidadExitosos = 0,
+          CantidadSkipped = 0,
+          CantidadFallos = cupoIds.Length,
+          Items = cupoIds
+            .Where(id => id > 0)
+            .Select(id => new AnularDistribucionItemResponseDto
+            {
+              CupoId = id,
+              Estado = 2, // Fallo
+              SolicitudId = 0,
+              MotivoFalla = e.Message
+            }).ToList()
+        });
+      }
+    }
+
     public async Task<ActionResult> Distribucion(string id, string centroorigen, string centrodistribucion, string cyo)
     {
       try
@@ -166,6 +324,20 @@ namespace CuposCorretajeWeb.Controllers
         using (WebServiceSILRespository repo = new WebServiceSILRespository())
         {
           DistribuirCupoViewModel model = await repo.RequestGetAndDeserializeAsync<DistribuirCupoViewModel>("Cupos", string.Format("Distribucion/{0}?centroorigen={1}&centrodistribucion={2}&cyo={3}", id, centroorigen, centrodistribucion, cyo));
+
+          // FIX: SIL API no setea ConsignacionDpo.Id, así que todas las
+          // consignaciones quedan con Guid.Empty. Como la UI usa `find()` por
+          // Id en ModalConsignaciones.js para identificar la fila clickeada,
+          // terminaría devolviendo siempre la primera. Asignamos Ids únicos
+          // acá para que coincidan con lo que ya hace el flujo POST.
+          if (model?.Consignaciones != null && model.Consignaciones.Count > 1)
+          {
+            foreach (var consignacion in model.Consignaciones)
+            {
+              consignacion.Id = Guid.NewGuid();
+            }
+          }
+
           return View(model);
         }
       }
@@ -236,9 +408,47 @@ namespace CuposCorretajeWeb.Controllers
         {
           using (WebServiceSILRespository repo = new WebServiceSILRespository())
           {
-            model.nuevo.ContactoComercial = string.IsNullOrEmpty(model.nuevo.ContactoComercial) ? string.Empty : string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+            // Si llega un nuevo con datos de contacto, normalizar antes de enviar.
+            if (model.nuevo != null)
+            {
+              model.nuevo.ContactoComercial = string.IsNullOrEmpty(model.nuevo.ContactoComercial)
+                ? string.Empty
+                : string.Join(";", Regex.Replace(model.nuevo.ContactoComercial, @"\s+", "").Split(';').OrderBy(x => x));
+            }
             model.Confirmacion = Confirmacion;
-            return Json(await repo.RequestPostAndDeserializeAsync<int>("Cupos", "ActualizarDistribucion", model));
+
+            // Si el cliente no envía Modo, default a DistribucionManual para
+            // mantener compatibilidad con callers que no informan el modo.
+            if (!model.Modo.HasValue)
+            {
+              model.Modo = ModoActualizacionDistribucion.DistribucionManual;
+            }
+
+            // En modo SolicitudMatch SILApi devuelve ActualizarDistribucionResult;
+            // en DistribucionManual sigue devolviendo un int legacy. Detectamos
+            // el modo para deserializar correctamente.
+            if (model.Modo == ModoActualizacionDistribucion.SolicitudMatch)
+            {
+              ActualizarDistribucionResult resultado =
+                await repo.RequestPostAndDeserializeAsync<ActualizarDistribucionResult>(
+                  "Cupos", "ActualizarDistribucion", model);
+
+              if (resultado == null)
+              {
+                return Json(new ActualizarDistribucionResult
+                {
+                  Codigo = 0,
+                  Success = false,
+                  Message = "Respuesta vacía del backend."
+                }, JsonRequestBehavior.AllowGet);
+              }
+
+              return Json(resultado, JsonRequestBehavior.AllowGet);
+            }
+
+            int legacyResultado = await repo.RequestPostAndDeserializeAsync<int>(
+              "Cupos", "ActualizarDistribucion", model);
+            return Json(legacyResultado, JsonRequestBehavior.AllowGet);
           }
         }
         else

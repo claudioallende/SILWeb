@@ -211,13 +211,21 @@
     <Compile Include="Controllers\ContratoController.cs" />
     <Compile Include="Controllers\CuentaController.cs" />
     <Compile Include="Controllers\CuposController.cs" />
+    <Compile Include="Controllers\CuposMatchingController.cs" />
     <Compile Include="Controllers\DocController.cs" />
     <Compile Include="Controllers\GranoController.cs" />
     <Compile Include="Controllers\LandingController.cs" />
+    <Compile Include="Controllers\SolicitudesController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\AccountViewModels.cs" />
+    <Compile Include="Models\Auth\UsuarioLocal.cs" />
+    <Compile Include="Models\Auth\LocalPasswordHasher.cs" />
+    <Compile Include="Models\Auth\UsuariosLocalStore.cs" />
+    <Compile Include="Models\Auth\UsuariosLocalAdmin.cs" />
+    <Compile Include="Models\Auth\SimpleJwtBuilder.cs" />
+    <Compile Include="Models\Auth\LocalTokenIssuer.cs" />
     <Compile Include="Models\Account\DatosUsuario.cs" />
     <Compile Include="Models\Account\LoginViewModel.cs" />
     <Compile Include="Models\Account\SignInManager.cs" />
@@ -250,6 +258,13 @@
     <Compile Include="Models\CuposAgrupados.cs" />
     <Compile Include="Models\CuposAgrupadosDetalle.cs" />
     <Compile Include="Models\CuposAgrupadosPdf.cs" />
+    <Compile Include="Models\Data\WebServiceSILDataRepository.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchesRequest.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchesResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\CupoCompatibleResumenViewModel.cs" />
+    <Compile Include="Models\Solicitudes\CupoInputDto.cs" />
+    <Compile Include="Models\Solicitudes\CupoParaMatchViewModel.cs" />
+    <Compile Include="Models\Solicitudes\CuposDisponibleViewModel.cs" />
     <Compile Include="Models\CuposDist.cs" />
     <Compile Include="Models\CuposPorDiaDTO.cs" />
     <Compile Include="Models\Cupo\EstadoCupo.cs" />
@@ -264,6 +279,7 @@
     <Compile Include="Models\DTabla.cs" />
     <Compile Include="Models\EditarCupoViewModel.cs" />
     <Compile Include="Models\Email\MailPdf.cs" />
+    <Compile Include="Models\Enums\Enum.cs" />
     <Compile Include="Models\Error\ApiException.cs" />
     <Compile Include="Models\EstadoAlfanumericoModel.cs" />
     <Compile Include="Models\FiltroCentro.cs" />
@@ -286,9 +302,44 @@
     <Compile Include="Models\NuevoCupoViewModelDTO.cs" />
     <Compile Include="Models\Puerto.cs" />
     <Compile Include="Models\RegistroDistribucionViewModel.cs" />
+    <Compile Include="Models\AsignacionSolicitudCupo.cs" />
     <Compile Include="Models\ServicioCentro.cs" />
     <Compile Include="Models\ServicioPuerto.cs" />
     <Compile Include="Models\ServicioGrano.cs" />
+    <Compile Include="Models\Solicitudes\FilterCuposDisponible.cs" />
+    <Compile Include="Models\Solicitudes\IndexModel.cs" />
+    <Compile Include="Models\Solicitudes\RechazarSolicitudRequest.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestPendingViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SILSolicitudDeTurnosFilterViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudTurnoGrupoView.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudActionResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ConfirmarAsignacionRequest.cs" />
+    <Compile Include="Models\Solicitudes\ConfirmarAsignacionResponse.cs" />
+    <Compile Include="Models\Solicitudes\MatchResultDto.cs" />
+    <Compile Include="Models\Solicitudes\BuscarMatchRequestDto.cs" />
+    <Compile Include="Models\Solicitudes\ZonaGeograficaView.cs" />
+    <Compile Include="Models\Solicitudes\MatchesFilterDto.cs" />
+    <Compile Include="Models\Solicitudes\MatchesResultDto.cs" />
+    <Compile Include="Models\Solicitudes\MatchItemDto.cs" />
+    <Compile Include="Models\Solicitudes\ModalMatchingDistribucionViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestAcceptDataViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestAcceptResultViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestRejectDataViewModel.cs" />
+    <Compile Include="Models\Solicitudes\ShiftRequestRejectResultViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudInputDto.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudParaMatchViewModel.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\AcceptPayloadBuilder.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\CupoDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\CupoAceptadoPorSolicitudDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\GrillaMatchResumenDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\MatchesVentanaDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptDataDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestAcceptResultDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\ShiftRequestRejectResultDto.cs" />
+    <Compile Include="Models\Solicitudes\Mapping\SolicitudTurnoDto.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudesIndexResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
+    <Compile Include="Models\Solicitudes\SolicitudViewModel.cs" />
     <Compile Include="Models\TablaIndexViewModel.cs" />
     <Compile Include="Models\TablaTurnosPendienteAutorizarViewModel.cs" />
     <Compile Include="Models\TurnoViewModel.cs" />
@@ -323,8 +374,19 @@
     <Content Include="Content\loading.css" />
     <Content Include="Content\open-iconic-bootstrap.min.css" />
     <Content Include="Content\skeleton.css" />
+    <Content Include="Content\solicitudes-alta.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\solicitudes-index.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\solicitudes-matching-distribucion.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Content\table_header_fixed.css" />
     <Content Include="Content\tokenfield-typeahead.min.css" />
+    <Content Include="Content\vendor\font-awesome\all.min.css" />
+    <Content Include="Content\vendor\sweetalert2\sweetalert2.min.css" />
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="fonts\open-iconic.svg" />
@@ -354,6 +416,10 @@
     <Content Include="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-brands-400.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-regular-400.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-solid-900.woff2" />
+    <Content Include="Content\vendor\font-awesome\webfonts\fa-v4compatibility.woff2" />
     <None Include="NLog.xsd">
       <SubType>Designer</SubType>
     </None>
@@ -369,6 +435,7 @@
     <Content Include="Scripts\Distribucion.js" />
     <Content Include="Scripts\Editar.js" />
     <Content Include="Scripts\Alert.js" />
+    <Content Include="Scripts\Functions.js" />
     <Content Include="Scripts\PuertoStop.js" />
     <Content Include="Scripts\highlightTextArea.js" />
     <Content Include="Scripts\InformarPorLote.js" />
@@ -382,6 +449,7 @@
     <Content Include="Scripts\jquery.validate.unobtrusive.js" />
     <Content Include="Scripts\jquery.validate.unobtrusive.min.js" />
     <Content Include="Scripts\landing-main.js" />
+    <Content Include="Scripts\MatchingDistribucion.js" />
     <Content Include="Scripts\MercaderiaSinDestino.js" />
     <Content Include="Scripts\ModalAuditoriaCambiosEstadoCupo.js" />
     <Content Include="Scripts\ModalConsignaciones.js" />
@@ -402,6 +470,7 @@
     <Content Include="Scripts\Spinner.js" />
     <Content Include="Scripts\TablaContratos.js" />
     <Content Include="Scripts\ValidaCuit.js" />
+    <Content Include="Scripts\vendor\sweetalert2\sweetalert2.min.js" />
     <Content Include="Scripts\_references.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
@@ -463,6 +532,7 @@
     <Content Include="Views\Cupos\_ModalMotivosPartial.cshtml" />
     <Content Include="Views\Cupos\_ModalSeleccionConsignacionesPartial.cshtml" />
     <Content Include="Views\Cupos\_InformaCuposPartial.cshtml" />
+    <Content Include="Views\Cupos\_MatchingDistribucionPartial.cshtml" />
     <Content Include="Views\Cupos\AutorizacionCupoSTOP.cshtml" />
     <Content Include="Views\Cupos\AutorizacionesPendientes.cshtml" />
     <Content Include="Views\Cupos\_ListaAlfanumericosSeleccionablesPartialView.cshtml" />
@@ -478,9 +548,12 @@
     <Content Include="Views\Configuracion\_NuevaRelacionPuertoStopPartial.cshtml" />
     <Content Include="Views\Configuracion\PuertoStop.cshtml" />
     <Content Include="Views\Configuracion\_NuevoPuertoStopPartial.cshtml" />
+    <Content Include="Views\Solicitudes\Index.cshtml" />
+    <Content Include="Views\Solicitudes\AltaSolicitud.cshtml" />
+    <Content Include="App_Data\usuarios.json" />
+    <Content Include="App_Data\Administrar-UsuarioLocal.ps1" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="App_Data\" />
     <Folder Include="Manuales\" />
     <Folder Include="Models\Claims\" />
     <Folder Include="Models\Cupo\CYO\" />
@@ -499,6 +572,9 @@
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
@@ -520,6 +596,9 @@
           <CustomServerUrl>
           </CustomServerUrl>
           <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+          <servers defaultServer="SelfHostServer">
+            <server name="SelfHostServer" exePath="" cmdArgs="" url="http://localhost:58443/" workingDir="" />
+          </servers>
         </WebProjectProperties>
       </FlavorProperties>
     </VisualStudio>

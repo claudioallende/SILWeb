@@ -12,6 +12,7 @@
   @Styles.Render("~/Content/datatables")
   @Styles.Render("~/Content/spinner")
   @Styles.Render("~/Content/WordTag")
+  @Styles.Render("~/Content/solicitudes-matching")
 }
 
 <h2>Distribucion</h2>
@@ -83,7 +84,7 @@
   <div class="row">
     <div class="col-md-12">
       <div class="form-group">
-        <button type="submit" id="btnBuscar" class="btn btn-primary">Buscar</button>
+        <button type="submit" id="btnBuscar" class="btn btn-primary"><span id="btnBuscarTexto">Buscar</span></button>
       </div>
     </div>
   </div>
@@ -314,6 +315,15 @@
                   </div>
                 </div>
               </div>
+              <div class="row">
+                <div class="col-lg-6">
+                  <div class="form-group">
+                    @Html.LabelFor(model => model.ConsignacionSeleccionada.CondicionGrano)
+                    @Html.EditorFor(model => model.ConsignacionSeleccionada.CondicionGrano, new { htmlAttributes = new { @class = "form-control", @readonly = "readonly" } })
+                    @Html.ValidationMessageFor(model => model.ConsignacionSeleccionada.CondicionGrano, "", new { @class = "text-danger" })
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div><!--card-->
@@ -466,6 +476,14 @@
 
 @Html.Partial("_InformaCuposPartial")
 
+@* Modal de matching en distribución de cupos (Pantalla 3):
+   Variante A (cupo con vendedor) + Variante B (sin vendedor) + diálogos operativos.
+   El contenido se hidrata por JS (Scripts/MatchingDistribucion.js) a partir
+   del flujo AJAX de Buscar. *@
+@{
+  Html.RenderPartial("_MatchingDistribucionPartial");
+}
+
 @section Scripts{
   @Scripts.Render("~/bundles/datepickerjs")
   @Scripts.Render("~/bundles/ValidaCuit")
@@ -474,7 +492,7 @@
   @Scripts.Render("~/bundles/datatables")
   @Scripts.Render("~/bundles/spinner")
   @Scripts.Render("~/bundles/WordTag")
-<script>
+  <script>
         var spinnerBtnAceptar = new Spinner(document.getElementById("btnAceptar"));
         var spinnerBtnAceptarMotivo = new Spinner(document.getElementById("btnAceptarMotivo"));
         var btnInformaCupos = new Spinner(document.getElementById("btnInformaCupos"));
@@ -486,6 +504,7 @@
             modelId: "@Model.Id",
             actionDetalle: "@Url.Action("Detalle")",
             actionActualizarDistribucion: "@Url.Action("ActualizarDistribucion")",
+            actionBuscarCuposConMatch: "@Url.Action("BuscarCuposConMatch", "CuposMatching")",
             actionContratos: "@Url.Action("Contratos")",
             actionGetCuit: "@Url.Action("GetCuit")",
             actionCantidadCuposConsignacionSeleccionada: "@Url.Action("GetCantidadCuposConsignacionSeleccionada")",
@@ -582,5 +601,192 @@
       });
       return table;
     }
+  </script>
+
+  @* ──────────────────────────────────────────────────────────
+       Buscar: actualiza primero la tabla y luego consulta matching.
+       El flujo es AJAX para evitar la navegación completa del form.
+
+       Gate por cantidad de consignaciones (fix TEST vs PROD):
+       - 0  → no hay nada que buscar; abortar y avisar.
+       - 1  → ModalConsignaciones.seleccionarSiEsUnicaFila() la auto-elige;
+              seguir directo con AJAX + matching.
+       - 2+ → el operador debe elegir; abrir el modal y cortar acá.
+              TablaContratos.js invoca window.ejecutarBusquedaConMatching
+              cuando el usuario confirma, encadenando AJAX + matching.
+     ────────────────────────────────────────────────────────── *@
+  <script type="text/javascript">
+    $(function () {
+      var $form = $('#FormFiltro');
+      var $btn = $('#btnBuscar');
+      var $btnTexto = $('#btnBuscarTexto');
+      var busquedaActual = 0;
+      var tablaRequest = null;
+      var matchingRequest = null;
+      var textoBuscar = $btnTexto.text();
+
+      // Flag compartido con TablaContratos.js: cuando el submit handler
+      // detecta 2+ consignaciones lo setea con el id de la búsqueda en
+      // curso y corta. TablaContratos.js lo lee después de hacer su AJAX
+      // post-aceptación del modal y llama a window.ejecutarBusquedaConMatching.
+      window._silMatchingPendingId = null;
+
+      if (!$form.length || !$btn.length || !window.SILMatching ||
+          typeof actualizarTablaContratos !== 'function') return;
+
+      function esBusquedaActual(id) {
+        return id === busquedaActual;
+      }
+
+      function cambiarEstadoBuscar(texto) {
+        $btnTexto.text(texto);
+        if (window.spinnerBtnBuscar) spinnerBtnBuscar.mostrarSpinner();
+      }
+
+      function restaurarEstadoBuscar(id) {
+        if (!esBusquedaActual(id)) return;
+        $btnTexto.text(textoBuscar);
+        if (window.spinnerBtnBuscar) spinnerBtnBuscar.ocultarSpinner();
+      }
+
+      // Lógica común: AJAX a GetTablaContratos y luego búsqueda de matching.
+      // Se expone en window para que TablaContratos.js la pueda invocar
+      // después de que el usuario elige una consignación en el modal.
+      window.ejecutarBusquedaConMatching = function (id) {
+        if (tablaRequest && tablaRequest.readyState !== 4) tablaRequest.abort();
+        if (matchingRequest && matchingRequest.readyState !== 4) matchingRequest.abort();
+        if (typeof SILMatching.cerrar === 'function') SILMatching.cerrar();
+
+        var filtro = {
+          CuentaVendedor: @(Model.CuentaVendedor),
+          CuentaComprador: @(Model.CuentaComprador),
+          CodigoGrano: @(Model.CodigoProducto),
+          CuentaPuerto: @(Model.CuentaPuerto),
+          // Codcentro y Codcentrodist vienen de los parámetros de URL
+          // (centroorigen / centrodistribucion), NO del dropdown del operador.
+          // Forman la clave natural (Centro, CentroDist) de cuposcorre para
+          // el flujo V2 de Distribución.
+          Codcentro: "@Request.Params["centroorigen"]",
+          Codcentrodist: "@Request.Params["centrodistribucion"]",
+          CupoId: window.SILMatching && window.SILMatching.estadoCupoActual
+                    ? (window.SILMatching.estadoCupoActual().Id || 0)
+                    : 0,
+          Fecha: new Date()
+        };
+
+        // Defensa: si la URL no trae los dos centros, abortamos antes de
+        // llamar al backend para evitar que V2 devuelva 400 y caiga al
+        // legacy con datos parcialmente filtrados.
+        if (!filtro.Codcentro || !filtro.Codcentrodist) {
+          if (typeof SILMatching !== 'undefined' && SILMatching && typeof SILMatching.cerrar === 'function') SILMatching.cerrar();
+          if (typeof mostrarEstadoTabla === 'function') {
+            mostrarEstadoTabla('Faltan parámetros de URL centroorigen / centrodistribucion para invocar el motor V2.', true);
+          }
+          restaurarEstadoBuscar(id);
+          return;
+        }
+
+        cambiarEstadoBuscar('Actualizando tabla...');
+        mostrarEstadoTabla('Actualizando tabla de distribución...', false);
+
+        tablaRequest = actualizarTablaContratos({ mostrarEstado: true });
+        tablaRequest.done(function () {
+          if (!esBusquedaActual(id)) return;
+
+          ocultarEstadoTabla();
+          cambiarEstadoBuscar('Buscando matches...');
+
+          // La disponibilidad por vendedor la calcula la UI desde la tabla
+          // HTML recién refrescada (#TablaDistribuciones). El motor sólo
+          // devuelve pares estructuralmente compatibles; este snapshot es la
+          // única fuente de Cupostotalesadist para decidir qué matches
+          // alcanzan al modal.
+          var disponibilidad = SILMatching.obtenerDisponibilidadVendedores();
+
+          matchingRequest = SILMatching.buscar(filtro);
+
+          matchingRequest.done(function (resp) {
+            if (!esBusquedaActual(id)) return;
+
+            var cuposCalifican = SILMatching.procesarRespuestaSearch(resp, disponibilidad);
+            if (Array.isArray(cuposCalifican) && cuposCalifican.length > 0) {
+              SILMatching.abrir(cuposCalifican);
+            } else if (resp && resp.cupos && resp.cupos.length === 0) {
+              // Modal del mock "Rechazo automático" usado como notificación
+              // informativa (header purple) para "Sin matches".
+              if (window.SILMatching && typeof window.SILMatching.mostrarDialogo === 'function') {
+                window.SILMatching.mostrarDialogo({
+                  tipo: 'rechazo-auto',
+                  header: 'Sin matches',
+                  titulo: 'No se encontraron solicitudes compatibles',
+                  resumen: '0 solicitudes',
+                  detalle: 'compatibles con los filtros aplicados.',
+                  lista: [],
+                  metaFooter: resp.message || 'Ajustá los filtros y volvé a buscar para obtener resultados.',
+                  botonTexto: 'Aceptar'
+                });
+              }
+            } else {
+              // Motor devolvió cupos pero ninguno califica por
+              // disponibilidad del vendedor de la solicitud → no mostrar modal.
+              console.info('[Matching] Modal no se abre: sin vendedores con Cupostotalesadist > 0 en la tabla HTML.');
+            }
+          }).fail(function (xhr, textStatus) {
+            if (!esBusquedaActual(id) || textStatus === 'abort') return;
+            console.warn('Matching: fallo en la llamada AJAX', xhr && xhr.statusText);
+          }).always(function () {
+            restaurarEstadoBuscar(id);
+          });
+        }).fail(function (xhr, textStatus) {
+          if (!esBusquedaActual(id) || textStatus === 'abort') return;
+          mostrarEstadoTabla('No se pudo actualizar la tabla de distribución.', true);
+          restaurarEstadoBuscar(id);
+        });
+      };
+
+      // Si el usuario cierra el modal de consignaciones sin aceptar (Esc, X,
+      // etc.), limpiar el pending id y restaurar el botón Buscar.
+      $('#idModalConsignaciones').on('hidden.bs.modal', function () {
+        if (window._silMatchingPendingId !== null) {
+          var pendingId = window._silMatchingPendingId;
+          window._silMatchingPendingId = null;
+          restaurarEstadoBuscar(pendingId);
+        }
+      });
+
+      $form.off('submit.silMatching').on('submit.silMatching', function (e) {
+        e.preventDefault();
+
+        var id = ++busquedaActual;
+
+        // Gate por cantidad de consignaciones (ver comentario del bloque).
+        var cantConsignaciones = (window.modelData && window.modelData.consignaciones)
+          ? window.modelData.consignaciones.length
+          : 0;
+
+        if (cantConsignaciones > 1) {
+          window._silMatchingPendingId = id;
+          // Resetear radios y fila-seleccionada por si quedó algo de una
+          // búsqueda anterior; el modal accept handler setea la selección
+          // nueva recién cuando el usuario confirma.
+          $('input:radio[name="Consignacion"]').prop('checked', false);
+          $('.fila-seleccionada').removeClass('fila-seleccionada');
+          cambiarEstadoBuscar('Seleccione consignación...');
+          $('#idModalConsignaciones').modal('show');
+          return;
+        }
+
+        if (cantConsignaciones === 0) {
+          mostrarEstadoTabla('No hay consignaciones disponibles para este cupo.', true);
+          restaurarEstadoBuscar(id);
+          return;
+        }
+
+        // 1 consignación: ModalConsignaciones.seleccionarSiEsUnicaFila() ya
+        // la auto-seleccionó al cargar la página. Seguir directo.
+        window._silMatchingPendingId = null;
+        window.ejecutarBusquedaConMatching(id);
+      });
+    });
   </script>
 }

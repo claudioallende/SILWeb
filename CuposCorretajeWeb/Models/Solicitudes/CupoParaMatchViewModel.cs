@@ -1,0 +1,47 @@
+using System;
+using System.Collections.Generic;
+
+namespace CuposCorretajeWeb.Models.Solicitudes
+{
+  /// <summary>
+  /// ViewModel que consume el modal de Pantalla 3: un cupo con todas
+  /// las solicitudes compatibles que el motor de matching detectó.
+  ///
+  /// Esta vista es la que dispara la decisión Variante A (cupo con
+  /// vendedor) o Variante B (cupo sin vendedor): el JS decide en función
+  /// de si <see cref="CodVendSIL"/> está poblado.
+  /// </summary>
+  public class CupoParaMatchViewModel
+  {
+    public long Id { get; set; }
+    public string CodGrano { get; set; }
+    public string NomGrano { get; set; }
+    public string CodVendSIL { get; set; }
+    public string NomVendSIL { get; set; }
+    public string CodCompSIL { get; set; }
+    public string NomCompSIL { get; set; }
+    public string CodDestino { get; set; }
+    public string NomDestino { get; set; }
+    public DateTime? Fecha { get; set; }
+    public int CuposTotales { get; set; }
+
+    /// <summary>
+    /// Cupos disponibles del vendedor de la solicitud, leídos desde la tabla
+    /// HTML de Distribución (#TablaDistribuciones, celda .cupos-disponibles).
+    /// El motor de matching no propaga este valor: se asigna en el cliente
+    /// antes de mostrar el modal.
+    /// </summary>
+    public int Cupostotalesadist { get; set; }
+
+    /// <summary>
+    /// Solicitudes compatibles para este cupo, ya en formato de presentación.
+    /// Se llena con la respuesta de <c>GET /api/ShiftRequest/MatchesPorCupo/{id}</c>.
+    /// </summary>
+    public List<SolicitudParaMatchViewModel> Matches { get; set; }
+
+    public CupoParaMatchViewModel()
+    {
+      Matches = new List<SolicitudParaMatchViewModel>();
+    }
+  }
+}

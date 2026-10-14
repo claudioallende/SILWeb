@@ -1,0 +1,346 @@
+@* ============================================================
+    SIL — Matching en Distribución de Cupos (Pantalla 3)
+    PartialView con los modales del flujo de matching:
+      1. Variante A — cupo CON vendedor (3 pasos)
+      2. Variante B — cupo SIN vendedor (tabla expandible)
+      3. Otros diálogos operativos:
+         - Confirmación con observaciones
+         - Conflicto de concurrencia
+         - Rechazo automático 18:00 hs
+    El JS (Scripts/MatchingDistribucion.js) controla el contenido y la
+    visibilidad de cada sección.
+    ============================================================ *@
+
+@* ============================================================
+     VARIANTE A — CUPO CON VENDEDOR (3 PASOS)
+     ============================================================ *@
+<div id="sil-modal-variant-a"
+     class="sil-modal-overlay"
+     data-modal="variant-a"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="va-title-cupo"
+     aria-hidden="true">
+  <div id="va-modal-card" class="sil-modal-card sil-modal-card-variant-a is-step-direct" role="document">
+    <div class="sil-modal-card-hd">
+      <span id="va-header-icon" class="sil-modal-card-hd-icon" aria-hidden="true">&#10003;</span>
+      <div class="sil-modal-heading">
+        <div class="sil-modal-title" id="va-title-cupo">Match directo detectado</div>
+        <div class="sil-modal-sub" id="va-subtitle-cupo">Cargando cupo &hellip;</div>
+      </div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+    </div>
+
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-tabs" role="tablist" aria-label="Etapas del matching">
+        <button type="button"
+                id="va-tab-step1"
+                class="sil-modal-tab is-active"
+                data-tab-group="variant-a"
+                data-tab="va-step1"
+                role="tab"
+                aria-controls="va-step1"
+                aria-selected="true">
+          <span class="sil-modal-tab-number">1</span>
+          <span>Match directo</span>
+        </button>
+        <button type="button"
+                id="va-tab-step2"
+                class="sil-modal-tab"
+                data-tab-group="variant-a"
+                data-tab="va-step2"
+                role="tab"
+                aria-controls="va-step2"
+                aria-selected="false">
+          <span class="sil-modal-tab-number">2</span>
+          <span>Confirmar desestimaci&oacute;n</span>
+        </button>
+        <button type="button"
+                id="va-tab-step3"
+                class="sil-modal-tab"
+                data-tab-group="variant-a"
+                data-tab="va-step3"
+                role="tab"
+                aria-controls="va-step3"
+                aria-selected="false">
+          <span class="sil-modal-tab-number">3</span>
+          <span>Matches parciales</span>
+        </button>
+      </div>
+
+      @* ── Paso 1: Match directo detectado ── *@
+      <div id="va-step1"
+           class="sil-modal-tab-step is-active"
+           role="tabpanel"
+           aria-labelledby="va-tab-step1">
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 1</span>
+          <h4>Match directo detectado</h4>
+          <p>Revis&aacute; las solicitudes compatibles y ajust&aacute; la cantidad antes de confirmar.</p>
+        </div>
+
+        <div class="sil-modal-summary sil-modal-summary-direct">
+          <div class="sil-modal-summary-title" id="va-step1-headline">Cargando &hellip;</div>
+          <div id="va-step1-list">
+            <em class="sil-empty-state-inline">A&uacute;n no se consultaron los matches.</em>
+          </div>
+        </div>
+
+        <div class="sil-modal-callout sil-modal-callout-neutral">
+          <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+          <div>Estos cupos fueron creados espec&iacute;ficamente para estas solicitudes. Se recomienda confirmar la asignaci&oacute;n directa.</div>
+        </div>
+
+        <div class="sil-modal-foot">
+          <button type="button" class="sil-btn" data-action="va-ir-a-paso-2">Desestimar match directo &rarr;</button>
+          <button type="button" class="sil-btn sil-btn-teal" data-action="va-confirmar-directo">Confirmar asignaci&oacute;n directa</button>
+        </div>
+      </div>
+
+      @* ── Paso 2: Confirmación para desestimar ── *@
+      <div id="va-step2"
+           class="sil-modal-tab-step"
+           role="tabpanel"
+           aria-labelledby="va-tab-step2"
+           hidden>
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 2</span>
+          <h4>Desestimar match directo</h4>
+          <p>Esta acci&oacute;n es poco habitual y requiere confirmaci&oacute;n.</p>
+        </div>
+
+        <div class="sil-modal-callout sil-modal-callout-amber">
+          <span class="sil-modal-callout-icon" aria-hidden="true">!</span>
+          <div>
+            <strong id="va-step2-warning-headline">Atenci&oacute;n &mdash; acci&oacute;n poco habitual</strong>
+            <span>Los cupos disponibles comparten vendedor y grano con solicitudes detectadas. Desestimar implica ignorar ese match y continuar con alternativas parciales.</span>
+          </div>
+        </div>
+
+        <p class="sil-modal-confirm-copy">&iquest;Confirm&aacute;s que quer&eacute;s desestimar el match directo y buscar otras solicitudes compatibles?</p>
+
+        <div class="sil-modal-foot">
+          <button type="button" class="sil-btn sil-btn-teal" data-action="va-ir-a-paso-1">&larr; Volver al match directo</button>
+          <button type="button" class="sil-btn sil-modal-btn-danger" data-action="va-ir-a-paso-3">S&iacute;, desestimar y ver parciales &rarr;</button>
+        </div>
+      </div>
+
+      @* ── Paso 3: Matches parciales disponibles ── *@
+      <div id="va-step3"
+           class="sil-modal-tab-step"
+           role="tabpanel"
+           aria-labelledby="va-tab-step3"
+           hidden>
+        <div class="sil-modal-section-heading">
+          <span class="sil-modal-section-eyebrow">Paso 3</span>
+          <h4>Matches parciales disponibles</h4>
+          <p>Seleccion&aacute; cu&aacute;ntos cupos asignar a cada solicitud compatible.</p>
+        </div>
+
+        <div class="sil-modal-callout sil-modal-callout-navy">
+          <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+          <div>
+            <strong>Criterio de b&uacute;squeda</strong>
+            <span>Se listan las solicitudes cuyo solicitante coincide con el vendedor del cupo y que tienen comprador o zona sin definir.</span>
+          </div>
+        </div>
+
+        <div id="va-step3-table-wrap" class="sil-modal-table-wrap sil-modal-table-wrap-spaced">
+          <em class="sil-empty-state-inline">A&uacute;n sin matches parciales.</em>
+        </div>
+
+        <div class="sil-modal-foot">
+          <button type="button" class="sil-btn" data-action="va-ir-a-paso-1">&larr; Volver al inicio</button>
+          <button type="button" class="sil-btn sil-btn-navy" data-action="va-confirmar-parcial">Confirmar asignaci&oacute;n parcial</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* ============================================================
+     VARIANTE B — CUPO SIN VENDEDOR
+     ============================================================ *@
+<div id="sil-modal-variant-b"
+     class="sil-modal-overlay"
+     data-modal="variant-b"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="vb-title-cupo"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-variant-b" role="document">
+    <div class="sil-modal-card-hd">
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#8776;</span>
+      <div class="sil-modal-heading">
+        <div class="sil-modal-title" id="vb-title-cupo">Solicitudes compatibles &mdash; asignaci&oacute;n a definir</div>
+        <div class="sil-modal-sub" id="vb-subtitle-cupo">Cargando cupo &hellip;</div>
+      </div>
+      <div class="sil-modal-chip">Ordenado: <strong>Antig&uuml;edad</strong></div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+    </div>
+
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-counters" aria-label="Resumen de la distribuci&oacute;n">
+        <div class="sil-modal-counter">
+          <span>Cupos a distribuir</span>
+          <b id="vb-counter-total">0</b>
+        </div>
+        <div class="sil-modal-counter">
+          <span>Solicitantes</span>
+          <b id="vb-counter-solicitantes">0</b>
+        </div>
+        <div class="sil-modal-counter">
+          <span>Total solicitudes</span>
+          <div>
+            <b id="vb-counter-total-sols">0</b>
+            <small class="sil-modal-counter-sin-asignar">&nbsp;(<span id="vb-counter-sin-asignar">0</span> sin asignar)</small>
+          </div>
+        </div>
+        <div class="sil-modal-counter sil-modal-counter-assigned">
+          <span>Cupos asignados</span>
+          <div>
+            <b id="vb-counter-asignados">0</b>
+            <small>&nbsp;/ <span id="vb-counter-asignados-max">0</span></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="sil-modal-progress">
+        <div class="sil-modal-progress-label">
+          <span>Progreso de distribuci&oacute;n</span>
+          <strong id="vb-progress-label">0 / 0</strong>
+        </div>
+        <div class="sil-modal-progress-track" role="progressbar" aria-label="Progreso de distribuci&oacute;n" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="sil-modal-progress-fill" id="vb-progress-fill"></div>
+        </div>
+        <div class="sil-modal-progress-warn" id="vb-progress-warn">&#9888; Quedan cupos sin distribuir.</div>
+      </div>
+
+      <div id="vb-table-wrap" class="sil-modal-table-wrap sil-modal-table-wrap-spaced">
+        <em class="sil-empty-state">A&uacute;n no se cargaron solicitudes compatibles.</em>
+      </div>
+
+      <div class="sil-modal-callout sil-modal-callout-navy sil-modal-order-hint">
+        <span class="sil-modal-callout-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>Criterio de orden actual: Antig&uuml;edad.</strong>
+          <span id="vb-order-hint">El operador puede ajustar libremente las cantidades.</span>
+        </div>
+      </div>
+
+      <div class="sil-modal-foot">
+        <button type="button" class="sil-btn" data-action="vb-cancelar">Cancelar</button>
+        <button type="button" class="sil-btn sil-btn-navy" data-action="vb-confirmar">Confirmar distribuci&oacute;n</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* ============================================================
+     OTROS DIÁLOGOS OPERATIVOS
+     Mock C:\Users\gasparc\Downloads\SIL_Mockups_Matching_v5.html
+     Estos tres modales reemplazan los Swal.fire del flujo de
+     matching. Cada uno es reutilizable según el contexto:
+       · Confirmación con observaciones (amber) — confirmaciones
+         generales o condicionales.
+       · Conflicto de concurrencia (red) — errores / 409 / excedentes.
+       · Rechazo automático (purple) — notificaciones informativas.
+     ============================================================ *@
+
+@* Confirmación con observaciones (mock: "Confirmación con observaciones") *@
+<div id="sil-modal-confirm-obs"
+     class="sil-modal-overlay"
+     data-modal="confirm-obs"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="confirm-obs-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-confirm-obs" role="document">
+    <div class="sil-modal-card-hd">
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#9888;</span>
+      <div class="sil-modal-title" id="confirm-obs-title">Confirmaci&oacute;n con observaciones</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+    </div>
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-dialog-title" id="confirm-obs-message">La solicitud contiene condiciones especiales</div>
+      <div class="sil-modal-callout sil-modal-callout-amber" id="confirm-obs-texto">
+        <b>Observaciones:</b>
+        <em>A&uacute;n sin texto.</em>
+      </div>
+      <p class="sil-modal-dialog-copy" id="confirm-obs-copy">Verific&aacute; que el/los cupo(s) seleccionado(s) cumple(n) estas condiciones antes de confirmar.</p>
+      <div id="confirm-obs-solicitante" class="sil-modal-dialog-meta"></div>
+      <div class="sil-modal-foot">
+        <button type="button" class="sil-btn" data-action="confirm-obs-cancelar">Cancelar</button>
+        <button type="button" class="sil-btn sil-modal-btn-danger" data-action="confirm-obs-confirmar">S&iacute;, confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* Conflicto de concurrencia (mock: "Error — Conflicto de concurrencia") *@
+<div id="sil-modal-conflict"
+     class="sil-modal-overlay"
+     data-modal="conflict"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="conflict-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-conflict" role="document">
+    <div class="sil-modal-card-hd">
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#9888;</span>
+      <div class="sil-modal-title" id="conflict-title">Conflicto de concurrencia</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+    </div>
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-dialog-title" id="conflict-message">La solicitud ya fue procesada</div>
+      <p class="sil-modal-dialog-copy" id="conflict-intro">La solicitud fue <strong>asignada o rechazada</strong> por otro operador mientras revisabas la vista.</p>
+      <p class="sil-modal-dialog-copy" id="conflict-help">La tabla se actualiz&oacute;. Seleccion&aacute; otra solicitud pendiente o volv&eacute; a la grilla de cupos.</p>
+      <div id="conflict-detail" class="sil-modal-callout sil-modal-callout-red"></div>
+      <div class="sil-modal-foot">
+        <button type="button" class="sil-btn sil-btn-navy" data-action="conflict-cerrar-y-recargar">Volver a la grilla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* Rechazo automático 18:00 hs (mock: "Rechazo automático — 18:00 hs") *@
+<div id="sil-modal-rechazo-auto"
+     class="sil-modal-overlay"
+     data-modal="rechazo-auto"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="rechazo-auto-title"
+     aria-hidden="true">
+  <div class="sil-modal-card sil-modal-card-auto" role="document">
+    <div class="sil-modal-card-hd">
+      <span class="sil-modal-card-hd-icon" aria-hidden="true">&#128337;</span>
+      <div class="sil-modal-title" id="rechazo-auto-title">Rechazo autom&aacute;tico &mdash; cierre 18:00 hs</div>
+      <button type="button" class="sil-modal-close" data-action="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+    </div>
+    <div class="sil-modal-card-body">
+      <div class="sil-modal-dialog-title" id="rechazo-auto-message">Proceso de cierre ejecutado</div>
+      <div class="sil-modal-callout sil-modal-callout-purple">
+        <div><strong id="rechazo-auto-resumen">2 solicitudes</strong> <span id="rechazo-auto-detalle">rechazadas autom&aacute;ticamente por vencimiento del d&iacute;a operativo.</span></div>
+      </div>
+      <div id="rechazo-auto-lista" class="sil-modal-dialog-list"></div>
+      <div class="sil-modal-dialog-meta" id="rechazo-auto-footer">Los solicitantes fueron notificados autom&aacute;ticamente.</div>
+      <div class="sil-modal-foot">
+        <button type="button" class="sil-btn sil-btn-navy" data-action="rechazo-auto-aceptar">Aceptar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* ============================================================
+     OVERLAY BLOQUEANTE
+     Se muestra mientras se ejecuta AceptarMatch contra el backend
+     (POST /CuposMatching/AceptarMatch). Evita que el operador haga
+     otra acción hasta recibir respuesta. .is-open lo activa JS.
+     ============================================================ *@
+<div id="sil-blocking-overlay" class="sil-blocking-overlay" role="dialog" aria-modal="true" aria-labelledby="sil-blocking-overlay-title">
+  <div class="sil-blocking-overlay-card">
+    <div class="sil-spinner" role="status" aria-label="Distribuyendo"></div>
+    <div class="sil-blocking-overlay-title" id="sil-blocking-overlay-title">Distribuyendo&hellip;</div>
+    <div class="sil-blocking-overlay-sub" id="sil-blocking-overlay-sub">Aceptando match y actualizando tabla.</div>
+  </div>
+</div>

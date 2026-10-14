@@ -119,6 +119,7 @@ namespace CuposCorretajeWeb.Models
     public virtual string Usuario { get; set; }
     public virtual string Caratula { get; set; }
     public virtual string ContactoComercial { get; set; }
+    public virtual string CondicionGrano { get; set; }
 
     public virtual bool VendcyoBoolValue
     {
@@ -156,7 +157,8 @@ namespace CuposCorretajeWeb.Models
         Cuitrteent = this.Cuitrteent,
         Nomrteent = this.Nomrteent,
         Cuitdestinatario = this.Cuitdestinatario,
-        Nomdestinatario = this.Nomdestinatario
+        Nomdestinatario = this.Nomdestinatario,
+        CondicionGrano = this.CondicionGrano
       };
     }
 
@@ -179,7 +181,8 @@ namespace CuposCorretajeWeb.Models
         Cuitrteent = string.IsNullOrEmpty(this.Cuitrteent) ? null : this.Cuitrteent.Trim(),
         Nomrteent = string.IsNullOrEmpty(this.Nomrteent) ? null : this.Nomrteent.Trim(),
         Cuitdestinatario = string.IsNullOrEmpty(this.Cuitdestinatario) ? null : this.Cuitdestinatario.Trim(),
-        Nomdestinatario = string.IsNullOrEmpty(this.Nomdestinatario) ? null : this.Nomdestinatario.Trim()
+        Nomdestinatario = string.IsNullOrEmpty(this.Nomdestinatario) ? null : this.Nomdestinatario.Trim(),
+        CondicionGrano = string.IsNullOrEmpty(this.CondicionGrano) ? null : this.CondicionGrano.Trim()
       };
     }
 

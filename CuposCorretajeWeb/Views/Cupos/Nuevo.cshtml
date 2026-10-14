@@ -19,6 +19,14 @@
 @using (Html.BeginForm("Nuevo", "Cupos", FormMethod.Post, new { id = "FormNuevo" }))
 {
   @Html.AntiForgeryToken()
+  @* Si el caller pasó returnUrl (vía query string al hacer GET), lo
+     mantenemos en un hidden para que sobreviva al POST. Si el form se
+     re-renderiza por ModelState inválido o ApiException, el valor sigue
+     disponible para el próximo submit. *@
+  if (ViewBag.ReturnUrl != null)
+  {
+    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+  }
 
   <div class="form-horizontal">
     <hr />
@@ -296,6 +304,13 @@
               @Html.ValidationMessageFor(model => model.Caratula, "", new { @class = "text-danger" })
             </div>
           </div>
+          <div id="col-condicion-grano" class="col-lg-12">
+            <div class="form-group">
+              @Html.LabelFor(model => model.CondicionGrano)
+              @Html.DropDownListFor(model => model.CondicionGranoSeleccionado, Model.CondicionGrano, "Seleccione..", new { @class = "form-control" })
+              @Html.ValidationMessageFor(model => model.CondicionGranoSeleccionado, "", new { @class = "text-danger" })
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -304,7 +319,7 @@
     <div class="row justify-content-between flex-row flex-nowrap row-scrollx">
       @for (int Dia = 0; Dia <= Model.CantidadDias; Dia++)
       {
-        <div class="col-2">
+        <div class="col-2 cupo-dia">
           <div class="form-group">
             <label>@DateTime.Now.AddDays(Dia).ToString("dd/MM")</label>
             @Html.HiddenFor(x => x.CodigosDias[Dia].Dia, new { Value = DateTime.Now.AddDays(Dia).ToString("dd/MM/yy") })
@@ -326,7 +341,21 @@
     <div class="row">
       <div class="col-sm-12 text-right">
         <button type="submit" id="btnCrear" class="btn btn-primary">Crear cupo</button>
-        @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+        @{
+          // Si el caller pasó returnUrl (ej. cuando se entró desde el botón
+          // "+ Crear nuevo cupo" de Solicitudes/Index), el Cancelar vuelve
+          // a esa pantalla en lugar de ir al listado genérico de cupos.
+          // Si no, mantenemos el comportamiento legacy: Cancelar → Cupos/Index.
+          var cancelarReturnUrl = ViewBag.ReturnUrl as string;
+        }
+        @if (!string.IsNullOrEmpty(cancelarReturnUrl))
+        {
+          <a href="@cancelarReturnUrl" class="btn btn-danger">Cancelar</a>
+        }
+        else
+        {
+          @Html.ActionLink("Cancelar", "Index", null, new { @class = "btn btn-danger" })
+        }
       </div>
     </div>
   </div>

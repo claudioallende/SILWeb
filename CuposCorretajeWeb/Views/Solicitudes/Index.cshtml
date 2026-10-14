@@ -1,0 +1,796 @@
+@model CuposCorretajeWeb.Models.Solicitudes.IndexModel
+@{
+  ViewBag.Title = "Solicitudes de Turno";
+  var fechasHeader = new List<string>();
+  for (int i = 0; i < Model.CantidadDias; i++)
+  {
+    fechasHeader.Add(Model.FechaReferencia.AddDays(i).ToString("dd/MM"));
+  }
+}
+
+@section Styles {
+  <link rel="stylesheet" href="~/Content/solicitudes-index.css" />
+}
+
+<div class="container-fluid">
+
+  <!-- ===== Page header ===== -->
+  <div class="sil-page-hd">
+    <div>
+      <h1>Solicitudes de Turno</h1>
+      <p>
+        @(string.IsNullOrEmpty(Model.Subtitulo) ? "Solicitudes pendientes de asignación — Centro " + Model.Centro + " · " + Model.FechaReferencia.ToString("dd/MM/yyyy") : Model.Subtitulo)
+      </p>
+    </div>
+    <div class="sil-page-hd-actions">
+      <!-- Alta de cupo a nivel del listado (no atado a una solicitud puntual).
+           La creación se hace en /Cupos/Nuevo/0; el parámetro returnUrl le
+           indica a CuposController.Nuevo que vuelva a esta misma pantalla
+           (Solicitudes/Index) al guardar, en lugar de ir a Cupos/Index. -->
+      <a class="sil-btn sil-btn-navy"
+         href="@Url.Action("Nuevo", "Cupos", new { id = 0, returnUrl = Url.Action("Index", "Solicitudes") })"
+         title="Crear nuevo cupo compatible">
+        + Crear nuevo cupo
+      </a>
+    </div>
+  </div>
+
+  <!-- ===== Toolbar ===== -->
+  <div class="sil-toolbar">
+    <!-- Los filtros ahora viven en la cabecera de cada columna (Grano,
+         Solicitante, Comprador, Zona) y se aplican en tiempo real al
+         tipear. El botón Filtro se sacó porque era redundante. -->
+  </div>
+
+  <!-- ===== Leyenda ===== -->
+  <div class="sil-legend">
+    <span><span class="sil-dot" style="background:#e74c3c;"></span>Cupos disponibles sin asignar</span>
+    <span><span class="sil-dot" style="background:#27ae60;"></span>Sin pendientes</span>
+    <span class="sil-badge sil-badge-dir">Match directo</span>
+    <span class="sil-badge sil-badge-par">Match parcial</span>
+    <span class="sil-badge sil-badge-obs">Con observaciones</span>
+  </div>
+
+  <!-- ===== Tabla CONTRACTUAL ===== -->
+  <div class="sil-section-title">
+    Solicitudes CONTRACTUAL
+    <span class="sil-section-subtitle" id="lblContractualCount">—</span>
+  </div>
+  <div class="sil-tbl-wrap">
+    <div class="sil-tbl-scroller">
+      <table id="tablaSolicitudes" class="sil-tbl">
+        <thead id="theadContractual">
+          <!-- Se completa con JS al cargar la respuesta del endpoint -->
+        </thead>
+        <tbody id="tbodyContractual">
+          <tr>
+            <td colspan="@(5 + Model.CantidadDias * 2 + 1)">
+              <div class="sil-empty">
+                <div class="sil-empty-icon">…</div>Cargando solicitudes…
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot id="tfootContractual"></tfoot>
+      </table>
+    </div>
+    <div class="sil-pager" id="pagerContractual"></div>
+  </div>
+
+  <!-- ===== Tabla FUTURO ===== -->
+  <div class="sil-section-title">
+    Solicitudes FUTURO
+    <span class="sil-section-subtitle" id="lblFuturoCount">—</span>
+  </div>
+  <div class="sil-tbl-wrap">
+    <div class="sil-tbl-scroller">
+      <table id="tablaSolicitudesFuturo" class="sil-tbl">
+        <thead id="theadFuturo"></thead>
+        <tbody id="tbodyFuturo">
+          <tr>
+            <td colspan="@(5 + Model.CantidadDias * 2 + 1)">
+              <div class="sil-empty">
+                <div class="sil-empty-icon">…</div>Cargando solicitudes…
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot id="tfootFuturo"></tfoot>
+      </table>
+    </div>
+    <div class="sil-pager" id="pagerFuturo"></div>
+  </div>
+
+  <!-- ===== Anotación / ayuda contextual ===== -->
+  <div class="sil-annotation">
+    <strong>Pantalla 1 — Grilla de solicitudes de turno.</strong>
+    El operador visualiza todas las solicitudes pendientes de los centros que tiene asignados.
+    La columna <em>Cupos compatibles</em> muestra el resultado del motor de matching en tiempo real.
+    Los días marcados en rojo indican cupos disponibles aún sin asignar a solicitudes pendientes.
+    Al hacer clic en <em>ver</em> se navega al detalle de la solicitud.
+  </div>
+
+</div>
+
+@section Scripts {
+  <script type="text/javascript">
+            $(document).ready(function () {
+                ShowLoader();
+
+                // Orden estable por Grano + Solicitante (NombreVendedor).
+                // localeCompare en 'es' maneja acentos/case y devuelve un
+                // orden consistente entre las dos tablas. Se aplica sobre
+                // el set completo (no el filtrado) para que el operador
+                // pueda aplicar filtros sin perder el agrupado.
+                function sortByGranoSolicitante(rows) {
+                    return rows.slice().sort(function (a, b) {
+                        var cmp = (a.NombreGrano || '').localeCompare(b.NombreGrano || '', 'es', { sensitivity: 'base' });
+                        if (cmp !== 0) return cmp;
+                        return (a.NombreVendedor || '').localeCompare(b.NombreVendedor || '', 'es', { sensitivity: 'base' });
+                    });
+                }
+
+                // Loader global
+                $(document).ajaxStart(function () { ShowLoader(); });
+                $(document).ajaxStop(function () { HideLoader(); });
+                $(document).ajaxError(function () { HideLoader(); });
+
+                // ----- Constantes de render -----
+                const COL_GRANO = 0;
+                const COL_SOLICITANTE = 1;
+                const COL_COMPRADOR = 2;
+                const COL_ZONA = 3;
+                const COL_CUPOS = 4;
+                // COL 5 .. 5 + 2*N - 1 : fechas (TR/TO)
+                const COL_ACCION = 5 + @(Model.CantidadDias) * 2;
+
+                // ----- Estado de filtros por columna -----
+                // Los inputs de la cabecera de cada tabla actualizan estos valores
+                // en tiempo real y re-renderizan ambas tablas. Se preservan entre
+                // recargas del backend (al volver de Pantalla 2, etc.).
+                var state = {
+                    filters: { grano: '', solicitante: '', comprador: '', zona: '' },
+                    fechasHeader: []
+                };
+
+                function hasActiveFilter() {
+                    var f = state.filters;
+                    return !!(f.grano || f.solicitante || f.comprador || f.zona);
+                }
+
+                function applyFilters(rows) {
+                    var f = state.filters;
+                    var g = (f.grano || '').toLowerCase();
+                    var s = (f.solicitante || '').toLowerCase();
+                    var c = (f.comprador || '').toLowerCase();
+                    var z = (f.zona || '').toLowerCase();
+                    if (!g && !s && !c && !z) return rows;
+                    return rows.filter(function (r) {
+                        if (g && (r.NombreGrano || '').toLowerCase().indexOf(g) === -1) return false;
+                        if (s && (r.NombreVendedor || '').toLowerCase().indexOf(s) === -1) return false;
+                        if (c && (r.NombreComprador || '').toLowerCase().indexOf(c) === -1) return false;
+                        if (z && (r.NombreDestino || '').toLowerCase().indexOf(z) === -1) return false;
+                        return true;
+                    });
+                }
+
+                function renderBothBodies() {
+                    if (state.fechasHeader.length === 0) return;
+                    if (currentContractuales.length > 0) {
+                        renderTabla({
+                            theadId: '#theadContractual',
+                            tbodyId: '#tbodyContractual',
+                            tfootId: '#tfootContractual',
+                            countLabelId: '#lblContractualCount',
+                            pagerId: '#pagerContractual',
+                            rows: currentContractuales,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1,
+                            skipHeader: true
+                        });
+                    }
+                    if (currentFuturos.length > 0) {
+                        renderTabla({
+                            theadId: '#theadFuturo',
+                            tbodyId: '#tbodyFuturo',
+                            tfootId: '#tfootFuturo',
+                            countLabelId: '#lblFuturoCount',
+                            pagerId: '#pagerFuturo',
+                            rows: currentFuturos,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1,
+                            skipHeader: true
+                        });
+                    }
+                }
+
+                // (El botón Filtro de la toolbar se sacó: los filtros ahora
+                // viven en la cabecera de cada columna y se aplican en
+                // tiempo real al tipear.)
+
+                // ----- Carga inicial -----
+                // Cache local de las filas por tabla, para que el handler .btn-ver
+                // pueda armar el SolicitudViewModel a partir del row original
+                // (no leemos del DOM porque perderíamos tipos numéricos/long).
+                var currentContractuales = [];
+                var currentFuturos = [];
+
+                $.ajax({
+                    url: '@Url.Action("GetAllPendingShiftRequests", "Solicitudes")',
+                    method: "GET",
+                    dataType: "json",
+                    success: function (response) {
+                        currentContractuales = sortByGranoSolicitante(response.Contractuales || []);
+                        currentFuturos = sortByGranoSolicitante(response.Futuros || []);
+                        // Persistimos fechasHeader en state para que el re-render
+                        // por filtro pueda usarlas sin tener que volver a pegarle
+                        // al backend.
+                        state.fechasHeader = response.FechasHeader || [];
+
+                        var todas = currentContractuales.concat(currentFuturos);
+                        var sinComp = todas.filter(function (r) { return !r.CuentaComprador; }).length;
+                        var sinDest = todas.filter(function (r) { return !r.CuentaDestino; }).length;
+                        var sinAmbos = todas.filter(function (r) { return !r.CuentaComprador && !r.CuentaDestino; }).length;
+                        console.log('[Solicitudes] Recibidas:', todas.length,
+                            '| Sin Comprador:', sinComp,
+                            '| Sin Destino:', sinDest,
+                            '| Sin ambos:', sinAmbos);
+
+                        // Diagnóstico: por cada fila con Aceptada > 0 (es decir,
+                        // donde hubo alguna acción previa), logueamos los
+                        // acumuladores para verificar si el backend está
+                        // exponiendo CantidadRechazada. Si CantidadRechazada
+                        // es 0 cuando la BD tiene rechazos, el endpoint
+                        // GetAllPendingShiftRequestAsync no está populando
+                        // el campo y el filtro EsPendiente del controller no
+                        // puede distinguir una solicitud completamente
+                        // rechazada de una pendiente.
+                        var conAccion = todas.filter(function (r) {
+                            var ts = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.Cantidad || 0); }, 0);
+                            var to = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.CantidadAceptada || 0); }, 0);
+                            return to > 0 || (r.CantidadRechazada || 0) > 0;
+                        });
+                        if (conAccion.length > 0) {
+                            console.log('[Solicitudes] diag - filas con Aceptada > 0 ó Rechazada > 0:');
+                            conAccion.forEach(function (r) {
+                                var ts = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.Cantidad || 0); }, 0);
+                                var to = (r.CantidadFechas || []).reduce(function (acc, d) { return acc + (d.CantidadAceptada || 0); }, 0);
+                                console.log('  id=' + r.Id,
+                                    '| grano=' + r.NombreGrano,
+                                    '| vendedor=' + r.NombreVendedor,
+                                    '| TS(total)=' + ts,
+                                    '| TO(total)=' + to,
+                                    '| Rechazada=' + (r.CantidadRechazada || 0),
+                                    '| pendiente_gestion=' + (ts - to),
+                                    '| estado=' + r.EstadoLabel);
+                            });
+                        }
+
+                        if (sinComp || sinDest) {
+                            console.log('[Solicitudes] Filas sin Comprador/Destino (muestra):',
+                                todas.filter(function (r) { return !r.CuentaComprador || !r.CuentaDestino; })
+                                    .slice(0, 5)
+                                    .map(function (r) { return { id: r.Id, grano: r.NombreGrano, vendedor: r.NombreVendedor, comprador: r.NombreComprador, destino: r.NombreDestino, cantFechas: (r.CantidadFechas || []).map(function (d) { return d.Fecha + '=' + d.Cantidad; }) }; }));
+                        }
+
+                        renderTabla({
+                            theadId: '#theadContractual',
+                            tbodyId: '#tbodyContractual',
+                            tfootId: '#tfootContractual',
+                            countLabelId: '#lblContractualCount',
+                            pagerId: '#pagerContractual',
+                            rows: currentContractuales,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1
+                        });
+                        renderTabla({
+                            theadId: '#theadFuturo',
+                            tbodyId: '#tbodyFuturo',
+                            tfootId: '#tfootFuturo',
+                            countLabelId: '#lblFuturoCount',
+                            pagerId: '#pagerFuturo',
+                            rows: currentFuturos,
+                            fechasHeader: state.fechasHeader,
+                            pageSize: 10,
+                            currentPage: 1
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error al obtener los datos:", error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudieron cargar las solicitudes pendientes.',
+                            confirmButtonColor: '#1a3a6b'
+                        });
+                        ['#tbodyContractual', '#tbodyFuturo'].forEach(function (id) {
+                            $(id).html('<tr><td colspan="' + (@(Model.CantidadDias) * 2 + 6) + '"><div class="sil-empty"><div class="sil-empty-icon">⚠</div>Error al cargar los datos.</div></td></tr>');
+                        });
+                    },
+                    complete: function () { HideLoader(); }
+                });
+
+                // ----- Filtros por columna: event delegation -----
+                // Usamos delegación en document para que el handler sobreviva a
+                // re-renders de la cabecera (la fila sil-tr-filter se recrea
+                // cuando se llama renderTabla sin skipHeader, p.ej. al volver
+                // de Pantalla 2).
+                $(document).on('input', '.sil-th-filter', function () {
+                    var $input = $(this);
+                    var filter = $input.data('filter');
+                    if (!filter) return;
+                    state.filters[filter] = $input.val();
+                    // Re-render sólo el body para no perder el foco del input.
+                    renderBothBodies();
+                });
+
+                // ----- Función reutilizable de render de tabla -----
+                function renderTabla(opts) {
+                    const { theadId, tbodyId, tfootId, countLabelId, pagerId, rows, fechasHeader, pageSize, currentPage, skipHeader } = opts;
+
+                    const colspanTotal = 5 + fechasHeader.length * 2 + 1;
+
+                    // Aplicar filtros al set antes de paginar. El total original
+                    // (sin filtrar) lo guardamos para mostrar el indicador
+                    // "(filtrado de N)" en el contador.
+                    const filteredRows = applyFilters(rows);
+                    const originalTotal = rows.length;
+                    const totalRows = filteredRows.length;
+                    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                    const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+
+                    // Header: 2 filas sin rowspan, alineadas por columna.
+                    //   Fila 1 (sil-tr-hdr): labels de columna + headers de fecha (colspan=2).
+                    //   Fila 2 (sil-tr-filter): inputs de filtro bajo Grano/Sol/Comp/Zona
+                    //                           + sub-headers TR/TO bajo cada fecha
+                    //                           + celdas vacías bajo Cupos/Acción.
+                    //
+                    // Antes probamos con rowspan=2/3 y los filtros adentro del
+                    // mismo <th> que el label, pero eso dejaba la fila 1 muy
+                    // alta y descolocaba los headers de fecha. Esta estructura
+                    // es la estándar de DataTables y similares: cada filtro
+                    // queda en su propia celda, debajo del label de su columna.
+                    if (!skipHeader) {
+                        // Fila 1: labels + headers de fecha
+                        let headHtml = '<tr class="sil-tr-hdr">' +
+                            '<th class="tl">Grano</th>' +
+                            '<th class="tl">Solicitante</th>' +
+                            '<th class="tl">Comprador</th>' +
+                            '<th>Zona</th>' +
+                            '<th>Cupos compatibles</th>';
+                        fechasHeader.forEach(function (f, idx) {
+                            // Primer header de fecha no lleva divisor a la izquierda
+                            // (sería un borde pegado al borde derecho de "Cupos
+                            // compatibles"). El resto sí, para separar visualmente
+                            // cada fecha.
+                            var firstClass = idx === 0 ? ' sil-th-date-first' : '';
+                            headHtml += '<th colspan="2" class="sil-th-date' + firstClass + '">' + f + '</th>';
+                        });
+                        headHtml += '<th></th></tr>';
+
+                        // Fila 2: filtros (bajo Grano/Sol/Comp/Zona) + TR/TO (bajo fechas)
+                        headHtml += '<tr class="sil-tr-filter">' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="grano" placeholder="Filtrar..." value="' + escapeHtml(state.filters.grano) + '" aria-label="Filtrar por Grano" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="solicitante" placeholder="Filtrar..." value="' + escapeHtml(state.filters.solicitante) + '" aria-label="Filtrar por Solicitante" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="comprador" placeholder="Filtrar..." value="' + escapeHtml(state.filters.comprador) + '" aria-label="Filtrar por Comprador" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"><input type="text" class="sil-th-filter" data-filter="zona" placeholder="Filtrar..." value="' + escapeHtml(state.filters.zona) + '" aria-label="Filtrar por Zona" autocomplete="off" /></th>' +
+                            '<th class="sil-th-filter-cell"></th>';
+                        fechasHeader.forEach(function (_, idx) {
+                            // Mismo criterio que la fila 1: el primer TR no lleva
+                            // divisor (lo arrastraría desde el borde derecho de
+                            // "Cupos compatibles"). Los TR de fechas siguientes
+                            // sí, para marcar el límite entre fechas.
+                            var trFirstClass = idx === 0 ? ' sil-th-trto-first' : '';
+                            headHtml += '<th class="sil-th-trto' + trFirstClass + '">TP</th><th class="sil-th-trto">TO</th>';
+                        });
+                        headHtml += '<th class="sil-th-filter-cell"></th></tr>';
+
+                        $(theadId).html(headHtml);
+                    }
+
+                    // Contador global: si hay filtros activos, muestra
+                    // "N filas (filtrado de M)" para que el operador sepa
+                    // cuántas se ocultaron.
+                    var contadorText = totalRows + ' fila' + (totalRows !== 1 ? 's' : '');
+                    if (hasActiveFilter() && totalRows !== originalTotal) {
+                        contadorText += ' <span class="sil-filter-active-indicator">(filtrado de ' + originalTotal + ')</span>';
+                    }
+                    $(countLabelId).html(contadorText);
+
+                    // Body
+                    if (!totalRows) {
+                        var emptyMsg = hasActiveFilter()
+                            ? '<div class="sil-empty"><div class="sil-empty-icon">∅</div>Ninguna solicitud coincide con los filtros aplicados.</div>'
+                            : '<div class="sil-empty"><div class="sil-empty-icon">∅</div>No hay solicitudes para mostrar.</div>';
+                        $(tbodyId).html('<tr><td colspan="' + colspanTotal + '">' + emptyMsg + '</td></tr>');
+                        $(tfootId).html('');
+                        renderPager(pagerId, 0, 0, pageSize, function () { });
+                        return;
+                    }
+
+                    // Calcular totales por fecha sobre el set FILTRADO COMPLETO
+                    // (no la página actual) para que el footer muestre la suma
+                    // de lo que efectivamente coincide con el filtro.
+                    // TS (ts) = pendientes = Cantidad - CantidadAceptada (lo que se
+                    // muestra en la columna). TO (to) = CantidadAceptada (otorgados).
+                    const totales = fechasHeader.map(function () { return { ts: 0, to: 0, tieneCupoDisponible: false }; });
+                    filteredRows.forEach(function (r) {
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            if (idx < totales.length) {
+                                totales[idx].to += d.CantidadAceptada || 0;
+                                // El backend ya calcula CantidadPendiente clamped a 0
+                                // (Cantidad - CantidadAceptada); por defensa legacy
+                                // si no viene lo computamos acá.
+                                var pendiente = (typeof d.CantidadPendiente === 'number')
+                                    ? d.CantidadPendiente
+                                    : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                                totales[idx].ts += pendiente;
+                                if (d.TieneCupoDisponible) totales[idx].tieneCupoDisponible = true;
+                            }
+                        });
+                    });
+
+                    // Totales por grano por fecha. Misma estructura que `totales`
+                    // (el acumulador del tfoot) pero agrupados por NombreGrano.
+                    // Permite que el separador visual muestre, debajo de cada
+                    // fecha, la suma de TS y TO de las filas que pertenecen a
+                    // ese grano — el mismo formato que la fila "Total Diario"
+                    // del tfoot, scoped al grano. Se calcula sobre el set
+                    // COMPLETO filtrado (no la página) para que la suma sea
+                    // estable aunque el grupo esté paginado en varias páginas.
+                    const totalesPorGrano = {};
+                    filteredRows.forEach(function (r) {
+                        var grano = r.NombreGrano || '—';
+                        if (!totalesPorGrano[grano]) {
+                            totalesPorGrano[grano] = fechasHeader.map(function () { return { ts: 0, to: 0, tieneCupoDisponible: false }; });
+                        }
+                        var buckets = totalesPorGrano[grano];
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            if (idx < buckets.length) {
+                                buckets[idx].to += d.CantidadAceptada || 0;
+                                var pendiente = (typeof d.CantidadPendiente === 'number')
+                                    ? d.CantidadPendiente
+                                    : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                                buckets[idx].ts += pendiente;
+                                if (d.TieneCupoDisponible) buckets[idx].tieneCupoDisponible = true;
+                            }
+                        });
+                    });
+
+                    // Slice de la página actual
+                    const startIdx = (page - 1) * pageSize;
+                    const pageRows = filteredRows.slice(startIdx, startIdx + pageSize);
+
+                    let bodyHtml = '';
+                    let lastGrano = null;
+                    let dataRowIndex = 0;
+                    // pendingSeparator acumula el HTML del "Total por Grano"
+                    // del ÚLTIMO grupo visto, y se emite cuando el grano
+                    // cambia (o al final del loop). Así el separador queda
+                    // ABAJO de las filas del grupo al que totaliza — no
+                    // arriba como antes, que era confuso.
+                    let pendingSeparator = null;
+                    pageRows.forEach(function (r) {
+                        if (lastGrano !== r.NombreGrano) {
+                            // Cerrar el grupo anterior: volcar el pending.
+                            if (pendingSeparator) {
+                                bodyHtml += pendingSeparator;
+                            }
+                            // Armar el separador del grupo nuevo para
+                            // emitirlo DESPUÉS de sus data rows.
+                            var buckets = totalesPorGrano[r.NombreGrano] || [];
+                            pendingSeparator = '<tr class="sil-row-grupo">' +
+                                '<td colspan="5" class="tl">' +
+                                '<strong class="sil-grupo-label">Total por Grano</strong>' +
+                                '</td>' +
+                                buckets.map(function (b) { return renderCeldaTotalBucket(b); }).join('') +
+                                '<td></td></tr>';
+                        }
+                        lastGrano = r.NombreGrano;
+
+                        // Zebra striping: alternamos clase sil-row-even en
+                        // las filas de datos (NO en los separadores). El
+                        // contador se lleva sólo sobre data rows, así no
+                        // se desfasa cuando hay separadores visibles.
+                        var zebraCls = (dataRowIndex % 2 === 0) ? ' sil-row-even' : '';
+                        bodyHtml += '<tr data-id="' + (r.Id || 0) + '" class="sil-row-data' + zebraCls + '">' +
+                            renderCeldaTexto(r.NombreGrano || '—', 'tl') +
+                            renderCeldaTexto(r.NombreVendedor || '—', 'tl') +
+                            renderCeldaTexto(r.NombreComprador || '—', 'tl') +
+                            renderCeldaTexto(r.NombreDestino || '—', '') +
+                            renderCeldaCupos(r.CuposCompatibles);
+
+                        // Celdas TR/TO por fecha
+                        (r.CantidadFechas || []).forEach(function (d, idx) {
+                            // Pasamos isFirstDate para que la celda TR sepa si
+                            // lleva la clase sil-td-date-first (sin divisor) o
+                            // sil-td-date (con divisor). El primer bloque no
+                            // lleva divisor porque quedaría pegado a "Cupos
+                            // compatibles".
+                            bodyHtml += renderCeldaFecha(d, idx === 0);
+                        });
+
+                        // Acción
+                        bodyHtml += '<td><button type="button" class="sil-icon-btn btn-ver" data-id="' + (r.Id || 0) + '" title="Ver detalle">&#9776; ver</button></td>';
+                        bodyHtml += '</tr>';
+                        dataRowIndex++;
+                    });
+                    // Última fila de la página: volcar el pending del último
+                    // grupo (no hubo un próximo cambio de grano que lo dispare).
+                    if (pendingSeparator) {
+                        bodyHtml += pendingSeparator;
+                    }
+                    $(tbodyId).html(bodyHtml);
+                    console.log('[Solicitudes] Renderizadas en', tbodyId, ':', pageRows.length, 'fila(s)');
+
+                    // Footer con totales del set completo
+                    let footHtml = '<tr class="sil-tr-total">' +
+                        '<td colspan="5" class="tl">Total Diario</td>';
+                    totales.forEach(function (t) {
+                        footHtml += renderCeldaTotalBucket(t);
+                    });
+                    footHtml += '<td></td></tr>';
+                    $(tfootId).html(footHtml);
+
+                    // Paginador
+                    renderPager(pagerId, totalRows, page, pageSize, function (newPage) {
+                        renderTabla(Object.assign({}, opts, { currentPage: newPage }));
+                    });
+
+                    // Click en "ver" → arma SolicitudViewModel desde la fila cacheada
+                    // y hace POST a AltaSolicitud (TempData + redirect al GET).
+                    $(tbodyId).off('click', '.btn-ver').on('click', '.btn-ver', function () {
+                        const $tr = $(this).closest('tr');
+                        const id = $tr.data('id');
+                        const row = currentContractuales.concat(currentFuturos).find(function (r) { return r.Id === id; });
+                        if (!row) {
+                            Swal.fire({ icon: 'error', title: 'No se encontró la fila' });
+                            return;
+                        }
+                        // Diccionario de cantidades por fecha (yyyy-MM-dd).
+                        const fechas = (row.CantidadFechas || []).reduce(function (acc, d) {
+                            acc[d.Fecha] = d.Cantidad || 0;
+                            return acc;
+                        }, {});
+
+                        // Diccionario de cupos YA ACEPTADOS por fecha
+                        // (yyyy-MM-dd). Cada item del grupo deposita su
+                        // CantidadAceptada en la celda de SU propia fecha
+                        // (no la suma del grupo en la celda del primer item,
+                        // como en versiones anteriores). Pantalla 2 lo usa
+                        // para pintar la columna "Sol. TO" y mostrar al
+                        // operador cu&aacute;ntos cupos ya fueron otorgados
+                        // para esa fecha antes de aceptar m&aacute;s.
+                        const fechasAceptadas = (row.CantidadFechas || []).reduce(function (acc, d) {
+                            acc[d.Fecha] = d.CantidadAceptada || 0;
+                            return acc;
+                        }, {});
+
+                        // Cantidad original = suma de TR en la grilla.
+                        const cantidadOriginal = Object.values(fechas).reduce(function (a, b) { return a + (b || 0); }, 0);
+
+                        const payload = {
+                            IdSolicitud: row.Id,
+                            CodigoCentro: row.CodigoCentro || '',
+                            CodigoGrano: row.CodigoGrano,
+                            NombreGrano: row.NombreGrano || '',
+                            CuentaVendedor: row.CuentaVendedor,
+                            Solicitante: row.NombreVendedor || '',
+                            CuentaComprador: row.CuentaComprador,
+                            Comprador: row.NombreComprador || '',
+                            NombreComprador: row.NombreComprador || '',
+                            CuentaDestino: row.CuentaDestino,
+                            NombreDestino: row.NombreDestino || '',
+                            // La grilla no expone zona real todavía; mandamos el
+                            // codigoCentro como aproximación para que el dropdown
+                            // nombreZona/ZonaId reales, se cambia acá.
+                            Zona: row.NombreDestino || '',
+                            Observacion: row.Observacion || '',
+                            EstadoBadge: row.EstadoBadge || 'pending',
+                            EstadoLabel: row.EstadoLabel || 'Pendiente',
+                            Fechas: fechas,
+                            // Acumuladores de aceptados (totales, sin desglose
+                            // por fecha). El backend los expone en
+                            // GetAllAsync desde CANTIDAD_ACEPTADA y
+                            // CANTIDAD_FUTURO_ACEPTADA de SOLTURNOS. Los
+                            // usamos para el banner de Pantalla 2.
+                            CantidadAceptada: row.CantidadAceptada || 0,
+                            CantidadFuturoAceptada: row.CantidadFuturoAceptada || 0,
+                            CantidadOriginal: cantidadOriginal,
+                            // Cupos ya aceptados por fecha (per-fecha, no
+                            // suma del grupo). Pantalla 2 lo muestra en
+                            // "Sol. TO" para que el operador vea el
+                            // progreso real de cada d&iacute;a.
+                            FechasAceptadas: fechasAceptadas,
+                            // Mapa fecha → solicitudId para que Pantalla 2 pueda
+                            // pedir matches de la solicitud ESPEC&Iacute;FICA del
+                            // d&iacute;a tildado (no s&oacute;lo la primera del
+                            // grupo, que es lo que va en IdSolicitud).
+                            SolicitudesPorFecha: row.SolicitudesPorFecha || {}
+                        };
+
+                        // Marca de tiempo para garantizar visibilidad m&iacute;nima del loader.
+                        var showLoaderAt = Date.now();
+                        ShowLoader();
+                        $.ajax({
+                            url: '@Url.Action("AltaSolicitud", "Solicitudes")',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            global: false,
+                            data: JSON.stringify(payload)
+                        })
+                            .done(function (r) {
+                                if (r && r.success && r.redirectUrl) {
+                                    var elapsed = Date.now() - showLoaderAt;
+                                    var minVisible = 400;
+                                    var wait = Math.max(250, minVisible - elapsed);
+                                    setTimeout(function () { window.location = r.redirectUrl; }, wait);
+                                } else {
+                                    HideLoader();
+                                    Swal.fire({ icon: 'error', title: 'Error', text: (r && r.message) || 'No se pudo abrir el detalle.' });
+                                }
+                            })
+                            .fail(function (xhr) {
+                                HideLoader();
+                                Swal.fire({ icon: 'error', title: 'Error', text: xhr.statusText || 'Fallo de red' });
+                            });
+                    });
+                }
+
+                // ----- Paginador -----
+                function renderPager(pagerId, totalRows, currentPage, pageSize, onPageChange) {
+                    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+                    const page = Math.min(Math.max(1, currentPage || 1), totalPages);
+                    const $p = $(pagerId);
+                    if (!$p.length) return;
+
+                    if (totalRows === 0) {
+                        $p.html('<span class="sil-pager-info">Sin resultados</span>');
+                        return;
+                    }
+
+                    const desde = (page - 1) * pageSize + 1;
+                    const hasta = Math.min(page * pageSize, totalRows);
+
+                    let html = '<span class="sil-pager-info">Mostrando ' + desde + '–' + hasta + ' de ' + totalRows + '</span>';
+
+                    html += '<button type="button" data-pg="prev"' + (page === 1 ? ' disabled' : '') + '>&lsaquo;</button>';
+
+                    // Rango de páginas a mostrar: si hay muchas, ventana de 5 alrededor de la actual.
+                    const windowSize = 5;
+                    let start = Math.max(1, page - Math.floor(windowSize / 2));
+                    let end = Math.min(totalPages, start + windowSize - 1);
+                    start = Math.max(1, end - windowSize + 1);
+
+                    for (let i = start; i <= end; i++) {
+                        html += '<button type="button" data-pg="' + i + '"' + (i === page ? ' class="sil-pager-active"' : '') + '>' + i + '</button>';
+                    }
+
+                    html += '<button type="button" data-pg="next"' + (page === totalPages ? ' disabled' : '') + '>&rsaquo;</button>';
+
+                    $p.html(html);
+                    $p.off('click', 'button').on('click', 'button', function () {
+                        if ($(this).is(':disabled')) return;
+                        const v = $(this).data('pg');
+                        let np = page;
+                        if (v === 'prev') np = page - 1;
+                        else if (v === 'next') np = page + 1;
+                        else np = parseInt(v, 10);
+                        if (np !== page) onPageChange(np);
+                    });
+                }
+
+                // ----- Helpers de celda -----
+                function renderCeldaTexto(valor, alignClass) {
+                    return '<td' + (alignClass ? ' class="' + alignClass + '"' : '') + '>' + escapeHtml(valor) + '</td>';
+                }
+
+                // Helper: arma el par de celdas TS/TO (Totales / Otorgados)
+                // para un bucket de totales. Comparte el criterio de color
+                // con la fila "Total Diario" del tfoot: si el valor > 0 se
+                // muestra tal cual, si = 0 y hay cupo disponible se pinta
+                // el chip rojo, si no se muestra el 0 gris. La usan tanto
+                // el tfoot como el separador por grano.
+                function renderCeldaTotalBucket(t) {
+                    var tsVal = t.ts || 0;
+                    var tsHtml;
+                    if (tsVal > 0) {
+                        tsHtml = '<td>' + tsVal + '</td>';
+                    } else if (t.tieneCupoDisponible) {
+                        tsHtml = '<td><span class="sil-cell-red">0</span></td>';
+                    } else {
+                        tsHtml = '<td><span class="sil-zero">0</span></td>';
+                    }
+
+                    var toVal = t.to || 0;
+                    var toHtml;
+                    if (toVal > 0) {
+                        toHtml = '<td>' + toVal + '</td>';
+                    } else if (t.tieneCupoDisponible) {
+                        toHtml = '<td><span class="sil-cell-red">0</span></td>';
+                    } else {
+                        toHtml = '<td><span class="sil-zero">0</span></td>';
+                    }
+
+                    return tsHtml + toHtml;
+                }
+
+                function renderCeldaFecha(d, isFirstDate) {
+                    // TS: la columna muestra los turnos PENDIENTES
+                    // (Cantidad - CantidadAceptada) en lugar de los solicitados
+                    // originales. El controller deposita CantidadPendiente por
+                    // fecha; si no viene (defensa legacy) lo computamos acá.
+                    // Mismo criterio de color: si hay valor se muestra, si no y
+                    // hay cupo disponible se pinta el chip rojo, si no, el 0 gris.
+                    //
+                    // La celda TS arranca cada bloque de fecha. Marcamos la primera
+                    // con sil-td-date-first para que el CSS no le dibuje divisor a
+                    // la izquierda (quedaría pegado al borde de "Cupos compatibles").
+                    // Las siguientes sí llevan sil-td-date, que dibuja una línea
+                    // vertical separando cada fecha.
+                    let tsCls = isFirstDate ? 'sil-td-date sil-td-date-first' : 'sil-td-date';
+                    let tsCell = '<td class="' + tsCls + '">';
+                    var tsVal = (typeof d.CantidadPendiente === 'number')
+                        ? d.CantidadPendiente
+                        : Math.max(0, (d.Cantidad || 0) - (d.CantidadAceptada || 0));
+                    if (tsVal > 0) tsCell += tsVal;
+                    else if (d.TieneCupoDisponible) tsCell += '<span class="sil-cell-red">0</span>';
+                    else tsCell += '<span class="sil-zero">0</span>';
+                    tsCell += '</td>';
+
+                    // TO: cupos aceptados/otorgados para esta fecha (total depositado
+                    // por el controller en la celda de la fecha del primer item del
+                    // grupo). Mismo criterio de color que TS. No lleva clase: el
+                    // divisor entre fechas ya quedó del lado izquierdo del TS de la
+                    // siguiente fecha.
+                    let toCell = '<td>';
+                    var toVal = d.CantidadAceptada || 0;
+                    if (toVal > 0) toCell += toVal;
+                    else if (d.TieneCupoDisponible) toCell += '<span class="sil-cell-red">0</span>';
+                    else toCell += '<span class="sil-zero">0</span>';
+                    toCell += '</td>';
+
+                    return tsCell + toCell;
+                }
+
+                function renderCeldaCupos(cc) {
+                    if (!cc) return '<td><span class="sil-zero">—</span></td>';
+
+                    if (cc.CupoAsignadoId) {
+                        return '<td><span style="font-size:11px;color:#155724;font-weight:500;">Cupo #' + cc.CupoAsignadoId + ' asignado</span></td>';
+                    }
+
+                    if (cc.TextoResumen === 'Rechazo manual') {
+                        return '<td><span style="font-size:11px;color:#a93226;">Rechazo manual</span></td>';
+                    }
+
+                    if (cc.TextoResumen === 'Sin coincidencia') {
+                        return '<td><span style="font-size:11px;color:#9aa3b5;">Sin coincidencia</span></td>';
+                    }
+
+                    // Para casos con directos/parciales/observaciones
+                    let html = '';
+                    if (cc.Directos > 0) html += '<span class="sil-badge sil-badge-dir" style="margin-right:3px;">' + cc.Directos + ' directo' + (cc.Directos !== 1 ? 's' : '') + '</span>';
+                    if (cc.Parciales > 0) html += '<span class="sil-badge sil-badge-par" style="margin-right:3px;">' + cc.Parciales + ' parcial' + (cc.Parciales !== 1 ? 'es' : '') + '</span>';
+                    if (cc.Observaciones > 0) html += '<span class="sil-badge sil-badge-obs">' + cc.Observaciones + ' obs.</span>';
+
+                    if (!html) html = '<span style="font-size:11px;color:#9aa3b5;">' + escapeHtml(cc.TextoResumen || '—') + '</span>';
+                    return '<td>' + html + '</td>';
+                }
+
+                function escapeHtml(s) {
+                    if (s === null || s === undefined) return '';
+                    return String(s)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+            });
+  </script>
+}
