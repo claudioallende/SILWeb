@@ -1,0 +1,417 @@
+@{
+  ViewBag.Title = "Historial de solicitudes";
+  Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+  <link rel="stylesheet" href="~/Content/solicitudes-historial.css" />
+}
+
+<div class="container-fluid">
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="sil-his-breadcrumb">
+    @Html.ActionLink("Solicitudes", "Index", "Solicitudes")
+    &rsaquo;
+    <strong>Historial de solicitudes</strong>
+  </div>
+
+  <!-- ===== Page header ===== -->
+  <div class="sil-page-hd">
+    <div>
+      <h1>Historial de solicitudes</h1>
+      <p>Solicitudes cumplidas y vencidas — Centro @(ViewBag.CentrosOperador != null ? string.Join(", ", (List<string>)ViewBag.CentrosOperador) : "—")</p>
+    </div>
+    <div class="sil-page-hd-actions">
+      <a class="sil-btn sil-btn-navy" href="@Url.Action("Index", "Solicitudes")" title="Volver a Solicitudes">
+        &larr; Volver a Solicitudes
+      </a>
+    </div>
+  </div>
+
+  <!-- ===== Tarjetas de totales ===== -->
+  <div class="sil-his-cards">
+    <div class="sil-his-card sil-his-card-cump">
+      <div class="sil-his-card-lbl">Cumplidas</div>
+      <div class="sil-his-card-val" id="silHisCumplidas">—</div>
+    </div>
+    <div class="sil-his-card sil-his-card-venc">
+      <div class="sil-his-card-lbl">Vencidas</div>
+      <div class="sil-his-card-val" id="silHisVencidas">—</div>
+    </div>
+    <div class="sil-his-card sil-his-card-total">
+      <div class="sil-his-card-lbl">Total histórico</div>
+      <div class="sil-his-card-val" id="silHisTotal">—</div>
+    </div>
+  </div>
+
+  <!-- ===== Panel de filtros ===== -->
+  <div class="sil-his-filtros">
+    <div class="row">
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Desde</div>
+        <input type="date" id="silHisFechaDesde" class="form-control form-control-sm" />
+      </div>
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Hasta</div>
+        <input type="date" id="silHisFechaHasta" class="form-control form-control-sm" />
+      </div>
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Solicitante</div>
+        <select id="silHisVendedor" class="form-control form-control-sm">
+          <option value="">(todos)</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Comprador</div>
+        <select id="silHisComprador" class="form-control form-control-sm">
+          <option value="">(todos)</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Grano</div>
+        <select id="silHisGrano" class="form-control form-control-sm">
+          <option value="">(todos)</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <div class="sil-his-lbl">Estado final</div>
+        <select id="silHisEstado" class="form-control form-control-sm">
+          <option value="Todos">(todos)</option>
+          <option value="Cumplida">Cumplida</option>
+          <option value="Vencida">Vencida</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <div class="col-md-8">
+        <div class="sil-his-lbl">Búsqueda rápida</div>
+        <input type="text" id="silHisBusqueda" class="form-control form-control-sm"
+               placeholder="CUIT, comprador, vendedor…" />
+      </div>
+      <div class="col-md-4 sil-his-filtros-actions">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="silHisLimpiarFiltros">
+          Limpiar filtros
+        </button>
+        <button type="button" class="btn btn-sm sil-btn sil-btn-navy" id="silHisAplicar">
+          Aplicar filtros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Grilla histórica con filas desplegables ===== -->
+  <div class="sil-tbl-wrap">
+    <div class="sil-tbl-scroller">
+      <table id="silHisTabla" class="sil-tbl">
+        <thead>
+          <tr>
+            <th style="width:24px;"></th>
+            <th class="tl">Fecha sol.</th>
+            <th>Grano</th>
+            <th class="tl">Solicitante</th>
+            <th class="tl">Comprador</th>
+            <th class="tl">Zona</th>
+            <th>T. sol.</th>
+            <th>T. asig.</th>
+            <th>Estado final</th>
+          </tr>
+        </thead>
+        <tbody id="silHisTbody">
+          <tr>
+            <td colspan="9">
+              <div class="sil-his-empty">
+                <div class="sil-his-empty-icon">…</div>
+                Aplicá los filtros para ver solicitudes históricas.
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sil-his-footer">
+      <div id="silHisResumen">—</div>
+      <ul id="silHisPager" class="sil-his-pager"></ul>
+    </div>
+  </div>
+
+</div>
+
+@section scripts {
+  <script>
+    // ============================================================
+    // RF-03 — Histórico de solicitudes (controller + UI)
+    // ============================================================
+    (function () {
+      "use strict";
+
+      var $tbody = $("#silHisTbody");
+      var $pager = $("#silHisPager");
+      var $resumen = $("#silHisResumen");
+      var $cump = $("#silHisCumplidas");
+      var $venc = $("#silHisVencidas");
+      var $tot  = $("#silHisTotal");
+
+      var PAGE_SIZE = 20;
+
+      // ------------------------------------------------------------
+      // Defaults de fecha — deben coincidir con los del backend
+      // (GetHistoricoAsync: si no mandan fechas, mira los últimos 179 días).
+      // Si el front no pre-fillara y mandara null, el operador vería la
+      // ventana de 6 meses sin saberlo; con el pre-fill la ventana que ve
+      // en pantalla es la ventana que se consulta.
+      // ------------------------------------------------------------
+      function prefillFechas() {
+        var hasta = new Date();
+        var desde = new Date(hasta.getTime());
+        desde.setDate(desde.getDate() - 179);
+        $("#silHisFechaHasta").val(toIso(hasta));
+        $("#silHisFechaDesde").val(toIso(desde));
+      }
+
+      function toIso(d) {
+        return d.getFullYear() + '-'
+          + ('0' + (d.getMonth() + 1)).slice(-2) + '-'
+          + ('0' + d.getDate()).slice(-2);
+      }
+
+      // ------------------------------------------------------------
+      // Catálogo de granos (único filtro con catálogo completo; el
+      // backend lo expone en Cliente/GetGranos del ResourceServer).
+      //
+      // Los selects de Vendedor y Comprador quedan vacíos a propósito:
+      // no existe endpoint de catálogo para ellos (sólo
+      // AccountData/Vendedor/{texto} y /Comprador/{texto}, que exigen
+      // texto y devuelven top 10). Hay que pedirle al equipo de SILData
+      // los endpoints sin filtro; hasta entonces el operador los
+      // cubre con "Búsqueda rápida", que matchea CUIT, razón social y
+      // código de cuenta. Ver RF-03 §Dependencias.
+      // ------------------------------------------------------------
+      function cargarGranos() {
+        $.ajax({
+          url: '@Url.Action("GetGranosHistorico", "Solicitudes")',
+          method: "GET",
+          dataType: "json",
+          global: false
+        })
+        .done(function (granos) {
+          if (!granos || !granos.length) return;
+          var opciones = ['<option value="">(todos)</option>'];
+          granos.forEach(function (g) {
+            if (g.CodigoGrano == null) return;
+            opciones.push(
+              '<option value="' + g.CodigoGrano + '">' + escape(g.Nombre || g.CodigoGrano) + '</option>'
+            );
+          });
+          $("#silHisGrano").html(opciones.join(""));
+        });
+      }
+
+      // ------------------------------------------------------------
+      // AJAX loader
+      // ------------------------------------------------------------
+      function cargarHistorico(page) {
+        var params = {
+          estado: $("#silHisEstado").val() || "Todos",
+          fechaDesde: $("#silHisFechaDesde").val() || null,
+          fechaHasta: $("#silHisFechaHasta").val() || null,
+          codigoGrano: parseInt($("#silHisGrano").val()) || null,
+          cuentaComprador: parseInt($("#silHisComprador").val()) || null,
+          cuentaVendedor: parseInt($("#silHisVendedor").val()) || null,
+          busquedaRapida: $("#silHisBusqueda").val() || null,
+          page: page || 1,
+          pageSize: PAGE_SIZE
+        };
+
+        ShowLoader();
+
+        $.ajax({
+          url: '@Url.Action("GetHistoricoSolicitudes", "Solicitudes")',
+          method: "GET",
+          data: params,
+          dataType: "json",
+          global: false
+        })
+        .done(function (resp) {
+          renderCards(resp);
+          renderRows(resp);
+          renderPager(resp);
+        })
+        .fail(function (xhr, status, err) {
+          Swal.fire({
+            icon: 'error',
+            title: 'No se pudo cargar el histórico',
+            text: (err || status) + ''
+          });
+          renderRows({ Items: [] });
+        })
+        .always(function () { HideLoader(); });
+      }
+
+      // ------------------------------------------------------------
+      // Render: tarjetas + grilla + pager
+      // ------------------------------------------------------------
+      function renderCards(resp) {
+        var r = (resp && resp.Resumen) || {};
+        $cump.text(r.Cumplidas != null ? r.Cumplidas : 0);
+        $venc.text(r.Vencidas != null ? r.Vencidas : 0);
+        $tot.text(r.Total != null ? r.Total : 0);
+      }
+
+      function renderRows(resp) {
+        var items = (resp && resp.Items) || [];
+        if (!items.length) {
+          $tbody.html(
+            '<tr><td colspan="9">' +
+              '<div class="sil-his-empty">No hay solicitudes históricas que coincidan con los filtros aplicados.</div>' +
+            '</td></tr>'
+          );
+          return;
+        }
+
+        var html = "";
+        items.forEach(function (it) {
+          html += renderFila(it);
+          html += renderExpand(it);
+        });
+        $tbody.html(html);
+      }
+
+      function renderFila(it) {
+        return ''
+          + '<tr class="sil-row-data" data-target="#silHisExp-' + it.Id + '">'
+          +   '<td><span class="sil-caret">&#9656;</span></td>'
+          +   '<td class="tl">' + formatFecha(it.FechaSolicitado) + '</td>'
+          +   '<td>' + escape(it.NombreGrano) + '</td>'
+          +   '<td class="tl">' + escape(it.NombreVendedor) + '</td>'
+          +   '<td class="tl">' + (it.NombreComprador ? escape(it.NombreComprador) : '—') + '</td>'
+          +   '<td class="tl">' + escape(it.NombreDestino) + '</td>'
+          +   '<td>' + (it.Cantidad || 0) + '</td>'
+          +   '<td>' + (it.CantidadAceptada || 0) + '</td>'
+          +   '<td>'
+          +     '<span class="sil-his-estado sil-his-estado-' + (it.Estado === 'Cumplida' ? 'cump' : 'venc') + '">'
+          +       (it.Estado === 'Cumplida' ? '● Cumplida' : '● Vencida')
+          +     '</span>'
+          +   '</td>'
+          + '</tr>';
+      }
+
+      function renderExpand(it) {
+        var alfas = it.Alfanumericos || [];
+        var inner;
+        if (!alfas.length) {
+          inner = '<div class="sil-his-expand-empty">Sin cupos aceptados — la solicitud venció sin asignación.</div>';
+        } else {
+          var rows = "";
+          alfas.forEach(function (a) {
+            rows += ''
+              + '<tr>'
+              +   '<td><code>' + escape(a.Alfanumerico) + '</code></td>'
+              +   '<td>CUP-' + a.CupoId + '</td>'
+              +   '<td>' + (a.FechaAsignacion ? formatFecha(a.FechaAsignacion) : '—') + '</td>'
+              +   '<td>' + escape(a.Puerto || '—') + '</td>'
+              +   '<td>' + escape(a.TipoMatch || '—') + '</td>'
+              + '</tr>';
+          });
+          inner = ''
+            + '<table class="sil-his-alfa-tbl">'
+            +   '<thead><tr><th>Alfanumérico</th><th>Cupo</th><th>Fecha asignación</th><th>Puerto</th><th>Tipo match</th></tr></thead>'
+            +   '<tbody>' + rows + '</tbody>'
+            + '</table>';
+        }
+
+        return ''
+          + '<tr class="sil-his-expand-row" id="silHisExp-' + it.Id + '" style="display:none;">'
+          +   '<td colspan="9"><div class="sil-his-expand-inner">' + inner + '</div></td>'
+          + '</tr>';
+      }
+
+      function renderPager(resp) {
+        // La metadata de paginación viene anidada en resp.Paginacion (mismo
+        // criterio que el backend: los datos de la fila no llevan paginación).
+        var pg = (resp && resp.Paginacion) || {};
+        var totalPag = pg.TotalPaginas || 0;
+        var pag = pg.Pagina || 1;
+        var total = pg.TotalRegistros || 0;
+        var tam = pg.TamanoPagina || PAGE_SIZE;
+
+        $resumen.text(total
+          ? "Mostrando " + (((pag - 1) * tam) + 1)
+            + "–" + Math.min(pag * tam, total)
+            + " de " + total + " solicitudes"
+          : "Sin resultados");
+
+        var html = "";
+        html += '<li class="' + (pag <= 1 ? 'disabled' : '') + '"><a href="#" data-page="1">&laquo;</a></li>';
+        html += '<li class="' + (pag <= 1 ? 'disabled' : '') + '"><a href="#" data-page="' + (pag - 1) + '">&lsaquo;</a></li>';
+        // ventana de 5 alrededor de la actual
+        var desde = Math.max(1, pag - 2);
+        var hasta = Math.min(totalPag, pag + 2);
+        for (var i = desde; i <= hasta; i++) {
+          html += '<li class="' + (i === pag ? 'active' : '') + '"><a href="#" data-page="' + i + '">' + i + '</a></li>';
+        }
+        html += '<li class="' + (pag >= totalPag ? 'disabled' : '') + '"><a href="#" data-page="' + (pag + 1) + '">&rsaquo;</a></li>';
+        html += '<li class="' + (pag >= totalPag ? 'disabled' : '') + '"><a href="#" data-page="' + totalPag + '">&raquo;</a></li>';
+        $pager.html(html);
+      }
+
+      // ------------------------------------------------------------
+      // Helpers
+      // ------------------------------------------------------------
+      function formatFecha(iso) {
+        if (!iso) return '—';
+        var d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+      }
+
+      function escape(s) {
+        if (s == null) return '';
+        return String(s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      // ------------------------------------------------------------
+      // Events
+      // ------------------------------------------------------------
+      $(document).on('click', '#silHisPager a', function (e) {
+        e.preventDefault();
+        var $li = $(this).closest('li');
+        if ($li.hasClass('disabled') || $li.hasClass('active')) return;
+        var page = parseInt($(this).data('page'));
+        if (page && page > 0) cargarHistorico(page);
+      });
+
+      $(document).on('click', '#silHisAplicar', function () { cargarHistorico(1); });
+
+      $(document).on('click', '#silHisLimpiarFiltros', function () {
+        // "Limpiar" vuelve a la ventana por defecto, no a "sin filtro": sin
+        // fechas el backend mira los últimos 179 días, así que dejar los
+        // inputs vacíos daría la misma ventana con el rótulo de "sin filtro".
+        prefillFechas();
+        $('#silHisBusqueda').val('');
+        $('#silHisEstado, #silHisVendedor, #silHisComprador, #silHisGrano').val('');
+        cargarHistorico(1);
+      });
+
+      // Acordeón — abrir una fila cierra la anterior.
+      $(document).on('click', '.sil-row-data', function () {
+        var target = $(this).data('target');
+        var $row = $(target);
+        var isOpen = $row.is(':visible');
+        $('.sil-his-expand-row:visible').hide();
+        $('.sil-row-data.sil-row-open').removeClass('sil-row-open');
+        if (!isOpen) {
+          $row.show();
+          $(this).addClass('sil-row-open');
+        }
+      });
+
+      // Auto-cargar al entrar a la página.
+      prefillFechas();
+      cargarGranos();
+      cargarHistorico(1);
+    })();
+  </script>
+}

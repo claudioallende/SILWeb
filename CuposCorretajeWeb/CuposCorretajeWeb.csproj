@@ -338,6 +338,10 @@
     <Compile Include="Models\Solicitudes\Mapping\ShiftRequestRejectResultDto.cs" />
     <Compile Include="Models\Solicitudes\Mapping\SolicitudTurnoDto.cs" />
     <Compile Include="Models\Solicitudes\SolicitudesIndexResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\HistoricoAlfanumericoViewModel.cs" />
+    <Compile Include="Models\Solicitudes\HistoricoSolicitudItemViewModel.cs" />
+    <Compile Include="Models\Solicitudes\HistoricoSolicitudesResponseViewModel.cs" />
+    <Compile Include="Models\Solicitudes\SILHistoricoSolicitudesFilterViewModel.cs" />
     <Compile Include="Models\Solicitudes\SolicitudTurnoView.cs" />
     <Compile Include="Models\Solicitudes\SolicitudViewModel.cs" />
     <Compile Include="Models\TablaIndexViewModel.cs" />
@@ -378,6 +382,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Content\solicitudes-index.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\solicitudes-historial.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Content\solicitudes-matching-distribucion.css">
@@ -550,6 +557,7 @@
     <Content Include="Views\Configuracion\_NuevoPuertoStopPartial.cshtml" />
     <Content Include="Views\Solicitudes\Index.cshtml" />
     <Content Include="Views\Solicitudes\AltaSolicitud.cshtml" />
+    <Content Include="Views\Solicitudes\HistoricoSolicitudes.cshtml" />
     <Content Include="App_Data\usuarios.json" />
     <Content Include="App_Data\Administrar-UsuarioLocal.ps1" />
   </ItemGroup>

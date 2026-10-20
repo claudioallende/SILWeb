@@ -23,6 +23,16 @@
       </p>
     </div>
     <div class="sil-page-hd-actions">
+      <!-- RF-03: botón "Historial de solicitudes" (entrada a la vista
+           /Views/Solicitudes/HistoricoSolicitudes.cshtml). Visible para
+           todos los perfiles con acceso a Pantalla 1 (sin restricción de
+           claim adicional). Estilo teal para diferenciar del CTA
+           primario "+ Crear nuevo cupo". -->
+      <a class="sil-btn sil-btn-teal"
+         href="@Url.Action("HistoricoSolicitudes", "Solicitudes")"
+         title="Ver solicitudes cumplidas y vencidas">
+        &#9776; Historial de solicitudes
+      </a>
       <!-- Alta de cupo a nivel del listado (no atado a una solicitud puntual).
            La creación se hace en /Cupos/Nuevo/0; el parámetro returnUrl le
            indica a CuposController.Nuevo que vuelva a esta misma pantalla

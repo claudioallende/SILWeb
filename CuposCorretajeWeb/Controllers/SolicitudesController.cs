@@ -176,6 +176,118 @@ namespace CuposCorretajeWeb.Controllers
       }
     }
 
+    // -------------------------------------------------------------------
+    // RF-03: Histórico de solicitudes (cumplidas y vencidas)
+    // -------------------------------------------------------------------
+
+    /// <summary>
+    /// RF-03: renderiza la vista nueva <c>/Views/Solicitudes/HistoricoSolicitudes.cshtml</c>.
+    /// No requiere datos en el primer GET: la grilla se hidrata por AJAX vía
+    /// <see cref="GetHistoricoSolicitudes"/>.
+    /// </summary>
+    [HttpGet]
+    public ActionResult HistoricoSolicitudes()
+    {
+      // Por ahora la vista es estática (la grilla se hidrata vía
+      // GetHistoricoSolicitudes). En una iteración futura podemos
+      // pre-cargar los totales (Cumplidas/Vencidas/Total) al renderizar.
+      ViewBag.CentrosOperador = ResolverCentrosOperador();
+      return View();
+    }
+
+    /// <summary>
+    /// RF-03: AJAX GET que devuelve la lista paginada de solicitudes
+    /// históricas (Cumplidas y Vencidas) CON los alfanuméricos embebidos.
+    /// El patrón de "embed" es para que el toggle del acordeón (al
+    /// expandir la fila) sea instantáneo, sin un segundo request
+    /// (CA-09 del spec).
+    ///
+    /// El backend SILData expone <c>POST /api/ShiftRequest/GetHistoricoAsync</c>
+    /// con el filtro como body (mismo patrón que <c>GetAllPendingShiftRequestAsync</c>).
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult> GetHistoricoSolicitudes(
+        string estado = "Todos",
+        DateTime? fechaDesde = null,
+        DateTime? fechaHasta = null,
+        int? codigoGrano = null,
+        long? cuentaComprador = null,
+        long? cuentaVendedor = null,
+        string busquedaRapida = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+      try
+      {
+        List<string> centrosParaFiltro = ResolverCentrosOperador();
+
+        SILHistoricoSolicitudesFilterViewModel filter = new SILHistoricoSolicitudesFilterViewModel
+        {
+          Centros = centrosParaFiltro,
+          Estado = string.IsNullOrEmpty(estado) ? "Todos" : estado,
+          FechaDesde = fechaDesde,
+          FechaHasta = fechaHasta,
+          CodigoGrano = codigoGrano,
+          CuentaComprador = cuentaComprador,
+          CuentaVendedor = cuentaVendedor,
+          BusquedaRapida = busquedaRapida,
+          Pagina = page < 1 ? 1 : page,
+          TamanoPagina = pageSize < 1 ? 20 : (pageSize > 100 ? 100 : pageSize)
+        };
+
+        WebServiceSILRespository repo = new WebServiceSILRespository();
+        HistoricoSolicitudesResponseViewModel response =
+          await repo.RequestSILDataPostAndDeserializeAsync<HistoricoSolicitudesResponseViewModel>(
+            "ShiftRequest", "GetHistoricoAsync", filter)
+          ?? new HistoricoSolicitudesResponseViewModel();
+
+        return Content(JsonConvert.SerializeObject(response), "application/json");
+      }
+      catch (Exception ex)
+      {
+        Trace.TraceError($"[Solicitudes] GetHistoricoSolicitudes error: {ex}");
+        // Estructura vacía para no romper la grilla del operador. Se respeta la
+        // página que pidió para que el pager no salte a la 1 al recibir el error.
+        return Content(JsonConvert.SerializeObject(new HistoricoSolicitudesResponseViewModel
+        {
+          Items = new List<HistoricoSolicitudItemViewModel>(),
+          Resumen = new HistoricoSolicitudesResumenViewModel(),
+          Paginacion = new PaginacionViewModel
+          {
+            Pagina = page < 1 ? 1 : page,
+            TamanoPagina = pageSize < 1 ? 20 : (pageSize > 100 ? 100 : pageSize),
+            TotalRegistros = 0,
+            TotalPaginas = 0
+          }
+        }), "application/json");
+      }
+    }
+
+    /// <summary>
+    /// RF-03: proxy JSON del catálogo de granos para el filtro del histórico.
+    /// Reutiliza <c>Cliente/GetGranos</c> del ResourceServer — el mismo
+    /// catálogo que ya consume ConfiguracionController — en vez de cablear
+    /// uno nuevo.
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult> GetGranosHistorico()
+    {
+      try
+      {
+        ServicioGrano servicioGrano = new ServicioGrano();
+        var granos = await servicioGrano.GetGranosSil();
+
+        return Content(JsonConvert.SerializeObject(granos), "application/json");
+      }
+      catch (Exception ex)
+      {
+        // Un catálogo que no carga no debe voltear la pantalla: el select
+        // queda en "(todos)" y el resto de los filtros sigue operable.
+        Trace.TraceError($"[Solicitudes] GetGranosHistorico error: {ex}");
+        return Content("[]", "application/json");
+      }
+    }
+
     [HttpGet]
     public async Task<ActionResult> AltaSolicitud()
     {

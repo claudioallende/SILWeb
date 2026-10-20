@@ -1,0 +1,215 @@
+/* ============================================================
+   RF-03 — Histórico de solicitudes (cupos corretaje)
+   Hoja nueva, prefijo sil-his- para no colisionar con
+   sil-* del Index.
+   ============================================================ */
+
+/* --- Breadcrumb ------------------------------------------- */
+.sil-his-breadcrumb {
+  font-size: 12px;
+  color: #9aa3b5;
+  padding: 0 4px;
+  margin-bottom: 6px;
+}
+.sil-his-breadcrumb a {
+  color: #1a3a6b;
+  text-decoration: none;
+}
+.sil-his-breadcrumb a:hover { text-decoration: underline; }
+
+/* --- Tarjetas de totales (Cumplidas / Vencidas / Total) --- */
+.sil-his-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0 auto 12px;
+  max-width: 1280px;
+}
+.sil-his-card {
+  background: #fff;
+  border: 1px solid #dfe3eb;
+  border-left: 4px solid #1a3a6b;
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.sil-his-card-lbl {
+  font-size: 11px;
+  color: #9aa3b5;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.sil-his-card-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin-top: 2px;
+}
+.sil-his-card-cump { border-left-color: #27ae60; }
+.sil-his-card-cump .sil-his-card-val { color: #27ae60; }
+.sil-his-card-venc { border-left-color: #6c757d; }
+.sil-his-card-venc .sil-his-card-val { color: #6c757d; }
+
+/* --- Panel de filtros ------------------------------------ */
+.sil-his-filtros {
+  background: #fff;
+  border: 1px solid #dfe3eb;
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 0 auto 14px;
+  max-width: 1280px;
+}
+.sil-his-lbl {
+  font-size: 11px;
+  color: #9aa3b5;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  display: block;
+}
+.sil-his-filtros .form-control {
+  border: 1px solid #dfe3eb;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.sil-his-filtros .form-control:focus {
+  border-color: #1a3a6b;
+  box-shadow: 0 0 0 2px rgba(26, 58, 107, 0.15);
+}
+.sil-his-filtros-actions {
+  margin-top: 22px;
+  text-align: right;
+}
+.sil-his-filtros-actions .btn { font-size: 12px; padding: 6px 14px; }
+
+/* --- Grilla + filas desplegables ------------------------- */
+#silHisTabla .sil-row-data { cursor: pointer; }
+#silHisTabla .sil-row-data:hover { background: #fafbfd; }
+#silHisTabla .sil-row-data.sil-row-open { background: #eef4fb; }
+
+.sil-caret {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  color: #9aa3b5;
+  transition: transform 0.15s;
+}
+.sil-row-data.sil-row-open .sil-caret {
+  transform: rotate(90deg);
+  color: #1a3a6b;
+}
+
+/* --- Badges de estado ------------------------------------ */
+.sil-his-estado {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sil-his-estado-cump { background: #d4edda; color: #155724; }
+.sil-his-estado-venc {
+  background: #f4f6fa;
+  color: #6c757d;
+  border: 1px solid #dfe3eb;
+}
+
+/* --- Fila expandida (acordeón) --------------------------- */
+.sil-his-expand-row td {
+  background: #fafbfd;
+  padding: 14px 18px;
+  text-align: left;
+  cursor: default;
+}
+.sil-his-expand-inner {
+  background: #fff;
+  border: 1px solid #dfe3eb;
+  border-left: 3px solid #1a3a6b;
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.sil-his-expand-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: #9aa3b5;
+  padding: 6px 0;
+}
+.sil-his-alfa-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.sil-his-alfa-tbl th {
+  background: #eef2f7;
+  color: #1a3a6b;
+  padding: 6px 8px;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid #dfe3eb;
+}
+.sil-his-alfa-tbl td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #dfe3eb;
+  text-align: center;
+  background: transparent;
+}
+.sil-his-alfa-tbl tr:last-child td { border-bottom: none; }
+
+/* --- Empty state ------------------------------------------ */
+.sil-his-empty {
+  padding: 22px 12px;
+  text-align: center;
+  color: #9aa3b5;
+  font-size: 13px;
+}
+.sil-his-empty-icon {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+/* --- Footer (resumen + pager) ---------------------------- */
+.sil-his-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fafbfd;
+  font-size: 12px;
+  color: #9aa3b5;
+  border-top: 1px solid #dfe3eb;
+}
+.sil-his-pager {
+  display: inline-flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sil-his-pager li {
+  margin: 0 2px;
+}
+.sil-his-pager li a {
+  display: block;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #1a3a6b;
+  border: 1px solid #dfe3eb;
+  border-radius: 3px;
+  text-decoration: none;
+  background: #fff;
+}
+.sil-his-pager li.active a {
+  background: #1a3a6b;
+  color: #fff;
+  border-color: #1a3a6b;
+}
+.sil-his-pager li.disabled a {
+  color: #b8bdc7;
+  cursor: not-allowed;
+  background: #fafbfd;
+}
+
+/* --- Tablet / móvil --------------------------------------- */
+@media (max-width: 768px) {
+  .sil-his-cards { grid-template-columns: 1fr; }
+  .sil-his-filtros-actions { text-align: left; margin-top: 8px; }
+}
